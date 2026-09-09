@@ -16,13 +16,13 @@ metadata operations such as opening and listing become a bottleneck, and many ce
 hard quotas on file counts, independent of total data volume.
 
 The solution proposed in this document is to adopt HDF5 as an optional input and output
-format. HDF5 is a binary, self-describing, hierarchical format designed for large scientific
-datasets. It is compact and efficient to read and write; a single HDF5 file can contain many
-distinct datasets organized in a nested structure similar to a filesystem. Datasets and
-groups can carry attributes, small pieces of metadata such as units or other descriptors,
-stored directly alongside the data they describe. It is also easily accessible from Python —
-widely used in the community for analysis and pipeline scripting — via the mature `h5py`
-package, whose interface closely mirrors NumPy arrays.
+format. [HDF5](https://www.hdfgroup.org) is a binary, self-describing, hierarchical format
+designed for large scientific datasets. It is compact and efficient to read and write; a
+single HDF5 file can contain many distinct datasets organized in a nested structure similar
+to a filesystem. Datasets and groups can carry attributes, small pieces of metadata such as
+units or other descriptors, stored directly alongside the data they describe. It is also
+easily accessible from Python — widely used in the community for analysis and pipeline
+scripting — via the mature `h5py` package, whose interface closely mirrors NumPy arrays.
 
 A further benefit is that HDF5 is well suited to checkpointing — periodically saving the
 complete internal state of a running simulation so that it can be resumed after an
