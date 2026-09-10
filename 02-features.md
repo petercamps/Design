@@ -154,6 +154,14 @@ Assuming a ski file `mysim.ski`, an input directory `in`, and an HDF5 file `data
   directory (`<dir>` is `.`).
 - `skirt -i in/data.hf mysim.ski` — edge case: the alternative `.hf` extension.
 
+### Concurrency
+
+Any number of independent SKIRT processes may open and read the same HDF5 file at the same
+time, with no special mode or coordination needed. The one requirement is that no process
+still has the file open for writing. A write-open imposes this restriction as long as it
+stays open — not just while a write call is actually in progress — so in practice the writer
+needs to have closed the file, not merely paused, before readers open it.
+
 ## Output
 
 This section describes how SKIRT writes its output files once HDF5 support is enabled.
@@ -210,6 +218,39 @@ This makes it possible to collect the output of several simulations in a single 
 each under its own anchor, or to store both the input and the output of a single simulation
 together in one file.
 
+### Concurrency
+
+HDF5 does not support safe, uncoordinated writes to the same file from more than one
+independent process — only a single writer is allowed at a time. Two SKIRT processes must
+therefore never target the same HDF5 file concurrently. Simulations that may run
+concurrently should each write to their own HDF5 file. (Note that, when SKIRT runs in MPI
+multi-processing mode, only the root process writes output.)
+
+SKIRT output files can be combined afterward, either by merging them, or by building a small
+"umbrella" HDF5 file that uses
+[external links](https://support.hdfgroup.org/documentation/hdf5/latest/group___h5_l.html)
+to present the separate files as a single navigable hierarchy, without copying any data.
+
 ## Checkpointing
 
-TODO: describe the checkpointing feature.
+### Introduction
+
+A checkpoint is a snapshot of a SKIRT simulation's complete internal state, written
+periodically while the simulation runs. Resuming from a checkpoint continues the simulation
+from that point onward, rather than restarting it from the beginning.
+
+Beyond resuming after an interruption — a crash, or a cluster job hitting its time limit —
+the checkpoint file is an ordinary, self-describing HDF5 file, which makes it useful in its
+own right:
+
+- **Inspection and visualization in Python.** Its contents — the radiation field, per-cell
+  medium state, and so on — can be explored directly with `h5py`, independently of whether
+  the run is ever actually resumed.
+- **Iterating across simulations.** The saved state can seed a new run configured with more
+  photon packets or additional iterations, to improve signal-to-noise or convergence, rather
+  than starting that more expensive run from scratch. This makes it practical to chain
+  several SKIRT runs together, with convergence judged externally — from the intermediate
+  results — rather than automatically inside SKIRT itself.
+- **Refining the spatial grid.** A simulation's spatial grid can likewise be refined based on
+  the results of a previous, coarser run. This is a more advanced case: carrying medium
+  state across a change in spatial resolution will need some form of remapping.
