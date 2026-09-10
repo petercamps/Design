@@ -30,11 +30,19 @@ interruption or restarted from a known point. The same properties that make HDF5
 for input and output — a single, self-describing file holding multiple structured datasets —
 make it equally suitable for capturing that state.
 
-## Overview
+## Compatibility
 
-The features described in this document are additions to SKIRT: all existing input, output,
-and command-line behavior remains unchanged, and the new HDF5-based functionality is layered
-on top in a backward-compatible way.
+The features described in this document are additions to SKIRT. With the exceptions noted
+below, existing input, output, and command-line behavior remains unchanged, and the new
+HDF5-based functionality is layered on top in a backward-compatible way.
+
+Support for the following less-frequently-used file formats is dropped and replaced by
+superior HDF5 storage mechanisms:
+
+- The `scol` format, a SKIRT-specific binary alternative to regular text column files.
+- The specialized text format used for saving and re-loading spatial grid tree topology.
+
+## Overview
 
 The remaining chapters are organized as follows:
 
