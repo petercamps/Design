@@ -156,7 +156,59 @@ Assuming a ski file `mysim.ski`, an input directory `in`, and an HDF5 file `data
 
 ## Output
 
-TODO: describe the HDF5-based output feature.
+This section describes how SKIRT writes its output files once HDF5 support is enabled.
+
+### File types
+
+SKIRT currently writes the following kinds of output files:
+
+- **Text column files** — employed for all single-axis tables: SEDs, per-cell and
+  per-position probe output, and instrument statistics tables (`FluxRecorder`).
+  Uses the same header-comment convention as the input side (`# column N: ... (unit)`).
+- **FITS files** — employed for instrument frames and data cubes,
+  and for planar cuts or projections produced by probes.
+- **Spatial grid plot files** — a polyline format where
+  each line holds 2 or 3 coordinates meaning "draw a line to this point", and a blank line
+  starts a new, disconnected segment. Every spatial grid writes one of these to plot its own
+  cell geometry.
+- **Unstructured text files** - the `convergence.dat` plain text file intended for human
+  consumption, written by `ConvergenceInfoProbe`.
+- **XML file** - the `parameters.xml` file, a reformatted version of the ski file
+  governing the simulation.
+- **Log file** - The `log.txt` plain text file with progress, warning and error messages.
+  Because this file grows as the simulation runs, and users should be able to view the
+  simulation's progress in real-time, the log file is always written as a regular file
+  and then stored in the HDF file after the simulation has ended.
+
+The [Data model](03-data-model.md) chapter explains how each of these maps to datasets in
+HDF5, and how to read them from Python.
+
+**Incompatibility note**:
+
+- Support for saving and re-loading spatial grid tree topology to and from text files is
+  dropped and replaced by a more general HDF5 storage mechanism.
+
+### Command-line syntax
+
+The command-line option that specifies the output location, `-o`, follows the same
+`<dir>/<hdf>:<anchor>` format as `-i`, with the same meaning for each component (see
+Command-line syntax under Input, above).
+
+### How output files are written
+
+If only `<dir>` is given, SKIRT behaves exactly as before: every output file is written as a
+plain file inside `<dir>`.
+
+If `<hdf>` is also given, SKIRT writes into that HDF5 file instead. The file as a whole is
+never replaced: if it already exists, SKIRT opens it and adds to it. Each individual output
+is written as a new dataset, or replaces an existing one if a dataset with the same name is
+already present; every other dataset in the file is left untouched. The dataset name matches
+the plain output file that would otherwise have been produced, prefixed with `<anchor>` if
+given, exactly as on the input side.
+
+This makes it possible to collect the output of several simulations in a single HDF5 file,
+each under its own anchor, or to store both the input and the output of a single simulation
+together in one file.
 
 ## Checkpointing
 
