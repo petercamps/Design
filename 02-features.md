@@ -277,11 +277,100 @@ own right:
 
 ### The checkpoint probe
 
-TODO: describe the checkpoint probe.
+Checkpointing is implemented as a specialty probe, configured in the ski file exactly like
+any other probe. Because a checkpoint's contents are too complex to express as plain text or
+FITS output, this probe is only available when SKIRT is built with `BUILD_HDF5` enabled.
+
+Like every probe, the checkpoint probe runs at the fixed "when" points already defined by
+SKIRT's probe mechanism:
+
+| When | Runs |
+| --- | --- |
+| `Setup` | Once, after every item has been configured, before any photon packet is shot. |
+| `Primary` | After each primary-emission iteration, once its medium state and radiation field are updated. |
+| `Secondary` | After each secondary-emission iteration, once its medium state and radiation field are updated. |
+| `Run` | Once, after every photon packet has been emitted and detected — the very end of the run. |
+
+Restricting checkpoints to these four points, rather than an arbitrary moment, keeps the
+implementation manageable: the simulation is always in a well-defined, between-phases state
+when a checkpoint runs, so there is no need to save fine-grained progress state such as how
+many photon packets have already been sent. Concurrency has also already settled down by
+then — like every probe, the checkpoint probe is always called from the main thread, never
+from a worker thread mid-loop.
+
+Unlike other probes, at most one checkpoint probe is allowed per simulation. That single
+probe fires at all four points listed above — each firing is referred to as a checkpoint
+from here on — and decides autonomously what to store at each one, as described below.
+Consequently, the checkpoint probe exposes no configuration properties beyond the
+`probeName` property every probe inherits from the `Probe` base class.
 
 ### Checkpoint datasets
 
-TODO: describe the checkpoint datasets.
+In addition to defining its "when" point (including the iteration index), a checkpoint
+may save the following datasets, each capturing one aspect of the simulation's
+runtime state.
+
+**Spatial grid.** Captures the grid's hierarchical structure. For grid types whose topology
+is built up rather than read directly from input, reconstruction can be expensive or even
+impossible — octree subdivision decisions, for example, often depend on random sampling of
+an input density field. Therefore, a checkpoint stores the precise grid topology, rather
+than requiring it to be rebuilt on resume.
+
+This dataset also includes enough information to visualize or sample grid-discretized
+quantities without needing to fully reconstruct the grid. For example, grids with cuboidal,
+axis-aligned cells store a linear list of corner coordinates for each cell, regardless of
+the structural relationships between cells. Similar linear representations apply to many
+other grid types.
+
+**Medium state.** Represents the discretization of the simulation's medium properties
+on the spatial grid. This includes per-cell quantities such as cell volume and bulk velocity,
+and per-cell, per-medium-component quantities such as density (mandatory), temperature, or
+custom quantities defined by the configured material mix.
+
+Even if the medium state does not vary during the simulation, it is still necessary to store
+it in a checkpoint. The medium property values are often determined during setup by randomly
+sampling the input model's spatial distribution. Repeating the process would never produce
+the exact same result. Furthermore, the checkpoint data can be used for visualization.
+
+**Radiation field.** Holds the per-cell, per-wavelength radiation field accumulated from
+every photon packet traced so far. If applicable, the results accumulated from primary
+and secondary emission are stored separately.
+
+**Recorded fluxes.** Holds each instrument's accumulated detections — SEDs,
+data cubes, and similar — built up one photon packet at a time over the course of the run.
+The data stored here is not yet calibrated to instrument properties such as distance
+or pixel scale (such calibration happens just before the instrument output is written).
+If applicable, the accumulated statistics (higher moments of the detected fluxes)
+are stored as well.
+
+The [Data model](03-data-model.md) chapter provides details on how these are stored in HDF5.
+
+### Checkpoint probe behavior
+
+The checkpoint probe outputs only data that is available in the simulation. For example,
+a no-medium simulation does not have a spatial grid, and an extinction-only simulation may
+not have a radiation field.
+
+As indicated above, the checkpoint probe is invoked for every "when" point that actually
+occurs in a simulation. This always includes the Setup and Run checkpoints, and may
+include iteration checkpoints. Conceptually, the probe outputs all available datasets at
+each checkpoint.
+
+In practice, for portions of the data that remain unchanged, the probe simply links to the
+data stored during a previous checkpoint. This makes every checkpoint's output
+self-consistent while avoiding data duplication. For example, the spatial grid dataset
+never changes during a simulation, so it is stored only once. Similarly, some or all of the
+medium state properties may be constant and are thus stored only once.
+
+### Unsupported features 
+
+**Convergence history.** Convergence criteria determine when to end iterations over primary
+and/or secondary emission. Some criteria are implemented globally for all medium components
+of a given type (dust self-absorption); others are implemented by individual material mixes
+or dynamic state recipes. Often such recipes retain some history from one or more earlier
+iterations to help determine whether convergence has been reached. The checkpoint probe does
+_not_ store this information. After resuming a simulation, one or more extra iterations may
+be required to build up this history (again). In practice, this should not be a concern.
 
 ### Resuming from a checkpoint
 
