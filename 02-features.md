@@ -218,18 +218,38 @@ This makes it possible to collect the output of several simulations in a single 
 each under its own anchor, or to store both the input and the output of a single simulation
 together in one file.
 
+### Examples
+
+Assuming a ski file `mysim.ski`, an input directory `in`, an output directory `out`, and an
+HDF5 file `data.hdf5`:
+
+- `skirt -i in -o out/data.hdf5 mysim.ski` — plain-file input, HDF5 output: input files are
+  read from `in` as before, while every output file is written as a dataset inside
+  `out/data.hdf5` instead of as a plain file in `out`.
+- `skirt -i in/data.hdf5 -o out mysim.ski` — the reverse: input files are sought as datasets
+  in `in/data.hdf5`, while every output file is written as a plain file in `out`, as before.
+- `skirt -i in/data.hdf5 -o in/data.hdf5 mysim.ski` — input and output share the same HDF5
+  file: input datasets are read from it, and output datasets are added into that same file
+  alongside them.
+
+`-i` and `-o` are independent: each may target a plain directory or an HDF5 file regardless
+of what the other one uses.
+
 ### Concurrency
 
 HDF5 does not support safe, uncoordinated writes to the same file from more than one
-independent process — only a single writer is allowed at a time. Two SKIRT processes must
-therefore never target the same HDF5 file concurrently. Simulations that may run
-concurrently should each write to their own HDF5 file. (Note that, when SKIRT runs in MPI
-multi-processing mode, only the root process writes output.)
-
-SKIRT output files can be combined afterward, either by merging them, or by building a small
-"umbrella" HDF5 file that uses
+independent process — only a single writer is allowed at a time. Therefore, simulations that
+run concurrently should each write to their own HDF5 file. SKIRT output files can be combined
+afterward, either by merging them, or by building a small "umbrella" HDF5 file that uses
 [external links](https://support.hdfgroup.org/documentation/hdf5/latest/group___h5_l.html)
 to present the separate files as a single navigable hierarchy, without copying any data.
+
+Using the same HDF5 file for both `-i` and `-o` in a given simulation, as in the last
+example above, does not violate this concurrency rule: a single process reading from and
+writing to a file it already has open is explicitly allowed.
+
+When a simulation runs in MPI multi-processing mode, SKIRT ensures that there are no
+concurrency conflicts between these processes.
 
 ## Checkpointing
 
@@ -254,3 +274,27 @@ own right:
 - **Refining the spatial grid.** A simulation's spatial grid can likewise be refined based on
   the results of a previous, coarser run. This is a more advanced case: carrying medium
   state across a change in spatial resolution will need some form of remapping.
+
+### The checkpoint probe
+
+TODO: describe the checkpoint probe.
+
+### Checkpoint datasets
+
+TODO: describe the checkpoint datasets.
+
+### Resuming from a checkpoint
+
+TODO: describe resuming from a checkpoint.
+
+### Iterating across simulations
+
+TODO: describe iterating across simulations.
+
+### Reusing hierarchical grid topology
+
+TODO: describe reusing hierarchical grid topology.
+
+### Refining the spatial grid
+
+TODO: describe refining the spatial grid.
