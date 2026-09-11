@@ -372,6 +372,22 @@ iterations to help determine whether convergence has been reached. The checkpoin
 _not_ store this information. After resuming a simulation, one or more extra iterations may
 be required to build up this history (again). In practice, this should not be a concern.
 
+**Spatial grid types.** The linear cell list representation is initially supported only
+for grids with cuboidal, axis-aligned cells. This includes hierarchical octree and
+binary-tree grids, AMR-based grids, and Cartesian grids. Consequently, other grid types
+cannot be used as input to a follow-up grid-refinement simulation and lack an easy
+visualization mechanism.
+
+**Geometry decorators.** The `ClumpyGeometryDecorator` with a default `seed` value of
+0 is not supported because it will position the clumps differently when resuming. This is
+easily resolved by configuring the decorator with a nonzero seed.
+
+Some decorators (`ClipGeometryDecorator` and `RedistributeGeometryDecorator` subclasses)
+renormalize the advertised total mass by randomly sampling densities. When used as a source,
+the luminosity normalization will vary slightly after resuming. When used as a medium,
+there is no discrepancy because the medium state will be reloaded from the checkpoint data
+without querying the geometry again.
+
 ### Resuming from a checkpoint
 
 TODO: describe resuming from a checkpoint.
