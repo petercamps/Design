@@ -479,10 +479,11 @@ Resuming from a Secondary checkpoint to run more iterations supports:
 
 As in case 2, a new multiplier value applies only to the iterations run after resuming.
 
-For cases 2 and 3 to be effective, any convergence criteria specified in the original
-ski file must be configured liberally. Indeed, an iteration loop exits as soon as
-the ski-file configured convergence criteria are satisfied, regardless of how high
-the maximum number of iterations is set.
+For cases 2 and 3 to be effective, any convergence criteria specified in the original ski
+file must be configured strictly, not liberally. An iteration loop exits as soon as its
+convergence criteria are satisfied, regardless of how high the maximum number of iterations
+is set — and a liberal, easily satisfied criterion is met almost immediately, ending the
+loop well short of that maximum.
 
 The parameter changes discussed above are safe given how a SKIRT simulation's
 checkpoint resume operation works: a higher
@@ -527,11 +528,66 @@ loop:
     skirt -i in.hdf5 -o run.hdf5 -c run.hdf5 mysim.ski
 ```
 
-### Reusing hierarchical grid topology
+### Reusing grid topology
 
-TODO: describe reusing hierarchical grid topology.
+There are situations where multiple simulations should use the exact same spatial grid, or
+where the time needed to build a grid should be avoided — for example, an octree whose
+structure is determined by sampling the input density distribution. A typical case is a
+study of several similar input models with variations in material properties, where the
+underlying spatial distribution of the medium, and thus the ideal grid, stays the same
+across runs.
 
-TODO: describe what happens to `TreeSpatialGridTopologyProbe` and `FileTreeSpatialGrid`
+This is not an issue for spatial grid types whose structure is fully determined by the ski
+file: building such a grid is fast, and for a given ski file, always produces the exact same
+result. It is an issue for the SKIRT spatial grid types whose structure instead depends on
+sampling the input density distribution:
+
+- **Tree grids** (`PolicyTreeSpatialGrid` configured with the default `DensityTreePolicy`,
+  or with `NestedDensityTreePolicy`) sample density at many randomly selected positions to
+  decide where to subdivide.
+- **`VoronoiMeshSpatialGrid`** and **`TetraMeshSpatialGrid`**, unless configured with their
+  `File`, `ImportedSites`, or `ImportedMesh` policy, place their sites or vertices by random
+  sampling — either from a synthetic distribution (`Uniform`, `CentralPeak`) or, more
+  commonly, importance-sampled from the actual input density (`DustDensity`, the default
+  for both grids, `ElectronDensity`, or `GasDensity`) — before tessellating them. 
+
+Not only does the random sampling take time, but the resulting grid will differ subtly
+between SKIRT runs because the employed pseudo-random sequence is unique for each run
+(except in single-threaded execution mode).
+
+Other spatial grid types are unaffected: their structure is either fully parametric (e.g.
+`CartesianSpatialGrid` and the `Cylinder`/`Sphere` grids) or taken wholesale from an
+imported mesh (`AdaptiveMeshSpatialGrid`), with no sampling involved either way.
+
+The spatial grid checkpoint dataset already captures the resolved topology of these
+variable grid types (see Checkpoint datasets, above), so a follow-up simulation can load it
+instead of rebuilding the grid from scratch. Because this is not a resume, the source is not
+given through the `-c` command-line option; instead, each variable grid type gains a ski
+file option to load its topology from a previous checkpoint. The following treats each case
+in turn.
+
+**Tree grids.** The new mechanism replaces the existing one: the
+`TreeSpatialGridTopologyProbe` is removed, since the spatial grid checkpoint dataset already
+captures the same topology as a side effect during checkpointing. The `filename`
+property of `FileTreeSpatialGrid` now names an HDF5 file —
+resolved relative to the simulation's input directory, like any other input file —
+followed by a mandatory `:<dataset>` component. This component consists of an optional anchor
+and a mandatory snapshot
+name identifying which checkpoint to load from. `FileTreeSpatialGrid` then picks out the
+relevant dataset within that snapshot on its own. The saved topology remains scale-free,
+so the simulation loading it still specifies the domain extent itself.
+
+**`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
+`filename` property can still name a plain text file of site positions, or now instead an
+HDF5 file, resolved relative to the input directory, with
+the same mandatory `:<dataset>` component described above. Either way, `File` loads
+previously recorded site positions rather than sampling new ones; the tessellation itself
+still runs as before.
+
+**`TetraMeshSpatialGrid`.** The same extension applies to the`File` policy: the
+`filename` property can name either a plain text file or an HDF5 file. This loads previously
+recorded vertex positions rather than sampling new ones, while the Delaunay
+tetrahedralization still runs as before.
 
 ### Refining the spatial grid
 
