@@ -72,7 +72,7 @@ This section describes how SKIRT locates its input files once HDF5 support is en
 SKIRT currently supports several input file types, each suited to a different kind of
 source data:
 
-- **Column text** — a plain text table with one row per item (wavelength, particle,
+- **Text column file** — a plain text table with one row per item (wavelength, particle,
   cell, …) and one column per property (luminosity, position, density, …).
   It is widely used for importing particle- or cell-based spatial distributions, and for
   specifying spectral energy distributions, mesh definitions, material properties and more.

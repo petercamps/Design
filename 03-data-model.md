@@ -72,5 +72,62 @@ filter, since HDF5 can only compress a dataset one chunk at a time.
 The HDF5 library ships with several industry-standard compression methods built in, and
 additional ones can be registered if needed.
 
-TODO: SKIRT's actual data model / schema — how each input, output, and checkpoint dataset
-described in the Features chapter maps onto these building blocks.
+## Input/output data sets
+
+Each input and output file type described in the Features chapter needs an HDF5
+representation. A type used on both the input and the output side gets a single
+subsection below.
+
+### Text column file
+
+TODO: describe the HDF5 representation of text column file data (input and output).
+
+### AMR text file
+
+TODO: describe the HDF5 representation of AMR text data (input).
+
+### FITS file
+
+TODO: describe the HDF5 representation of FITS data (input and output).
+
+### Stored table (.stab)
+
+TODO: describe the HDF5 representation of stored table (.stab) data (input).
+
+### Spatial grid plot file
+
+TODO: describe the HDF5 representation of spatial grid plot data (output).
+
+### Unstructured text file
+
+TODO: describe the HDF5 representation of unstructured text output such as
+`convergence.dat`.
+
+### XML file
+
+TODO: describe the HDF5 representation of the `parameters.xml` output.
+
+### Log file
+
+TODO: describe the HDF5 representation of the `log.txt` output.
+
+## Checkpoint data sets
+
+Each dataset listed under Checkpoint datasets in the Features chapter needs an HDF5
+representation.
+
+### Spatial grid
+
+TODO: describe the HDF5 representation of the spatial grid checkpoint dataset.
+
+### Medium state
+
+TODO: describe the HDF5 representation of the medium state checkpoint dataset.
+
+### Radiation field
+
+TODO: describe the HDF5 representation of the radiation field checkpoint dataset.
+
+### Recorded fluxes
+
+TODO: describe the HDF5 representation of the recorded fluxes checkpoint dataset.
