@@ -15,3 +15,13 @@ TODO: implementation plan, milestones, and affected SKIRT components.
 - If the input HDF5 file contains datasets equivalent to today's memory-mapped stored
   tables (`.stab`) and the output target is the same file, memory-mapping them is unsafe.
   In that case, fall back to copying the data into memory instead of memory-mapping it.
+- Considering redesigning `PolicyTreeSpatialGrid` to hold a _list_ of `TreePolicy` instances
+  rather than one, subdividing a node as soon as any single policy asks for it (so density,
+  electron/gas density, particle-list, etc. criteria can be freely combined). Under this
+  design, `FileTreeSpatialGrid` could become just another policy that replays a previously
+  recorded topology, instead of a separate spatial grid class — this also gives "refine a
+  snapshot with an extra criterion" for free. Gotcha: tree construction is breadth-first,
+  level by level (see `DensityTreePolicy::constructTree()`), so the snapshot policy must
+  match live nodes to its own recorded ones by tree position — parsed into a real tree at
+  setup — rather than by consuming the recorded sequence in order; once a live node falls
+  past what was recorded, it correctly answers no from there down.

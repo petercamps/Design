@@ -528,6 +528,63 @@ loop:
     skirt -i in.hdf5 -o run.hdf5 -c run.hdf5 mysim.ski
 ```
 
+### An aside: restructuring tree policies
+
+Although it is not this document's main subject, this section proposes a restructuring of
+SKIRT's hierarchical tree policies — the classes that determine how nodes get subdivided.
+This could be implemented in conjunction with the HDF5 functionality discussed in this
+document.
+
+Today, a tree-based spatial grid is either a `PolicyTreeSpatialGrid`, configured with a
+single construction policy, or a `FileTreeSpatialGrid`, which loads a previously saved
+topology instead of building one. The proposal merges these back into a single, concrete
+`TreeSpatialGrid` class, configured with a _list_ of construction policies rather than a
+single one. `treeType`, `minLevel`, and `maxLevel` — currently split between
+`PolicyTreeSpatialGrid` and the individual policy — become properties of `TreeSpatialGrid`
+itself, shared by every policy in the list.
+
+During construction, a node is subdivided as soon as any one policy in the list asks for
+it. This makes the policies freely combinable: a grid can use dust density, electron
+density, gas density, and the positions of an imported medium's particles all at once,
+simply by listing one policy of each kind, rather than being restricted to a single
+criterion. It also makes refining an existing grid with an extra criterion trivial — just
+add one more policy to the list.
+
+The following policies would be available. The current, single `DensityTreePolicy` splits
+into one policy per material type, since its three material types already have
+independent, separately configurable criteria; the existing `SiteListTreePolicy` carries
+over unchanged; and two new policies take over what `FileTreeSpatialGrid` and
+`NestedDensityTreePolicy` do today, as described below the table.
+
+| Policy | Properties |
+| --- | --- |
+| `DustDensityTreePolicy` | `maxDustFraction`, `maxDustOpticalDepth`, `wavelength`, `maxDustDensityDispersion` |
+| `ElectronDensityTreePolicy` | `maxElectronFraction` |
+| `GasDensityTreePolicy` | `maxGasFraction` |
+| `SiteListTreePolicy` | `numExtraLevels` (unchanged from today) |
+| `BoxTreePolicy` | a bounding box, plus a nested `policy` |
+| `CheckpointTreePolicy` | `filename` (an HDF5 checkpoint; see Reusing grid topology, below) |
+
+**`CheckpointTreePolicy`** replaces `FileTreeSpatialGrid`: it loads a previously recorded
+topology from an HDF5 checkpoint instead of computing one, but now as one policy among
+others rather than a separate spatial grid class. This is precisely what makes refining a
+previously saved grid with an extra criterion possible: list the checkpoint policy alongside
+a fresh density policy, and the combined grid subdivides at least everywhere the checkpoint
+did, plus wherever the new criterion additionally asks for it.
+
+**`BoxTreePolicy`** avoids one policy inheriting from another. Today,
+`NestedDensityTreePolicy` specifies a higher resolution in a region of interest by
+inheriting from `DensityTreePolicy` for the outer criteria and holding a second
+`DensityTreePolicy` instance for the inner region — a pattern that would need a new
+subclass for every kind of criterion one might want to nest. `BoxTreePolicy` holds an
+arbitrary policy as an ordinary sub-item, together with a bounding box — a cuboid aligned
+with the coordinate axes — and defers to that
+policy only for nodes intersecting the box. Listed alongside an ordinary, ungated policy for
+the rest of the domain, it reproduces the same result for the typical case, since the
+box-gated policy's criteria are normally the stricter of the two and therefore dominate
+wherever they overlap. The same mechanism now works for any kind of policy, and for
+more than one nested box, without a dedicated class for each combination.
+
 ### Reusing grid topology
 
 There are situations where multiple simulations should use the exact same spatial grid, or
@@ -568,14 +625,14 @@ in turn.
 
 **Tree grids.** The new mechanism replaces the existing one: the
 `TreeSpatialGridTopologyProbe` is removed, since the spatial grid checkpoint dataset already
-captures the same topology as a side effect during checkpointing. The `filename`
-property of `FileTreeSpatialGrid` now names an HDF5 file —
-resolved relative to the simulation's input directory, like any other input file —
-followed by a mandatory `:<dataset>` component. This component consists of an optional anchor
-and a mandatory snapshot
-name identifying which checkpoint to load from. `FileTreeSpatialGrid` then picks out the
-relevant dataset within that snapshot on its own. The saved topology remains scale-free,
-so the simulation loading it still specifies the domain extent itself.
+captures the same topology as a side effect during checkpointing. The `filename` property of
+`FileTreeSpatialGrid` (or `CheckpointTreePolicy` as proposed in the previous section) now
+names an HDF5 file — resolved relative to the simulation's input directory, like any other
+input file — followed by a mandatory `:<dataset>` component. This component consists of an
+optional anchor and a mandatory name identifying which checkpoint to load from.
+`FileTreeSpatialGrid` (or `CheckpointTreePolicy`) then picks out the relevant dataset within
+that checkpoint on its own. The saved topology remains scale-free, so the simulation loading
+it still specifies the domain extent itself.
 
 **`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
 `filename` property can still name a plain text file of site positions, or now instead an
@@ -584,7 +641,7 @@ the same mandatory `:<dataset>` component described above. Either way, `File` lo
 previously recorded site positions rather than sampling new ones; the tessellation itself
 still runs as before.
 
-**`TetraMeshSpatialGrid`.** The same extension applies to the`File` policy: the
+**`TetraMeshSpatialGrid`.** The same extension applies to the `File` policy: the
 `filename` property can name either a plain text file or an HDF5 file. This loads previously
 recorded vertex positions rather than sampling new ones, while the Delaunay
 tetrahedralization still runs as before.
