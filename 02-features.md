@@ -648,4 +648,43 @@ tetrahedralization still runs as before.
 
 ### Refining the spatial grid
 
-TODO: describe refining the spatial grid.
+Today's hierarchical tree subdivision criteria focus mostly on the medium's density distribution.
+Resolving gradients in the radiation field itself is at least as important, and arguably
+more so, since it is the quantity that ultimately determines the accuracy of every
+simulation result, while density is only a proxy for it.
+
+Because the radiation field is one of the datasets captured in a checkpoint (see Checkpoint
+datasets, above), it can be used for exactly this purpose across two simulations. A first,
+deliberately cheap simulation computes an approximate radiation field — with fewer photon
+packets, a coarser spatial grid, or a wavelength grid restricted to the spectral range of
+interest — and writes it to a checkpoint. A follow-up simulation then reads that checkpoint
+back to refine the spatial grid further, wherever the approximate field indicates that it is
+not yet properly resolved.
+
+Because this follow-up run is a fresh simulation rather than a resume, there is no need
+to remap medium state or radiation-field accumulators onto the changed grid — every
+quantity is simply computed fresh on the refined grid, exactly as in any ordinary run.
+The only requirement is that the original simulation's spatial grid checkpoint includes the
+linear cell list representation (see Spatial grid types under Unsupported features,
+above), so that the radiation field can be sampled without fully reconstructing the
+original grid.
+
+This is a direct application of the restructured tree policies proposed above (see An
+aside: restructuring tree policies). The follow-up simulation's grid could combine a
+`CheckpointTreePolicy` — which reuses the first simulation's grid as a starting point —
+with a new policy based on the radiation field. One possible such policy is sketched
+below, extending the table given there; the exact set of properties, and how it should
+relate to primary versus secondary emission, are left for future consideration.
+
+| Policy | Properties |
+| --- | --- |
+| `RadiationFieldTreePolicy` | `maxFieldFraction`, `maxFieldDispersion`, `minWavelength`, `maxWavelength` |
+
+Like `CheckpointTreePolicy`, it takes a `filename` property identifying the source
+checkpoint, using the same HDF5-file-plus-dataset syntax. `maxFieldFraction` mirrors
+`maxDustFraction`: it limits the fraction of the total radiation field energy contained in
+each cell, forcing subdivision in cells that dominate the energy budget.
+`maxFieldDispersion` mirrors `maxDustDensityDispersion`: it limits how much the field is
+allowed to vary within a single cell, sampled from the checkpoint rather than computed on
+the fly. `minWavelength` and `maxWavelength` restrict both criteria to a spectral range of
+interest, defaulting to the full range covered by the source checkpoint.
