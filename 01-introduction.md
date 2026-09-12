@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: final draft
+> Status: draft
 
 ## Motivation
 

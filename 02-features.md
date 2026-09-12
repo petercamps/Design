@@ -394,6 +394,8 @@ packets launched during primary and secondary emission. Because the counters are
 checkpointed, they will reset to zero when resuming. This could be resolved by adding an
 extra checkpoint dataset, but this is left for future consideration.
 
+## Using checkpoints
+
 ### Resuming from a checkpoint
 
 A new command-line option, `-c`, specifies the checkpoint data used to resume a simulation:
