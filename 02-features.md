@@ -367,10 +367,11 @@ medium state properties may be constant and are thus stored only once.
 **Convergence history.** Convergence criteria determine when to end iterations over primary
 and/or secondary emission. Some criteria are implemented globally for all medium components
 of a given type (dust self-absorption); others are implemented by individual material mixes
-or dynamic state recipes. Often such recipes retain some history from one or more earlier
-iterations to help determine whether convergence has been reached. The checkpoint probe does
-_not_ store this information. After resuming a simulation, one or more extra iterations may
-be required to build up this history (again). In practice, this should not be a concern.
+(e.g. `DiffuseIonizedGasMix`) or dynamic state recipes (e.g. `DustDestructionRecipe`).
+Often such recipes retain some history from one or more earlier iterations to help determine
+whether convergence has been reached. The checkpoint probe does _not_ store this information.
+After resuming a simulation, one or more extra iterations may be required to build up this
+history (again). In practice, this should not be a concern.
 
 **Spatial grid types.** The linear cell list representation is initially supported only
 for grids with cuboidal, axis-aligned cells. This includes hierarchical octree and
@@ -388,17 +389,149 @@ the luminosity normalization will vary slightly after resuming. When used as a m
 there is no discrepancy because the medium state will be reloaded from the checkpoint data
 without querying the geometry again.
 
+**Launched packets probe.** The `LaunchedPacketsProbe` keeps track of the number of photon
+packets launched during primary and secondary emission. Because the counters are not
+checkpointed, they will reset to zero when resuming. This could be resolved by adding an
+extra checkpoint dataset, but this is left for future consideration.
+
 ### Resuming from a checkpoint
 
-TODO: describe resuming from a checkpoint.
+A new command-line option, `-c`, specifies the checkpoint data used to resume a simulation:
+
+```
+-c <dir>/<hdf>:<anchor>
+```
+
+This follows the same `<dir>/<hdf>:<anchor>` format as `-i` and `-o` (see Command-line
+syntax under Input, above), except that `<hdf>` is required rather than optional, since a
+checkpoint exists only inside an HDF5 file, never as a collection of plain files.
+
+By default, SKIRT resumes from the most recent checkpoint found under the given anchor. To
+resume from an earlier one instead, extend the anchor with that checkpoint's own name, i.e.
+`<anchor>/<name>` rather than `<anchor>` alone (the [Data model](03-data-model.md) chapter
+explains how individual checkpoints are named).
+
+Resuming does not read the ski file from the checkpoint data. The ski file governing the
+resumed run is always given explicitly on the command line, exactly as for a fresh run, and
+it **must** be the exact same file used to produce the checkpoint — SKIRT cannot detect a
+mismatch, so a different or modified ski file will silently produce incorrect results.
+
+Assuming a ski file `mysim.ski` and three HDF5 files `in/data.hdf5`, `out/data.hdf5`, and
+`chk/data.hdf5`, where the last one holds a checkpoint written by a previous run:
+
+- `skirt -i in/data.hdf5 -o out/data.hdf5 -c chk/data.hdf5 mysim.ski` — input, output, and
+  checkpoint each use their own file, entirely independent of one another.
+- `skirt -i in/data.hdf5 -o in/data.hdf5 -c in/data.hdf5 mysim.ski` — all three share a
+  single file: the same file that served as input and output for the previous run, and
+  therefore already holds its checkpoints, continues to serve that role for the resumed run.
+
+Either way, resuming loads the spatial grid, medium state, radiation field, and recorded
+fluxes stored in the selected checkpoint, and continues the simulation from the corresponding
+"when" point onward instead of redoing any of the work that checkpoint already reflects.
+For example, resuming from a checkpoint written after a primary-emission iteration continues
+with the next primary-emission iteration.
+
+This has one limitation, following directly from restricting checkpoints to well-defined,
+between-phases points (see The checkpoint probe, above): a single long stretch between two
+"when" points cannot itself be interrupted and resumed. A non-iterating, extinction-only
+simulation is a good example: its only checkpoints are Setup and Run, with the
+entire, possibly very long, photon packet launch running uninterrupted in between, so
+resuming after an interruption means repeating that launch in full. The next section
+describes a workaround.
 
 ### Iterating across simulations
 
-TODO: describe iterating across simulations.
+Resuming from a checkpoint, above, requires the resumed run's ski file to be identical to
+the one that produced the checkpoint — but SKIRT never actually verifies this. This section
+deliberately makes constructive use of that gap to let a handful of ski file parameters be
+changed between runs, so that a simulation can be pushed further
+without repeating work already reflected in a checkpoint. Which checkpoint to resume from,
+and which parameters are supported, depends on how the simulation iterates.
+
+**Case 1 — non-iterating, extinction-only simulations.** This is the workaround
+promised above: although such a simulation cannot be resumed after being interrupted
+mid-launch, a run that completed normally can still be resumed from its Run checkpoint —
+its only other checkpoint besides Setup — purely to add more packets:
+
+| Parameter | ski file property | Allowed change |
+| --- | --- | --- |
+| Photon packets | `numPackets` | Increase only |
+
+**Case 2 — iterating over primary emission only.** Resuming from a Primary checkpoint to run
+more iterations supports two parameters:
+
+| Parameter | ski file property | Allowed change |
+| --- | --- | --- |
+| Iterations | `maxPrimaryIterations` | Increase only |
+| Photon packet multiplier | `primaryIterationPacketsMultiplier` | Any |
+
+The new multiplier value applies only to the iterations run after resuming, not
+retroactively to the ones already reflected in the checkpoint.
+
+**Case 3 — iterating over secondary emission, on its own or merged with primary emission.**
+Resuming from a Secondary checkpoint to run more iterations supports:
+
+| Parameter | ski file property | Allowed change |
+| --- | --- | --- |
+| Iterations | `maxSecondaryIterations` | Increase only |
+| Photon packet multiplier | `secondaryIterationPacketsMultiplier` | Any |
+| Photon packet multiplier<br>(merged case only) | `primaryIterationPacketsMultiplier` | Any |
+
+As in case 2, a new multiplier value applies only to the iterations run after resuming.
+
+For cases 2 and 3 to be effective, any convergence criteria specified in the original
+ski file must be configured liberally. Indeed, an iteration loop exits as soon as
+the ski-file configured convergence criteria are satisfied, regardless of how high
+the maximum number of iterations is set.
+
+The parameter changes discussed above are safe given how a SKIRT simulation's
+checkpoint resume operation works: a higher
+packet count (case 1) simply launches the additional packets needed to reach the new total;
+a higher iteration limit (cases 2 and 3) simply lets the already-running convergence loop
+continue further than originally planned; and a packet multiplier scales only the packets
+launched by the new iterations run after resuming. Either way, the checkpoint's existing
+contribution is built upon, never redone.
+
+Changing any other ski file parameter is not supported and will likely cause undefined
+behavior, silently or loudly. Specifically, there is currently no support for increasing
+the number of photon packets in a non-iterating simulation that includes primary and
+secondary emission; this is left for future consideration.
+
+The mechanism described above can be used to judge convergence of simulation results
+from the outside, across several resumed runs. After each run, the regular SKIRT output can
+be inspected before deciding whether to continue:
+
+- **Instrument output** — the calibrated SEDs, data cubes, and similar output
+  written by each instrument — to see whether the physical result itself has stopped
+  changing meaningfully from one run to the next. For cases 2 and 3, this requires that
+  the previous simulation has run to completion so that instrument output has been written,
+  even if the follow-up simulation resumes from the most recent iteration checkpoint.
+- **Recorded flux statistics** — the raw, uncalibrated flux accumulators and their higher
+  moments held in the checkpoint — to judge whether shot noise has dropped enough.
+- **Medium state** — for simulations with a dynamic medium state, to check whether
+  quantities such as level populations have stabilized.
+
+This turns convergence into an externally driven loop; the following pseudo-code shows this
+for case 1, extending the photon packet count of a non-iterating simulation:
+
+```
+packets = 1e6
+skirt -i in.hdf5 -o run.hdf5 mysim.ski
+
+loop:
+    inspect run.hdf5
+    if results have converged:
+        stop
+    packets = packets * 3
+    edit mysim.ski: set numPackets to packets
+    skirt -i in.hdf5 -o run.hdf5 -c run.hdf5 mysim.ski
+```
 
 ### Reusing hierarchical grid topology
 
 TODO: describe reusing hierarchical grid topology.
+
+TODO: describe what happens to `TreeSpatialGridTopologyProbe` and `FileTreeSpatialGrid`
 
 ### Refining the spatial grid
 
