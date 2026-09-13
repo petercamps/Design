@@ -319,16 +319,29 @@ the bundle adds an explicit `unit` attribute to close that gap.
 
 ### Unstructured text file
 
-TODO: describe the HDF5 representation of unstructured text output such as
-`convergence.dat`.
+Covers three otherwise-unrelated plain-text output types — `convergence.dat` (free-form
+human-readable text written by `ConvergenceInfoProbe`), `parameters.xml` (a reformatted
+copy of the ski file), and `log.txt` (progress, warning, and error messages) — each stored
+the same way: as a single string holding the entire file's content, unparsed. A `type`
+attribute records which of the three it is.
 
-### XML file
+The log file is the one special case. Because it grows throughout the run and users should
+be able to watch progress in real time, it continues to be written incrementally to a
+regular file during the simulation, exactly as today (see Log file under Output in
+Features, above); only the finished, complete text is added to its bundle at the very end
+of the run — the bundle itself is never updated incrementally.
 
-TODO: describe the HDF5 representation of the `parameters.xml` output.
+**Attributes**
 
-### Log file
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `type` | string | One of `free form`, `XML`, or `log`. |
 
-TODO: describe the HDF5 representation of the `log.txt` output.
+**Datasets**
+
+| Dataset | Dimensions | Type | Description |
+| --- | --- | --- | --- |
+| `text` | scalar | variable-length string | The entire file's content, unparsed. |
 
 ## Checkpoint bundles
 
