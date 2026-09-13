@@ -104,6 +104,16 @@ further groups as well as datasets — the actual blocks of stored data. A datas
 by a path within the file, built from the names of the groups leading up to it, similar to a
 file path.
 
+Many of the things SKIRT itself treats as one self-contained named object — an input file's
+worth of data, an output file, one component of a checkpoint — are more naturally
+represented as several related datasets than as a single one. This document calls such a
+SKIRT-defined named object a **bundle**: in the file, a bundle is always an HDF5 group, even
+when it happens to need only a single dataset, containing one or more datasets with names
+fixed by SKIRT itself. Whenever this chapter refers to `<anchor>/<bundle>` addressing a
+location in the HDF5 file, it is a bundle's group being addressed, not necessarily a single
+literal HDF5 dataset. The [Data model](03-data-model.md) chapter defines the exact bundle
+for each input, output, and checkpoint case.
+
 ### Command-line syntax
 
 The SKIRT command-line option that specifies the input location, `-i`, now accepts up to
@@ -130,10 +140,10 @@ sense — its full path is given directly as a separate command-line argument, i
 
 If `<hdf>` is also given, SKIRT looks for each input file in two steps: first as a plain file
 in `<dir>`, exactly as before; if that file is not found, SKIRT looks inside `<hdf>` instead,
-for a dataset whose name matches the input file name.
+for a bundle whose name matches the input file name.
 
 If `<anchor>` is given as well, it is prefixed to the input file name before that lookup, so
-SKIRT looks for the dataset `<anchor>/<name>` rather than `<name>`. This makes it possible to
+SKIRT looks for `<anchor>/<bundle>` rather than `<bundle>` alone. This makes it possible to
 store the input for several simulations inside a single HDF5 file, each under its own anchor,
 and select the right one per run through the `-i` option.
 
@@ -144,9 +154,9 @@ Assuming a ski file `mysim.ski`, an input directory `in`, and an HDF5 file `data
 - `skirt -i in mysim.ski` — unchanged behavior: all input files are read from plain files in
   `in`.
 - `skirt -i in/data.hdf5 mysim.ski` — input files are sought as plain files in `in` first,
-  then as datasets in `in/data.hdf5`.
-- `skirt -i in/data.hdf5:run01 mysim.ski` — as above, but datasets are looked up under the
-  `run01` group, i.e. as `run01/<name>`.
+  then as bundles in `in/data.hdf5`.
+- `skirt -i in/data.hdf5:run01 mysim.ski` — as above, but bundles are looked up under the
+  `run01` group, i.e. as `run01/<bundle>`.
 - `skirt -i in/data.hdf5:campaign7/galaxy042 mysim.ski` — the anchor can itself be a
   multi-level path, here selecting the input for one galaxy out of many stored in the same
   file.
@@ -188,7 +198,7 @@ SKIRT currently writes the following kinds of output files:
   simulation's progress in real-time, the log file is always written as a regular file
   and then stored in the HDF file after the simulation has ended.
 
-The [Data model](03-data-model.md) chapter explains how each of these maps to datasets in
+The [Data model](03-data-model.md) chapter explains how each of these maps to bundles in
 HDF5, and how to read them from Python.
 
 **Incompatibility note**:
@@ -209,8 +219,8 @@ plain file inside `<dir>`.
 
 If `<hdf>` is also given, SKIRT writes into that HDF5 file instead. The file as a whole is
 never replaced: if it already exists, SKIRT opens it and adds to it. Each individual output
-is written as a new dataset, or replaces an existing one if a dataset with the same name is
-already present; every other dataset in the file is left untouched. The dataset name matches
+is written as a new bundle, or replaces an existing one if a bundle with the same name is
+already present; every other bundle in the file is left untouched. The bundle name matches
 the plain output file that would otherwise have been produced, prefixed with `<anchor>` if
 given, exactly as on the input side.
 
@@ -224,12 +234,12 @@ Assuming a ski file `mysim.ski`, an input directory `in`, an output directory `o
 HDF5 file `data.hdf5`:
 
 - `skirt -i in -o out/data.hdf5 mysim.ski` — plain-file input, HDF5 output: input files are
-  read from `in` as before, while every output file is written as a dataset inside
+  read from `in` as before, while every output file is written as a bundle inside
   `out/data.hdf5` instead of as a plain file in `out`.
-- `skirt -i in/data.hdf5 -o out mysim.ski` — the reverse: input files are sought as datasets
+- `skirt -i in/data.hdf5 -o out mysim.ski` — the reverse: input files are sought as bundles
   in `in/data.hdf5`, while every output file is written as a plain file in `out`, as before.
 - `skirt -i in/data.hdf5 -o in/data.hdf5 mysim.ski` — input and output share the same HDF5
-  file: input datasets are read from it, and output datasets are added into that same file
+  file: input bundles are read from it, and output bundles are added into that same file
   alongside them.
 
 `-i` and `-o` are independent: each may target a plain directory or an HDF5 file regardless
@@ -304,10 +314,10 @@ from here on — and decides autonomously what to store at each one, as describe
 Consequently, the checkpoint probe exposes no configuration properties beyond the
 `probeName` property every probe inherits from the `Probe` base class.
 
-### Checkpoint datasets
+### Checkpoint bundles
 
 In addition to defining its "when" point (including the iteration index), a checkpoint
-may save the following datasets, each capturing one aspect of the simulation's
+may save the following bundles, each capturing one aspect of the simulation's
 runtime state.
 
 **Spatial grid.** Captures the grid's hierarchical structure. For grid types whose topology
@@ -316,7 +326,7 @@ impossible — octree subdivision decisions, for example, often depend on random
 an input density field. Therefore, a checkpoint stores the precise grid topology, rather
 than requiring it to be rebuilt on resume.
 
-This dataset also includes enough information to visualize or sample grid-discretized
+This bundle also includes enough information to visualize or sample grid-discretized
 quantities without needing to fully reconstruct the grid. For example, grids with cuboidal,
 axis-aligned cells store a linear list of corner coordinates for each cell, regardless of
 the structural relationships between cells. Similar linear representations apply to many
@@ -353,12 +363,12 @@ not have a radiation field.
 
 As indicated above, the checkpoint probe is invoked for every "when" point that actually
 occurs in a simulation. This always includes the Setup and Run checkpoints, and may
-include iteration checkpoints. Conceptually, the probe outputs all available datasets at
+include iteration checkpoints. Conceptually, the probe outputs all available bundles at
 each checkpoint.
 
 In practice, for portions of the data that remain unchanged, the probe simply links to the
 data stored during a previous checkpoint. This makes every checkpoint's output
-self-consistent while avoiding data duplication. For example, the spatial grid dataset
+self-consistent while avoiding data duplication. For example, the spatial grid bundle
 never changes during a simulation, so it is stored only once. Similarly, some or all of the
 medium state properties may be constant and are thus stored only once.
 
@@ -392,7 +402,7 @@ without querying the geometry again.
 **Launched packets probe.** The `LaunchedPacketsProbe` keeps track of the number of photon
 packets launched during primary and secondary emission. Because the counters are not
 checkpointed, they will reset to zero when resuming. This could be resolved by adding an
-extra checkpoint dataset, but this is left for future consideration.
+extra checkpoint bundle, but this is left for future consideration.
 
 ## Using checkpoints
 
@@ -410,7 +420,7 @@ checkpoint exists only inside an HDF5 file, never as a collection of plain files
 
 By default, SKIRT resumes from the most recent checkpoint found under the given anchor. To
 resume from an earlier one instead, extend the anchor with that checkpoint's own name, i.e.
-`<anchor>/<name>` rather than `<anchor>` alone (the [Data model](03-data-model.md) chapter
+`<anchor>/<checkpoint>` rather than `<anchor>` alone (the [Data model](03-data-model.md) chapter
 explains how individual checkpoints are named).
 
 Resuming does not read the ski file from the checkpoint data. The ski file governing the
@@ -618,28 +628,28 @@ Other spatial grid types are unaffected: their structure is either fully paramet
 `CartesianSpatialGrid` and the `Cylinder`/`Sphere` grids) or taken wholesale from an
 imported mesh (`AdaptiveMeshSpatialGrid`), with no sampling involved either way.
 
-The spatial grid checkpoint dataset already captures the resolved topology of these
-variable grid types (see Checkpoint datasets, above), so a follow-up simulation can load it
+The spatial grid checkpoint bundle already captures the resolved topology of these
+variable grid types (see Checkpoint bundles, above), so a follow-up simulation can load it
 instead of rebuilding the grid from scratch. Because this is not a resume, the source is not
 given through the `-c` command-line option; instead, each variable grid type gains a ski
 file option to load its topology from a previous checkpoint. The following treats each case
 in turn.
 
 **Tree grids.** The new mechanism replaces the existing one: the
-`TreeSpatialGridTopologyProbe` is removed, since the spatial grid checkpoint dataset already
+`TreeSpatialGridTopologyProbe` is removed, since the spatial grid checkpoint bundle already
 captures the same topology as a side effect during checkpointing. The `filename` property of
 `FileTreeSpatialGrid` (or `CheckpointTreePolicy` as proposed in the previous section) now
 names an HDF5 file — resolved relative to the simulation's input directory, like any other
-input file — followed by a mandatory `:<dataset>` component. This component consists of an
+input file — followed by a mandatory `:<bundle>` component. This component consists of an
 optional anchor and a mandatory name identifying which checkpoint to load from.
-`FileTreeSpatialGrid` (or `CheckpointTreePolicy`) then picks out the relevant dataset within
+`FileTreeSpatialGrid` (or `CheckpointTreePolicy`) then picks out the relevant bundle within
 that checkpoint on its own. The saved topology remains scale-free, so the simulation loading
 it still specifies the domain extent itself.
 
 **`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
 `filename` property can still name a plain text file of site positions, or now instead an
 HDF5 file, resolved relative to the input directory, with
-the same mandatory `:<dataset>` component described above. Either way, `File` loads
+the same mandatory `:<bundle>` component described above. Either way, `File` loads
 previously recorded site positions rather than sampling new ones; the tessellation itself
 still runs as before.
 
@@ -655,8 +665,8 @@ Resolving gradients in the radiation field itself is at least as important, and 
 more so, since it is the quantity that ultimately determines the accuracy of every
 simulation result, while density is only a proxy for it.
 
-Because the radiation field is one of the datasets captured in a checkpoint (see Checkpoint
-datasets, above), it can be used for exactly this purpose across two simulations. A first,
+Because the radiation field is one of the bundles captured in a checkpoint (see Checkpoint
+bundles, above), it can be used for exactly this purpose across two simulations. A first,
 deliberately cheap simulation computes an approximate radiation field — with fewer photon
 packets, a coarser spatial grid, or a wavelength grid restricted to the spectral range of
 interest — and writes it to a checkpoint. A follow-up simulation then reads that checkpoint
@@ -683,7 +693,7 @@ relate to primary versus secondary emission, are left for future consideration.
 | `RadiationFieldTreePolicy` | `maxFieldFraction`, `maxFieldDispersion`, `minWavelength`, `maxWavelength` |
 
 Like `CheckpointTreePolicy`, it takes a `filename` property identifying the source
-checkpoint, using the same HDF5-file-plus-dataset syntax. `maxFieldFraction` mirrors
+checkpoint, using the same HDF5-file-plus-bundle syntax. `maxFieldFraction` mirrors
 `maxDustFraction`: it limits the fraction of the total radiation field energy contained in
 each cell, forcing subdivision in cells that dominate the energy budget.
 `maxFieldDispersion` mirrors `maxDustDensityDispersion`: it limits how much the field is

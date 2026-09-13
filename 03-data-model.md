@@ -72,7 +72,18 @@ filter, since HDF5 can only compress a dataset one chunk at a time.
 The HDF5 library ships with several industry-standard compression methods built in, and
 additional ones can be registered if needed.
 
-## Input/output data sets
+### Bundles
+
+Many of the things SKIRT itself treats as one self-contained named object — an input
+file's worth of data, an output file, one component of a checkpoint — need more than a
+single dataset to represent: several related quantities, each possibly of a different
+type or shape, that all belong together. Rather than special-casing which of these map to
+a literal HDF5 dataset and which need a group, SKIRT represents all of them the same way,
+as a **bundle**: always an HDF5 group, containing one or more datasets whose names are
+fixed by SKIRT itself. The following two sections define, for each input, output, and
+checkpoint case introduced in the Features chapter, exactly what its bundle contains.
+
+## Input/output bundles
 
 Each input and output file type described in the Features chapter needs an HDF5
 representation. A type used on both the input and the output side gets a single
@@ -82,13 +93,13 @@ subsection below.
 
 TODO: describe the HDF5 representation of text column file data (input and output).
 
-### AMR text file
-
-TODO: describe the HDF5 representation of AMR text data (input).
-
 ### FITS file
 
 TODO: describe the HDF5 representation of FITS data (input and output).
+
+### AMR text file
+
+TODO: describe the HDF5 representation of AMR text data (input).
 
 ### Stored table (.stab)
 
@@ -111,23 +122,23 @@ TODO: describe the HDF5 representation of the `parameters.xml` output.
 
 TODO: describe the HDF5 representation of the `log.txt` output.
 
-## Checkpoint data sets
+## Checkpoint bundles
 
-Each dataset listed under Checkpoint datasets in the Features chapter needs an HDF5
+Each bundle listed under Checkpoint bundles in the Features chapter needs an HDF5
 representation.
 
 ### Spatial grid
 
-TODO: describe the HDF5 representation of the spatial grid checkpoint dataset.
+TODO: describe the HDF5 representation of the spatial grid checkpoint bundle.
 
 ### Medium state
 
-TODO: describe the HDF5 representation of the medium state checkpoint dataset.
+TODO: describe the HDF5 representation of the medium state checkpoint bundle.
 
 ### Radiation field
 
-TODO: describe the HDF5 representation of the radiation field checkpoint dataset.
+TODO: describe the HDF5 representation of the radiation field checkpoint bundle.
 
 ### Recorded fluxes
 
-TODO: describe the HDF5 representation of the recorded fluxes checkpoint dataset.
+TODO: describe the HDF5 representation of the recorded fluxes checkpoint bundle.
