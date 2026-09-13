@@ -82,10 +82,18 @@ a literal HDF5 dataset and which need a group, SKIRT represents all of them the 
 as a **bundle**: always an HDF5 group, containing one or more datasets whose names are
 fixed by SKIRT itself.
 
-Every bundle written by SKIRT also carries a `created` attribute: a string recording when
-it was written, in the same ISO 8601-with-milliseconds format SKIRT already uses
-elsewhere (e.g. `2026-09-03T10:53:22.305`). The `created` attribute is present whenever
-SKIRT itself writes the bundle, but is never required of one it only reads.
+Every bundle written by SKIRT carries three standard attributes, never required when
+SKIRT only reads a bundle:
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `producer` | string | SKIRT version and build that wrote the bundle (as in SKIRT's welcome message). |
+| `format` | 32-bit integer | Version of this bundle format itself, for future changes; `1` for now. |
+| `created` | string | When the bundle was written, as an ISO 8601-with-milliseconds string. |
+
+For example, `producer` might read `SKIRT v9.0 (git 584edd6 built on 03/09/2026 at
+10:51:20)`, and `created` might read `2026-09-03T10:53:22.305`. Individual bundle
+descriptions below list only attributes beyond these three.
 
 The following sections define, for each input, output, and checkpoint case introduced
 in the Features chapter, exactly what its bundle contains. Each is documented with two
@@ -113,7 +121,7 @@ file's inherent left-to-right column sequence, so each dataset also carries its 
 
 **Attributes**
 
-None required — `created` (see Bundles, above) is never read on the input side.
+None required.
 
 **Datasets** — one per column; names, units, and count come from the source data, not a
 fixed schema. Shown here for a 4-column particle-import file,
@@ -145,7 +153,7 @@ and each of the property datasets has a value for each leaf node.
 
 **Attributes**
 
-None required — `created` (see Bundles, above) is never read on the input side.
+None required.
 
 **Datasets**
 
@@ -182,7 +190,7 @@ attribute is a quantity, not an axis.
 
 **Attributes**
 
-None required — `created` (see Bundles, above) is never read on the input side.
+None required.
 
 **Datasets** — shown here for a 3-axis, 1-quantity SED template file:
 
@@ -207,7 +215,7 @@ carry (such as pixel scale) is read; this information is configured in the ski f
 
 **Attributes**
 
-None required — `created` (see Bundles, above) is never read on the input side.
+None required.
 
 **Datasets**
 
@@ -219,19 +227,95 @@ None required — `created` (see Bundles, above) is never read on the input side
 
 ## Output bundles
 
-Each output file type described in the Features chapter needs an HDF5 representation.
-
 ### Text column file
 
-TODO: describe the HDF5 representation of text column file data written by SKIRT.
+Wraps the same `TextInFile`/`TextOutFile` convention as the input side (see Text column
+file under Input bundles, above), used for SEDs, per-cell and per-position probe output,
+and instrument statistics tables. Every output column is written as a 64-bit float and
+auto-numbered in the order `addColumn()` is called, so the same per-dataset `column` and
+`unit` attributes apply.
+Most call sites also write a free-form comment as the very first line, by convention rather
+than by any mechanism `TextOutFile` itself enforces (via the public `writeLine()`, before
+adding columns) — this becomes the bundle's own `description` attribute.
+
+**Attributes**
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `description` | string | Free-form comment conventionally written first, before the columns. |
+
+**Datasets** — one per column, as on the input side. Shown here for a 2-column SED output
+file, where `N` is the number of rows:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `lambda` | (N) | 64-bit float | `column = 1`, `unit = "micron"` |
+| `F_nu` | (N) | 64-bit float | `column = 2`, `unit = "Jy"` |
 
 ### FITS file
 
-TODO: describe the HDF5 representation of FITS data written by SKIRT.
+Wraps SKIRT's existing `FITSInOut::write()` helper (built on `cfitsio`) for 2-D images and
+3-D data cubes (a stack of frames along a third axis, typically wavelength), used for
+instrument frames and data cubes, and for planar cuts or projections produced by probes.
+Kept at full 64-bit precision in the bundle — unlike a FITS output file, which stores pixel
+values as 32-bit floats. The third-axis coordinate values, stored today
+in a FITS table extension named `GRID_POINTS`, become an ordinary 1-D dataset.
+
+**Attributes**
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `pixel_scale_x`, `pixel_scale_y` | 64-bit float | Pixel size along each axis (FITS `CDELT1`/`CDELT2`). |
+| `pixel_scale_unit` | string | Unit of the pixel-scale attributes (FITS `CUNIT1`/`CUNIT2`). |
+| `inclination` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA1`). |
+| `azimuth` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA2`). |
+| `roll` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA3`). |
+| `redshift` | 64-bit float | Distant-instrument output only (FITS `REDSHIFT`). |
+| `luminosity_distance` | 64-bit float | Distant-instrument output only (FITS `DISTLUMI`). |
+| `angular_diameter_distance` | 64-bit float | Distant-instrument output only (FITS `DISTANGD`). |
+| `distance_unit` | string | Unit of the two distance attributes (FITS `DISTUNIT`). |
+
+**Datasets** — shown here for a 3-D data cube produced by a FrameInstrument:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `image` | (ny, nx) or (nz, ny, nx) | 64-bit float | `unit = "MJy/sr"` |
+| `wavelength` | (nz) | 64-bit float | `unit = "micron"` |
+
+`image` is 2-D for a single frame or 3-D for a cube — (100, 1024, 1024) for this example — and
+its `unit` attribute matches FITS `BUNIT`. `wavelength` gives the third-axis coordinate of
+each frame and is present only when `image` is 3-D; its own `unit` is independent of
+`image`'s. Not carried over: FITS `BSCALE`/`BZERO`
+(integer-scaling factors for compact storage) and `DATE`/`ORIGIN` (creation timestamp and
+producing software), none of which are needed once storage is native 64-bit float and
+every bundle already carries its own `producer` and `created` attributes.
 
 ### Spatial grid plot file
 
-TODO: describe the HDF5 representation of spatial grid plot data.
+Wraps SKIRT's existing `SpatialGridPlotFile` helper (itself a thin wrapper around
+`TextOutFile`), used by every spatial grid to plot its own cell geometry: 2-D plane-cut
+variants (`_grid_xy`, `_grid_xz`, `_grid_yz`) and a 3-D variant (`_grid_xyz`). Unlike the
+other `TextOutFile`-based formats, it writes no header at all — just raw coordinate pairs
+or triples, one point per line, with a blank line marking the start of a new, disconnected
+polyline (a "moveto" in the class's own terminology; consecutive points with no blank line
+between them are connected, a "lineto"). No unit is recorded in the plain-text file itself,
+even though the coordinates do have one (the simulation's configured output length unit) —
+the bundle adds an explicit `unit` attribute to close that gap.
+
+**Attributes**
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `unit` | string | Length unit of every `points` coordinate — whatever the simulation's output uses. |
+
+**Datasets**
+
+| Dataset | Dimensions | Type | Description |
+| --- | --- | --- | --- |
+| `points` | (N, 2) or (N, 3) | 64-bit float | One coordinate pair or triple per row. |
+| `moveto` | (N) | boolean | `true` marks the start of a new polyline; always `true` for row 0. |
+
+`N` is the total number of points across every polyline in the file.
 
 ### Unstructured text file
 
