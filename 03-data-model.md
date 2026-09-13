@@ -159,7 +159,44 @@ None required — `created` (see Bundles, above) is never read on the input side
 
 ### Stored table (.stab)
 
-TODO: describe the HDF5 representation of stored table (.stab) data.
+Wraps SKIRT's existing `StoredTable<N>` format: a SKIRT-specific binary lookup table,
+heavily used for the library's own built-in resources (e.g. dust optical properties) and
+occasionally supplied as input (e.g. SED family templates, polarized Stokes-vector tables).
+A stored table defines one or more named, unit-tagged axes, each with its own grid of
+points, and one or more named, unit-tagged quantities tabulated over the full grid formed
+by all axes combined.
+
+Because the format is designed to be memory-mapped directly rather than read through
+regular file I/O, it also carries its own version tag, endianness tag, and end-of-file tag
+— bookkeeping an HDF5 bundle does not need, since the container format already handles all
+of that. Each axis becomes its own 1-D dataset, and each quantity becomes its own N-D
+dataset shaped by the axis lengths, rather than reproducing the file's own interleaved,
+quantity-fastest storage order chosen for memory-mapping locality — a Python reader gets a
+plain, natural NumPy array per quantity instead.
+
+An HDF5 group does not preserve the order in which its datasets were created, and matching
+dimensions up by length is not reliable either, since two axes can happen to share the same
+number of grid points. Each axis dataset therefore also carries a 0-based `axis` attribute,
+giving its position among a quantity dataset's dimensions; a dataset with no `axis`
+attribute is a quantity, not an axis.
+
+**Attributes**
+
+None required — `created` (see Bundles, above) is never read on the input side.
+
+**Datasets** — shown here for a 3-axis, 1-quantity SED template file:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `lambda` | (1221) | 64-bit float | `axis = 0`, `unit = "m"`, `log = true` |
+| `Z` | (6) | 64-bit float | `axis = 1`, `unit = "1"`, `log = true` |
+| `t` | (67) | 64-bit float | `axis = 2`, `unit = "yr"`, `log = true` |
+| `Llambda` | (1221, 6, 67) | 64-bit float | `unit = "W/m"`, `log = true` |
+
+Dimension `i` of a quantity dataset corresponds to the axis dataset with `axis = i` — here,
+dimension 0 to `lambda`, dimension 1 to `Z`, and dimension 2 to `t`. A table with several
+quantities gets one dataset per quantity, all sharing the same axis datasets; `log` records
+whether that axis or quantity interpolates logarithmically.
 
 ### FITS file
 
