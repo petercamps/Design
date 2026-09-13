@@ -80,34 +80,121 @@ single dataset to represent: several related quantities, each possibly of a diff
 type or shape, that all belong together. Rather than special-casing which of these map to
 a literal HDF5 dataset and which need a group, SKIRT represents all of them the same way,
 as a **bundle**: always an HDF5 group, containing one or more datasets whose names are
-fixed by SKIRT itself. The following two sections define, for each input, output, and
-checkpoint case introduced in the Features chapter, exactly what its bundle contains.
+fixed by SKIRT itself.
 
-## Input/output bundles
+Every bundle written by SKIRT also carries a `created` attribute: a string recording when
+it was written, in the same ISO 8601-with-milliseconds format SKIRT already uses
+elsewhere (e.g. `2026-09-03T10:53:22.305`). The `created` attribute is present whenever
+SKIRT itself writes the bundle, but is never required of one it only reads.
 
-Each input and output file type described in the Features chapter needs an HDF5
-representation. A type used on both the input and the output side gets a single
-subsection below.
+The following sections define, for each input, output, and checkpoint case introduced
+in the Features chapter, exactly what its bundle contains. Each is documented with two
+tables: **Attributes**, small metadata attached directly to the bundle's group, and
+**Datasets**, the arrays it actually contains — their names, dimensions, and datatypes.
+
+## Input bundles
 
 ### Text column file
 
-TODO: describe the HDF5 representation of text column file data (input and output).
+Wraps SKIRT's existing `TextInFile` convention: a table with one row per item and one
+column per property, each column individually named, unit-tagged, and always stored as a
+64-bit float — the type `TextInFile` already uses throughout. The bundle name is the plain
+input filename that would otherwise have been used. Each column becomes its own 1-D
+dataset, named after the column, rather than one shared 2-D array: this matches
+the existing header convention (`# column N: description (unit)`) more directly than a flat
+table would, and lets a Python reader address a column by name (e.g.
+`bundle["mass_density"]`) instead of by position. All of a bundle's datasets must have the
+same length. No separate row or column count is needed,
+since an HDF5 dataset already carries its own length as part of its shape.
 
-### FITS file
+An HDF5 group has no equivalent to a text
+file's inherent left-to-right column sequence, so each dataset also carries its own 1-based
+`column` attribute to record its position explicitly.
 
-TODO: describe the HDF5 representation of FITS data (input and output).
+**Attributes**
+
+None required — `created` (see Bundles, above) is never read on the input side.
+
+**Datasets** — one per column; names, units, and count come from the source data, not a
+fixed schema. Shown here for a 4-column particle-import file,
+where `N` is the number of rows:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `x` | (N) | 64-bit float | `column = 1`, `unit = "pc"` |
+| `y` | (N) | 64-bit float | `column = 2`, `unit = "pc"` |
+| `z` | (N) | 64-bit float | `column = 3`, `unit = "pc"` |
+| `mass` | (N) | 64-bit float | `column = 4`, `unit = "Msun"` |
 
 ### AMR text file
 
-TODO: describe the HDF5 representation of AMR text data (input).
+The Adaptive Mesh Refinement (AMR) import file lists the nodes of a hierarchical tree
+in Morton order: a depth-first, preorder traversal that visits a nonleaf node's children
+row-major (x fastest, then y, then z), recursively at every level. In the text version
+of the file, nonleaf nodes are represented by `!`-marked lines specifying the subdivision
+counts. Leaf nodes carry their properties in the same column format as described in
+the previous section. Nonleaf and leaf nodes are interleaved as a single stream in that
+order. The file contains no cell positions or sizes; instead the domain box size
+is configured in the ski file.
+
+In the HDF5 bundle, the same information is represented by the two structural datasets
+`is_leaf` and `topology`, plus a dataset for each property column. The `is_leaf` dataset
+has one boolean entry per node (leaf and nonleaf) in the same order as the text lines.
+The `topology` dataset lists the subdivision counts for each nonleaf node,
+and each of the property datasets has a value for each leaf node.
+
+**Attributes**
+
+None required — `created` (see Bundles, above) is never read on the input side.
+
+**Datasets**
+
+| Dataset | Dimensions | Type | Attributes / Description |
+| --- | --- | --- | --- |
+| `is_leaf` | (Nn + N) | boolean | One entry per node, in traversal order; `true` for a leaf. |
+| `topology` | (Nn, 3) | 32-bit integer | One (Nx, Ny, Nz) split per `is_leaf = false` entry, same order. |
+| one per leaf-cell property | (N) | 64-bit float | `column`, `unit` (as Text column file); one row per leaf. |
+
+`N` is the number of leaf cells; `Nn` is the number of nonleaf (subdivided) nodes.
 
 ### Stored table (.stab)
 
-TODO: describe the HDF5 representation of stored table (.stab) data (input).
+TODO: describe the HDF5 representation of stored table (.stab) data.
+
+### FITS file
+
+Wraps SKIRT's existing `FITSInOut::read()` helper function (built on `cfitsio`) for
+reading 2-D images and 3-D data cubes. The function recovers only the pixel/voxel
+array and its dimensions from the file. None of the metadata a FITS file might otherwise
+carry (such as pixel scale) is read; this information is configured in the ski file.
+
+**Attributes**
+
+None required — `created` (see Bundles, above) is never read on the input side.
+
+**Datasets**
+
+| Dataset | Dimensions | Type | Description |
+| --- | --- | --- | --- |
+| `image` | (ny, nx) or (nz, ny, nx) | 64-bit float | Pixel or voxel values. |
+
+`image` is 2-D for `ReadFitsGeometry` or 3-D for `ReadFits3DGeometry`.
+
+## Output bundles
+
+Each output file type described in the Features chapter needs an HDF5 representation.
+
+### Text column file
+
+TODO: describe the HDF5 representation of text column file data written by SKIRT.
+
+### FITS file
+
+TODO: describe the HDF5 representation of FITS data written by SKIRT.
 
 ### Spatial grid plot file
 
-TODO: describe the HDF5 representation of spatial grid plot data (output).
+TODO: describe the HDF5 representation of spatial grid plot data.
 
 ### Unstructured text file
 
