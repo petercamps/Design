@@ -478,7 +478,43 @@ zero-based index.
 
 ### Radiation field
 
-TODO: describe the HDF5 representation of the radiation field checkpoint bundle.
+Wraps the `MediumSystem` data members that hold the radiation field accumulated from
+primary and, if applicable, secondary sources, at each spatial cell and each bin of
+the configured radiation-field wavelength grid. This bundle is present only if the
+simulation has a radiation field; `secondary` is present only if the simulation
+also has a secondary radiation field.
+
+The stored values are the raw, unnormalized quantity SKIRT accumulates per photon packet,
+i.e. `L·Δs`, the packet's luminosity times its path length through the cell, summed over
+every packet contributing to the bin. To reproduce the mean intensity `J_λ` reported by
+`RadiationFieldProbe`, this quantity must still be divided by 4π times the cell volume
+(Medium state's `volume` dataset) and the bin's effective width:
+
+```
+J_λ = (L·Δs) / (4π · V · Δλ)
+```
+
+Keeping the raw, undivided form lets a resumed run add further packets on top of what a
+checkpoint already reflects.
+
+**Attributes**
+
+None other than the standard bundle attributes.
+
+**Datasets** — shown here for a medium with `M` cells and `W` radiation-field wavelength bins and both a
+primary and a secondary radiation field:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `wavelength` | (W) | 64-bit float | `description = "characteristic wavelength of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
+| `width` | (W) | 64-bit float | `description = "effective width of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
+| `primary` | (M, W) | 64-bit float | `description = "radiation field accumulated from primary sources"`, `unit = "W m"` |
+| `secondary` | (M, W) | 64-bit float | `description = "radiation field accumulated from secondary sources"`, `unit = "W m"` |
+
+`primary` and `secondary` carry no `quantity` attribute, since this raw, unnormalized form
+has no established SKIRT quantity-type identifier — it is never otherwise exposed outside
+`MediumSystem`. Their `unit` attribute is set directly to `W m` (power times length), the
+dimension of `L·Δs` in the formula above.
 
 ### Recorded fluxes
 
