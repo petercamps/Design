@@ -365,8 +365,54 @@ of the run — the bundle itself is never updated incrementally.
 
 ## Checkpoint bundles
 
-Each bundle listed under Checkpoint bundles in the Features chapter needs an HDF5
-representation.
+### Checkpoint bundle
+
+A checkpoint bundle is a bundle of bundles: its HDF5 group holds, as direct members, some
+or all of the four checkpoint bundles described in the following sections (Spatial grid,
+Medium state, Radiation field, Recorded fluxes) — never a dataset of its own. Which of the
+four are actually present depends on what data the simulation has available at that point
+(see Checkpoint probe behavior in the Features chapter).
+
+A checkpoint's bundle name follows the usual `<prefix>_` convention, extended with the
+"when" point and the iteration index that together identify it:
+
+```
+<prefix>_checkpoint_<when>_<iteration>
+```
+
+`<when>` is one of `setup`, `primary`, `secondary`, or `run`, matching the four points
+listed under The checkpoint probe in the Features chapter. `<iteration>` is the one-based
+primary- or secondary-emission iteration index for a `primary` or `secondary` checkpoint,
+and `0` for `setup` and `run`, which each occur only once per simulation. For example, a
+simulation iterating over both primary and secondary emission could produce:
+
+```
+mysim_checkpoint_setup_0
+mysim_checkpoint_primary_1
+mysim_checkpoint_primary_2
+mysim_checkpoint_secondary_1
+mysim_checkpoint_run_0
+```
+
+**Attributes**
+
+Besides the standard attributes described earlier, a checkpoint bundle's `when` and
+`iteration` attributes duplicate the information already encoded in its name, for easy
+programmatic access. The remaining attributes record the ski
+file settings that Iterating across simulations, in the Features chapter, allows to change
+between runs — the value in effect when this checkpoint was written. `num_packets` is
+always present; the other four are present only when the simulation is configured to
+iterate over the corresponding emission phase.
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `when` | string | One of `Setup`, `Primary`, `Secondary`, `Run`. |
+| `iteration` | 32-bit integer | One-based iteration index; `0` for `Setup` and `Run`. |
+| `num_packets` | 64-bit float | Configured photon packet count (ski `numPackets`). |
+| `max_primary_iterations` | 32-bit integer | Configured maximum (ski `maxPrimaryIterations`). |
+| `primary_packets_multiplier` | 64-bit float | Multiplier (ski `primaryIterationPacketsMultiplier`). |
+| `max_secondary_iterations` | 32-bit integer | Configured maximum (ski `maxSecondaryIterations`). |
+| `secondary_packets_multiplier` | 64-bit float | Multiplier (ski `secondaryIterationPacketsMultiplier`). |
 
 ### Spatial grid
 
