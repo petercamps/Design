@@ -100,6 +100,13 @@ in the Features chapter, exactly what its bundle contains. Each is documented wi
 tables: **Attributes**, small metadata attached directly to the bundle's group, and
 **Datasets**, the arrays it actually contains — their names, dimensions, and datatypes.
 
+Upon input, the HDF5 library performs reasonable data type conversions (e.g. between
+32-bit and 64-bit number representations) and decompresses chunked or compressed data as
+needed. This is fully transparent to SKIRT, so everything is fine as long as there is no
+data loss (e.g. because a number doesn't fit in SKIRT's representation). Upon output, SKIRT
+writes data types exactly as described in the tables of this chapter. The possible use of
+chunking and/or compression is left for future consideration.
+
 ## Input bundles
 
 ### Text column file
@@ -420,7 +427,54 @@ TODO: describe the HDF5 representation of the spatial grid checkpoint bundle.
 
 ### Medium state
 
-TODO: describe the HDF5 representation of the medium state checkpoint bundle.
+Wraps the `MediumState` data member of `MediumSystem`, which holds the complete per-cell
+medium state. For each spatial cell, this includes a set of **common** variables shared by
+all medium components, and, for each medium component, a set of **specific** variables —
+some always present, some requested only by certain material mixes. A material mix can
+also request any number of **custom** variables, each with its own human-readable
+description and physical quantity type.
+`MediumState` also supports "aggregate" cells used to judge convergence across
+iterations; per Unsupported features (Convergence history) under Checkpointing in the
+Features chapter, the checkpoint probe does not store these, so this bundle covers only the
+`M` real spatial cells.
+
+Every dataset carries an `M`-length first dimension, one entry per spatial cell. `volume`
+is always present; `bulk_velocity` and `magnetic_field` are present only if requested by at
+least one medium component. `number_density_<h>` is always present for every medium
+component `h` (0-based); `metallicity_<h>` and `temperature_<h>` are present only if
+requested by that component's material mix; `custom_<h>_<k>` is present once for each
+custom variable `k` (0-based, in declaration order) that component requests. This
+index-suffix naming follows the same convention SKIRT's `MetallicityProbe`,
+`TemperatureProbe`, and `CustomStateProbe` already use for their own per-component output
+today (`<h>_Z`, `<h>_T`, `<h>_customstate`).
+
+**Attributes**
+
+None other than the standard bundle attibutes.
+
+**Datasets** — the names and the number of per-component and custom datasets come from
+the simulation's configuration, not a fixed schema. Shown here for a two-component medium —
+component 0 a plain dust mix, component 1 an ionized gas mix requesting two custom
+variables:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `volume` | (M) | 64-bit float | `description = "volume"`, `quantity = "volume"`, `unit = "m3"` |
+| `bulk_velocity` | (M, 3) | 64-bit float | `description = "bulk velocity"`, `quantity = "velocity"`, `unit = "m/s"` |
+| `magnetic_field` | (M, 3) | 64-bit float | `description = "magnetic field"`, `quantity = "magneticfield"`, `unit = "T"` |
+| `number_density_0` | (M) | 64-bit float | `component = 0`, `description = "number density"`, `quantity = "numbervolumedensity"`, `unit = "1/m3"` |
+| `number_density_1` | (M) | 64-bit float | `component = 1`, `description = "number density"`, `quantity = "numbervolumedensity"`, `unit = "1/m3"` |
+| `metallicity_1` | (M) | 64-bit float | `component = 1`, `description = "metallicity"`, `quantity = ""`, `unit = ""` |
+| `temperature_1` | (M) | 64-bit float | `component = 1`, `description = "temperature"`, `quantity = "temperature"`, `unit = "K"` |
+| `custom_1_0` | (M) | 64-bit float | `component = 1`, `description = "helium abundance"`, `quantity = ""`, `unit = ""` |
+| `custom_1_1` | (M) | 64-bit float | `component = 1`, `description = "hydrogen neutral fraction"`, `quantity = ""`, `unit = ""` |
+
+Every dataset carries a `description` attribute with a short human-readable label, a
+`quantity` attribute giving SKIRT's physical-quantity-type identifier, and a `unit`
+attribute reflecting the default SI unit for the quantity type, because that's what SKIRT
+uses internally. For a dimensionless quantity, both `quantity` and `unit` are empty
+strings. The per-component datasets also carry a `component` attribute repeating the
+zero-based index.
 
 ### Radiation field
 

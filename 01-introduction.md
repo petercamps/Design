@@ -34,6 +34,14 @@ interruption or restarted from a known point. The same properties that make HDF5
 for input and output — a single, self-describing file holding multiple structured datasets —
 make it equally suitable for capturing that state.
 
+It is _not_ the intention for SKIRT to directly import data from HDF5 snapshot files. A
+pre-processing procedure must extract the relevant information from the snapshot, possibly
+split the data into multiple input sets (e.g. star-forming and evolved stellar
+populations), derive any missing properties (e.g. dust density or optical properties), and
+construct the columns required by each of the SKIRT simulation's source and medium
+components. Compared to text column files, the benefits of HDF5 include performance (both
+writing and reading) and the option to compress the data if storage size is an issue.
+
 ## Compatibility
 
 The features described in this document are additions to SKIRT. With the exceptions noted

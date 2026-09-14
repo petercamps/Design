@@ -14,7 +14,9 @@ so this mainly means adding `\page`/`\subpage` labels, not a full rewrite).
 
 ## Conventions
 
-- Keep lines in `.md` files under 120 characters; rewrap paragraphs as needed.
+- Keep lines in `.md` files under 120 characters; rewrap paragraphs as needed. This does
+  not apply to Markdown table rows (`| ... |`), which may run longer since a table row
+  cannot be wrapped without breaking the table.
 - Chapter files are numbered to fix their order: `01-introduction.md`, `02-features.md`,
   `03-data-model.md`, `04-implementation.md`. New chapters follow the same pattern, and
   the corresponding link goes into `_sidebar.md` in the same change.

@@ -124,8 +124,8 @@ three components combined into a single argument:
 ```
 
 - `<dir>` — the input directory, exactly as before.
-- `<hdf>` — optional: the name of an HDF5 file located inside `<dir>`. Both the `.hdf5` and
-  `.hf` extensions are recognized.
+- `<hdf>` — optional: the name of an HDF5 file located inside `<dir>`, including the `.hdf5`
+  extension.
 - `<anchor>` — optional, and only meaningful together with `<hdf>`: a path within the HDF5
   file, used as described below.
 
@@ -162,7 +162,6 @@ Assuming a ski file `mysim.ski`, an input directory `in`, and an HDF5 file `data
   file.
 - `skirt -i ./data.hdf5 mysim.ski` — edge case: the HDF5 file sits directly in the current
   directory (`<dir>` is `.`).
-- `skirt -i in/data.hf mysim.ski` — edge case: the alternative `.hf` extension.
 
 ### Concurrency
 
