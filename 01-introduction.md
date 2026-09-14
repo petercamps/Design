@@ -70,8 +70,9 @@ The remaining chapters are organized as follows:
   features and how to use them — prerequisites, command-line options, and ski file settings.
   It is aimed at SKIRT users.
 - **[Data model](03-data-model.md)** specifies how SKIRT data is represented in HDF5: the
-  overall structure and the detailed layout that replace today's text input/output files and
-  FITS files. It is aimed at authors of Python scripts that prepare or consume SKIRT
+  overall structure, the detailed layout that replaces today's text input/output files and
+  FITS files, and the checkpoint bundles that capture a running simulation's internal
+  state. It is aimed at authors of Python scripts that prepare or consume SKIRT
   input/output. Also, together with the features description in the previous chapter, it
   forms the basis for the implementation in SKIRT.
 - **[Implementation](04-implementation.md)** describes how HDF5 support will be implemented

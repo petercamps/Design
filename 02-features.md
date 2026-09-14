@@ -319,17 +319,16 @@ In addition to defining its "when" point (including the iteration index), a chec
 may save the following bundles, each capturing one aspect of the simulation's
 runtime state.
 
-**Spatial grid.** Captures the grid's hierarchical structure. For grid types whose topology
-is built up rather than read directly from input, reconstruction can be expensive or even
-impossible — octree subdivision decisions, for example, often depend on random sampling of
-an input density field. Therefore, a checkpoint stores the precise grid topology, rather
-than requiring it to be rebuilt on resume.
+**Spatial grid.** Captures the grid's structure. For grid types whose structure is built up
+rather than determined directly by the ski file or an input file — tree grids, whose
+subdivision decisions depend on random sampling of an input density field, foremost among
+them — reconstruction can be expensive or even impossible. Therefore, a checkpoint stores
+the precise topology of such grids, rather than requiring it to be rebuilt on resume.
 
 This bundle also includes enough information to visualize or sample grid-discretized
-quantities without needing to fully reconstruct the grid. For example, grids with cuboidal,
-axis-aligned cells store a linear list of corner coordinates for each cell, regardless of
-the structural relationships between cells. Similar linear representations apply to many
-other grid types.
+quantities without needing to fully reconstruct the grid. Grids with cuboidal, axis-aligned
+cells — tree, AMR, and Cartesian grids — store a linear list of corner coordinates for each
+cell, regardless of the structural relationships between cells.
 
 **Medium state.** Represents the discretization of the simulation's medium properties
 on the spatial grid. This includes per-cell quantities such as cell volume and bulk velocity,
@@ -371,7 +370,7 @@ self-consistent while avoiding data duplication. For example, the spatial grid b
 never changes during a simulation, so it is stored only once. Similarly, some or all of the
 medium state properties may be constant and are thus stored only once.
 
-### Unsupported features 
+### Unsupported features
 
 **Convergence history.** Convergence criteria determine when to end iterations over primary
 and/or secondary emission. Some criteria are implemented globally for all medium components
@@ -624,7 +623,7 @@ sampling the input density distribution:
   `File`, `ImportedSites`, or `ImportedMesh` policy, place their sites or vertices by random
   sampling — either from a synthetic distribution (`Uniform`, `CentralPeak`) or, more
   commonly, importance-sampled from the actual input density (`DustDensity`, the default
-  for both grids, `ElectronDensity`, or `GasDensity`) — before tessellating them. 
+  for both grids, `ElectronDensity`, or `GasDensity`) — before tessellating them.
 
 Not only does the random sampling take time, but the resulting grid will differ subtly
 between SKIRT runs because the employed pseudo-random sequence is unique for each run
@@ -661,7 +660,7 @@ original run and any later replay of the same topology.
 **`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
 `filename` property can still name a plain text file of site positions, or now instead an
 HDF5 file, resolved relative to the input directory, with
-the same mandatory `:<bundle>` component described above. Either way, `File` loads
+the same mandatory `:<checkpoint>` component described above. Either way, `File` loads
 previously recorded site positions rather than sampling new ones; the tessellation itself
 still runs as before.
 
@@ -693,8 +692,8 @@ linear cell list representation (see Spatial grid types under Unsupported featur
 above), so that the radiation field can be sampled without fully reconstructing the
 original grid.
 
-This is a direct application of the restructured tree policies proposed above (see An
-aside: restructuring tree policies). The follow-up simulation's grid could combine a
+This is a direct application of the restructured tree policies proposed above (see
+Restructuring tree policies). The follow-up simulation's grid could combine a
 `CheckpointTreePolicy` — which reuses the first simulation's grid as a starting point —
 with a new policy based on the radiation field. One possible such policy is sketched
 below, extending the table given there; the exact set of properties, and how it should
@@ -705,7 +704,7 @@ relate to primary versus secondary emission, are left for future consideration.
 | `RadiationFieldTreePolicy` | `maxFieldFraction`, `maxFieldDispersion`, `minWavelength`, `maxWavelength` |
 
 Like `CheckpointTreePolicy`, it takes a `filename` property identifying the source
-checkpoint, using the same HDF5-file-plus-bundle syntax. `maxFieldFraction` mirrors
+checkpoint, using the same HDF5-file-plus-checkpoint syntax. `maxFieldFraction` mirrors
 `maxDustFraction`: it limits the fraction of the total radiation field energy contained in
 each cell, forcing subdivision in cells that dominate the energy budget.
 `maxFieldDispersion` mirrors `maxDustDensityDispersion`: it limits how much the field is

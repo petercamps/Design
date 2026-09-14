@@ -280,9 +280,9 @@ quantity type and unit.
 | Flux STM | spectral | time lag | - | flux |
 | Statistics for flux STM | spectral | time lag | - | contribution moments |
 | Planar cut or projection | | | | |
-| ... for scalar quantity | spatial | spatial | - | ? |
+| ... for scalar quantity | spatial | spatial | - | depends on probe |
 | ... for velocity | spatial | spatial | (vx, vy, vz) | velocity |
-| ... for spectral grid | spatial | spatial | spectral | ? |
+| ... for spectral grid | spatial | spatial | spectral | depends on probe |
 
 **Attributes**
 
@@ -426,27 +426,28 @@ iterate over the corresponding emission phase.
 Captures the grid's structure, as introduced under Checkpoint bundles in the Features
 chapter. Every simulation has exactly one spatial grid, so this bundle is always present,
 identified by its `grid_type` attribute — the grid's SKIRT class name converted to
-underscore style, e.g. `TreeSpatialGrid` becomes `tree_spatial_grid`. Beyond that attribute, the
-bundle's contents depend on the grid type. Tree grids need their topology stored, grids
-with cuboidal, axis-aligned cells additionally (or instead) get a linear cell list enabling
-visualization or sampling without reconstructing the grid (tree, AMR, and Cartesian grids),
-and Voronoi/Tetra grids get their site or vertex positions.
-Other grid types carry no datasets at all.
+underscore style, e.g. `TreeSpatialGrid` becomes `tree_spatial_grid`. Beyond that
+attribute, the bundle's contents depend on the grid type: tree grids need their topology
+stored, grids with cuboidal, axis-aligned cells additionally (or instead) get a linear cell
+list enabling visualization or sampling without reconstructing the grid (tree, AMR, and
+Cartesian grids), and Voronoi/Tetra grids get their site or vertex positions; other grid
+types carry no datasets at all.
 
-**`TreeSpatialGrid`.** *Topology*: stored as a breadth-first, level-by-level stream of leaf/nonleaf
-flags — the single root flag first, then one flag for each of its children (if any), then
-one flag for each of those children's children, and so on — the number of flags at each
-level is the number of `false` (nonleaf) flags at the level before, times the fixed number
-of children per split. Breadth-first order is required, not merely conventional, so that
-replaying the stream reproduces the exact same cell numbering as the original run (see Tree
-grids under Reusing grid topology in Features). `tree_type` records whether each nonleaf
+**`TreeSpatialGrid`.** *Topology*: stored as a breadth-first, level-by-level stream of
+leaf/nonleaf flags — the single root flag first, then one flag for each of its children (if
+any), then one flag for each of those children's children, and so on — the number of flags
+at each level is the number of `false` (nonleaf) flags at the level before, times the fixed
+number of children per split. Breadth-first order is required, not merely conventional, so
+that replaying the stream reproduces the exact same cell numbering as the original run (see
+Tree grids under Reusing grid topology in Features). `tree_type` records whether each nonleaf
 node splits into 2 children (`BinTree`) or 8 (`OctTree`), needed to decode the flag stream.
 *Linear cell list*: yes, as described below.
 
-**`AdaptiveMesh` and `Cartesian` grids.** *Topology*: none. An AMR grid's structure comes wholesale, and
-deterministically, from its own text/HDF5 input bundle; a Cartesian grid's structure is
-fully determined by the ski file — neither needs to be stored again here. *Linear cell
-list*: yes, as described below, for visualization and sampling.
+**`AdaptiveMeshSpatialGrid` and `CartesianSpatialGrid`.** *Topology*: none. An AMR grid's
+structure comes wholesale, and deterministically, from its own text/HDF5 input bundle; a
+Cartesian grid's structure is fully determined by the ski file — neither needs to be
+stored again here. *Linear cell list*: yes, as described below, for visualization and
+sampling.
 
 **`VoronoiMeshSpatialGrid` and `TetraMeshSpatialGrid`.** *Topology*: none — their sites or
 vertices are not organized hierarchically, so there is no topology to speak of. *Linear
@@ -465,7 +466,7 @@ the standard bundle attributes and `grid_type`.
 
 | Attribute | Type | Description |
 | --- | --- | --- |
-| `grid_type` | string | The grid's SKIRT class name, converted from camel case to underscores (see above). |
+| `grid_type` | string | The grid's SKIRT class name, converted to underscore style (see above). |
 | `tree_type` | string | `OctTree` or `BinTree`. Tree grids only. |
 
 **Datasets** — shown here for an octree with `Nn` nodes (leaves and nonleaves combined) and
@@ -506,7 +507,7 @@ today (`<h>_Z`, `<h>_T`, `<h>_customstate`).
 
 **Attributes**
 
-None other than the standard bundle attibutes.
+None other than the standard bundle attributes.
 
 **Datasets** — the names and the number of per-component and custom datasets come from
 the simulation's configuration, not a fixed schema. Shown here for a two-component medium —
@@ -576,37 +577,38 @@ dimension of `L·Δs` in the formula above.
 
 Wraps `FluxRecorder`, the helper class each `Instrument` instance uses to accumulate the
 effect of every detected photon packet. A simulation can have several instruments, each
-with its own `FluxRecorder`, and each recorder can produce up to four kinds of output — an
-SED, an IFU data cube, a light curve (LC), or a spectral-time map (STM) — depending on the
-instrument's type (for example, `SEDInstrument` and `FullInstrument` produce an SED,
-`LightCurveInstrument` produces an LC). The recorded values are the raw luminosity
+with its own `FluxRecorder`, and each recorder can produce up to four output types — an
+SED, an IFU data cube, a light curve (LC), or a spectral-time map (STM) — depending on
+which `Instrument` subclass is configured (for example, `SEDInstrument` and
+`FullInstrument` produce an SED, `LightCurveInstrument` produces an LC). The recorded
+values are the raw luminosity
 contributions (in W) accumulated per bin, before the distance-, pixel-, and
 wavelength-bin-width calibration that `calibrateAndWrite()` applies just before writing the
 corresponding output bundle.
 
 **Naming.** Every dataset name starts with the owning instrument's `instrumentName` (as
-used for its regular output bundles), followed by the output kind (`sed`, `ifu`, `lc`, or
+used for its regular output bundles), followed by the output type (`sed`, `ifu`, `lc`, or
 `stm`) and, for the flux datasets themselves, the flux component. The wavelength and time
-axes are shared by all output kinds of a given instrument, so they carry only the
+axes are shared by all output types of a given instrument, so they carry only the
 instrument name:
 
 - `<instrument>_wavelength`, `<instrument>_wavelength_width` — present if the instrument
   produces an SED, IFU, or STM.
 - `<instrument>_time`, `<instrument>_time_width` — present if the instrument produces an
   LC or STM.
-- `<instrument>_<kind>_<component>` — one dataset per flux component actually recorded for
-  that output kind.
+- `<instrument>_<type>_<component>` — one dataset per flux component actually recorded for
+  that output type.
 
 **Components.** Depending on configuration, a recorder tracks either a single `total`
 component, or the full breakdown `transparent`, `primary_direct`, `primary_scattered`,
 `secondary_direct`, `secondary_scattered`, `secondary_transparent` — never both at once. If
 scattering levels are tracked separately, `primary_scattered_<n>` (one-based) is added for
 each level. If polarization is recorded, `stokes_q`, `stokes_u`, and `stokes_v` hold the
-Stokes elements of the total flux, for all four output kinds; if the full component
+Stokes elements of the total flux, for all four output types; if the full component
 breakdown and polarization are both recorded together, SED and LC additionally carry
 `<component>_stokes_q/u/v` for each of the six components (IFU and STM never do). If
 statistics are recorded, `stats_0` through `stats_4` hold the sums of the k-th power of
-each contributing packet's weight, one set per output kind, not per component.
+each contributing packet's weight, one set per output type, not per component.
 
 **Light curve weighting.** Because an LC bin is spectrally integrated and therefore has no
 single characteristic wavelength, every `<instrument>_lc_<component>` dataset is
@@ -617,28 +619,27 @@ to convert the calibrated result between flux-per-wavelength and photon-count st
 
 None other than the standard bundle attributes.
 
-**Datasets** — Shown
-here for two instruments: `i`, an `SEDInstrument`, and `j`, a `LightCurveInstrument`, both
-with component tracking and statistics enabled, secondary emission present, and no
-polarization or scattering-level breakdown; `W` is `i`'s number of wavelength bins and `T`
-is `j`'s number of time bins:
+**Datasets** — shown here for two instruments: `i`, an `SEDInstrument`, and `j`, a
+`LightCurveInstrument`, both with component tracking and statistics enabled, secondary
+emission present, and no polarization or scattering-level breakdown; `W` is `i`'s number of
+wavelength bins and `T` is `j`'s number of time bins:
 
 | Dataset | Dimensions | Type | Attributes |
 | --- | --- | --- | --- |
 | `i_wavelength` | (W) | 64-bit float | `instrument = "i"`, `description = "characteristic wavelength of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
 | `i_wavelength_width` | (W) | 64-bit float | `instrument = "i"`, `description = "effective width of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
-| `i_sed_transparent` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_primary_direct` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "primary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_primary_scattered` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "primary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_secondary_direct` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_secondary_scattered` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_secondary_transparent` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `i_sed_stats_0` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "stats_0"`, `quantity = ""`, `unit = ""` |
-| `i_sed_stats_1` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "stats_1"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_transparent` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_primary_direct` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "primary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_primary_scattered` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "primary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_direct` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "secondary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_scattered` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "secondary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_transparent` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "secondary_transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_stats_0` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "stats_0"`, `quantity = ""`, `unit = ""` |
+| `i_sed_stats_1` | (W) | 64-bit float | `instrument = "i"`, `type = "sed"`, `component = "stats_1"`, `quantity = "bolluminosity"`, `unit = "W"` |
 | `j_time` | (T) | 64-bit float | `instrument = "j"`, `description = "characteristic time of the bin"`, `quantity = "time"`, `unit = "s"` |
 | `j_time_width` | (T) | 64-bit float | `instrument = "j"`, `description = "width of the bin"`, `quantity = "time"`, `unit = "s"` |
-| `j_lc_transparent` | (T) | 64-bit float | `instrument = "j"`, `kind = "lc"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
-| `j_lc_transparent_weighted` | (T) | 64-bit float | `instrument = "j"`, `kind = "lc"`, `component = "transparent"`, `unit = "W m"` |
+| `j_lc_transparent` | (T) | 64-bit float | `instrument = "j"`, `type = "lc"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `j_lc_transparent_weighted` | (T) | 64-bit float | `instrument = "j"`, `type = "lc"`, `component = "transparent"`, `unit = "W m"` |
 
 `stats_0` is a plain, dimensionless count of contributing packet histories, hence the empty
 `quantity`/`unit`. `stats_1` has the same dimension as the flux components themselves.
