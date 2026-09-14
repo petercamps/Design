@@ -518,4 +518,77 @@ dimension of `L·Δs` in the formula above.
 
 ### Recorded fluxes
 
-TODO: describe the HDF5 representation of the recorded fluxes checkpoint bundle.
+Wraps `FluxRecorder`, the helper class each `Instrument` instance uses to accumulate the
+effect of every detected photon packet. A simulation can have several instruments, each
+with its own `FluxRecorder`, and each recorder can produce up to four kinds of output — an
+SED, an IFU data cube, a light curve (LC), or a spectral-time map (STM) — depending on the
+instrument's type (for example, `SEDInstrument` and `FullInstrument` produce an SED,
+`LightCurveInstrument` produces an LC). The recorded values are the raw luminosity
+contributions (in W) accumulated per bin, before the distance-, pixel-, and
+wavelength-bin-width calibration that `calibrateAndWrite()` applies just before writing the
+corresponding output bundle.
+
+**Naming.** Every dataset name starts with the owning instrument's `instrumentName` (as
+used for its regular output bundles), followed by the output kind (`sed`, `ifu`, `lc`, or
+`stm`) and, for the flux datasets themselves, the flux component. The wavelength and time
+axes are shared by all output kinds of a given instrument, so they carry only the
+instrument name:
+
+- `<instrument>_wavelength`, `<instrument>_wavelength_width` — present if the instrument
+  produces an SED, IFU, or STM.
+- `<instrument>_time`, `<instrument>_time_width` — present if the instrument produces an
+  LC or STM.
+- `<instrument>_<kind>_<component>` — one dataset per flux component actually recorded for
+  that output kind.
+
+**Components.** Depending on configuration, a recorder tracks either a single `total`
+component, or the full breakdown `transparent`, `primary_direct`, `primary_scattered`,
+`secondary_direct`, `secondary_scattered`, `secondary_transparent` — never both at once. If
+scattering levels are tracked separately, `primary_scattered_<n>` (one-based) is added for
+each level. If polarization is recorded, `stokes_q`, `stokes_u`, and `stokes_v` hold the
+Stokes elements of the total flux, for all four output kinds; if the full component
+breakdown and polarization are both recorded together, SED and LC additionally carry
+`<component>_stokes_q/u/v` for each of the six components (IFU and STM never do). If
+statistics are recorded, `stats_0` through `stats_4` hold the sums of the k-th power of
+each contributing packet's weight, one set per output kind, not per component.
+
+**Light curve weighting.** Because an LC bin is spectrally integrated and therefore has no
+single characteristic wavelength, every `<instrument>_lc_<component>` dataset is
+accompanied by a wavelength-weighted twin, `<instrument>_lc_<component>_weighted`, needed
+to convert the calibrated result between flux-per-wavelength and photon-count styles.
+
+**Attributes**
+
+None other than the standard bundle attributes.
+
+**Datasets** — Shown
+here for two instruments: `i`, an `SEDInstrument`, and `j`, a `LightCurveInstrument`, both
+with component tracking and statistics enabled, secondary emission present, and no
+polarization or scattering-level breakdown; `W` is `i`'s number of wavelength bins and `T`
+is `j`'s number of time bins:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `i_wavelength` | (W) | 64-bit float | `instrument = "i"`, `description = "characteristic wavelength of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
+| `i_wavelength_width` | (W) | 64-bit float | `instrument = "i"`, `description = "effective width of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
+| `i_sed_transparent` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_primary_direct` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "primary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_primary_scattered` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "primary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_direct` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_direct"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_scattered` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_scattered"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_secondary_transparent` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "secondary_transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `i_sed_stats_0` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "stats_0"`, `quantity = ""`, `unit = ""` |
+| `i_sed_stats_1` | (W) | 64-bit float | `instrument = "i"`, `kind = "sed"`, `component = "stats_1"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `j_time` | (T) | 64-bit float | `instrument = "j"`, `description = "characteristic time of the bin"`, `quantity = "time"`, `unit = "s"` |
+| `j_time_width` | (T) | 64-bit float | `instrument = "j"`, `description = "width of the bin"`, `quantity = "time"`, `unit = "s"` |
+| `j_lc_transparent` | (T) | 64-bit float | `instrument = "j"`, `kind = "lc"`, `component = "transparent"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `j_lc_transparent_weighted` | (T) | 64-bit float | `instrument = "j"`, `kind = "lc"`, `component = "transparent"`, `unit = "W m"` |
+
+`stats_0` is a plain, dimensionless count of contributing packet histories, hence the empty
+`quantity`/`unit`. `stats_1` has the same dimension as the flux components themselves.
+`stats_2` through `stats_4` and the `_weighted` datasets have no established SKIRT
+quantity-type identifier, so they carry no `quantity` attribute and their `unit` is set
+directly to `"W2"`, `"W3"`, and `"W4"` (matching SKIRT's own `"m3"`-style unit-string
+convention) and `"W m"` respectively. IFU and STM datasets follow the same component and
+naming rules as SED and LC, but with dimensions (W, Ny, Nx) and (W, T) respectively, where
+Ny and Nx are the instrument's pixel counts.
