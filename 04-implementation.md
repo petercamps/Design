@@ -12,6 +12,10 @@
   must close their read access to that file before the root process opens it for writing —
   reading and writing must not overlap in time (see Concurrency under Output in Features).
 
+- The spatial grid checkpoint bundle's topology is recorded and replayed breadth-first, not
+  depth-first as today's `TreeSpatialGridTopologyProbe`/`FileTreeSpatialGrid` do — see Tree
+  grids under Reusing grid topology in Features for why this is required, not optional.
+
 - Related to the redesigning of tree policies: tree construction is breadth-first,
   level by level (see `DensityTreePolicy::constructTree()`), so the checkpoint policy must
   match live nodes to its own recorded ones by tree position — parsed into a real tree at

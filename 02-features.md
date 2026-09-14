@@ -539,20 +539,24 @@ loop:
     skirt -i in.hdf5 -o run.hdf5 -c run.hdf5 mysim.ski
 ```
 
-### An aside: restructuring tree policies
+### Restructuring tree policies
 
-Although it is not this document's main subject, this section proposes a restructuring of
-SKIRT's hierarchical tree policies — the classes that determine how nodes get subdivided.
-This could be implemented in conjunction with the HDF5 functionality discussed in this
-document.
+Checkpoint-based resuming, and the grid-reuse mechanism described in Reusing grid topology
+below, require a tree grid to be reconstructible from a saved topology no matter how it was
+originally configured to subdivide. This section proposes a restructuring of SKIRT's
+hierarchical tree policies — the classes that determine how nodes get subdivided — that
+makes this possible; the rest of this chapter assumes it is in place.
 
 Today, a tree-based spatial grid is either a `PolicyTreeSpatialGrid`, configured with a
 single construction policy, or a `FileTreeSpatialGrid`, which loads a previously saved
-topology instead of building one. The proposal merges these back into a single, concrete
-`TreeSpatialGrid` class, configured with a _list_ of construction policies rather than a
-single one. `treeType`, `minLevel`, and `maxLevel` — currently split between
-`PolicyTreeSpatialGrid` and the individual policy — become properties of `TreeSpatialGrid`
-itself, shared by every policy in the list.
+topology instead of building one — two separate, mutually exclusive classes. Resuming a
+`PolicyTreeSpatialGrid` simulation would therefore need to silently substitute a different
+grid class behind the user's back, rather than there being one mechanism that works
+uniformly regardless of how the grid was originally configured. The proposal merges these
+back into a single, concrete `TreeSpatialGrid` class, configured with a _list_ of
+construction policies rather than a single one. `treeType`, `minLevel`, and `maxLevel` —
+currently split between `PolicyTreeSpatialGrid` and the individual policy — become
+properties of `TreeSpatialGrid` itself, shared by every policy in the list.
 
 During construction, a node is subdivided as soon as any one policy in the list asks for
 it. This makes the policies freely combinable: a grid can use dust density, electron
@@ -578,7 +582,10 @@ over unchanged; and two new policies take over what `FileTreeSpatialGrid` and
 
 **`CheckpointTreePolicy`** replaces `FileTreeSpatialGrid`: it loads a previously recorded
 topology from an HDF5 checkpoint instead of computing one, but now as one policy among
-others rather than a separate spatial grid class. This is precisely what makes refining a
+others rather than a separate spatial grid class. Resuming a tree grid relies on exactly
+this: whatever policies the ski file configures, resuming substitutes a `CheckpointTreePolicy`
+pointing at the `-c` checkpoint's own spatial grid bundle in their place, replaying the
+saved topology instead of resampling it. The same mechanism is also what makes refining a
 previously saved grid with an extra criterion possible: list the checkpoint policy alongside
 a fresh density policy, and the combined grid subdivides at least everywhere the checkpoint
 did, plus wherever the new criterion additionally asks for it.
@@ -636,14 +643,20 @@ in turn.
 
 **Tree grids.** The new mechanism replaces the existing one: the
 `TreeSpatialGridTopologyProbe` is removed, since the spatial grid checkpoint bundle already
-captures the same topology as a side effect during checkpointing. The `filename` property of
-`FileTreeSpatialGrid` (or `CheckpointTreePolicy` as proposed in the previous section) now
-names an HDF5 file — resolved relative to the simulation's input directory, like any other
-input file — followed by a mandatory `:<bundle>` component. This component consists of an
-optional anchor and a mandatory name identifying which checkpoint to load from.
-`FileTreeSpatialGrid` (or `CheckpointTreePolicy`) then picks out the relevant bundle within
-that checkpoint on its own. The saved topology remains scale-free, so the simulation loading
-it still specifies the domain extent itself.
+captures the same topology as a side effect during checkpointing. The `filename` property
+of `CheckpointTreePolicy` names an HDF5 file — resolved relative to the simulation's input
+directory, like any other input file — followed by a mandatory `:<checkpoint>` component. This
+component consists of an optional anchor and a mandatory name identifying which checkpoint
+to load from. `CheckpointTreePolicy` then picks out the relevant bundle within that
+checkpoint on its own. The saved topology remains scale-free, so the simulation loading it
+still specifies the domain extent itself.
+
+The topology is recorded breadth-first, level by level — the same order
+`TreeSpatialGrid` builds any tree. This is required, not just a matter of taste: a tree
+grid's cell index is assigned by numbering its leaves in construction order, and that same
+index is what the Medium state and Radiation field bundles are keyed on. Recording and
+replaying the topology breadth-first keeps a leaf's cell index identical between the
+original run and any later replay of the same topology.
 
 **`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
 `filename` property can still name a plain text file of site positions, or now instead an

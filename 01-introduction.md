@@ -53,6 +53,7 @@ superior HDF5 storage mechanisms:
 
 - The `scol` format, a SKIRT-specific binary alternative to regular text column files.
 - The specialized text format used for saving and re-loading spatial grid tree topology.
+  This also changes the way a `TreeSpatialGrid` is configured in ski files.
 
 ## Impact on PTS
 

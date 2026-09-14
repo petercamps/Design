@@ -423,7 +423,63 @@ iterate over the corresponding emission phase.
 
 ### Spatial grid
 
-TODO: describe the HDF5 representation of the spatial grid checkpoint bundle.
+Captures the grid's structure, as introduced under Checkpoint bundles in the Features
+chapter. Every simulation has exactly one spatial grid, so this bundle is always present,
+identified by its `grid_type` attribute — the grid's SKIRT class name converted to
+underscore style, e.g. `TreeSpatialGrid` becomes `tree_spatial_grid`. Beyond that attribute, the
+bundle's contents depend on the grid type. Tree grids need their topology stored, grids
+with cuboidal, axis-aligned cells additionally (or instead) get a linear cell list enabling
+visualization or sampling without reconstructing the grid (tree, AMR, and Cartesian grids),
+and Voronoi/Tetra grids get their site or vertex positions.
+Other grid types carry no datasets at all.
+
+**`TreeSpatialGrid`.** *Topology*: stored as a breadth-first, level-by-level stream of leaf/nonleaf
+flags — the single root flag first, then one flag for each of its children (if any), then
+one flag for each of those children's children, and so on — the number of flags at each
+level is the number of `false` (nonleaf) flags at the level before, times the fixed number
+of children per split. Breadth-first order is required, not merely conventional, so that
+replaying the stream reproduces the exact same cell numbering as the original run (see Tree
+grids under Reusing grid topology in Features). `tree_type` records whether each nonleaf
+node splits into 2 children (`BinTree`) or 8 (`OctTree`), needed to decode the flag stream.
+*Linear cell list*: yes, as described below.
+
+**`AdaptiveMesh` and `Cartesian` grids.** *Topology*: none. An AMR grid's structure comes wholesale, and
+deterministically, from its own text/HDF5 input bundle; a Cartesian grid's structure is
+fully determined by the ski file — neither needs to be stored again here. *Linear cell
+list*: yes, as described below, for visualization and sampling.
+
+**`VoronoiMeshSpatialGrid` and `TetraMeshSpatialGrid`.** *Topology*: none — their sites or
+vertices are not organized hierarchically, so there is no topology to speak of. *Linear
+cell list*: none either, since neither grid type is cuboidal (see Unsupported features in
+Features). What needs preserving instead is simply the site or vertex positions themselves,
+to avoid resampling them; this bundle is therefore just a Text column file bundle (see Text
+column file under Input bundles, above) — `x`, `y`, and `z` columns — with the `grid_type`
+attribute added.
+
+**`Cylinder`/`Sphere` grids.** *Topology*: none, since these grids are fully parametric.
+*Linear cell list*: none either, since neither grid family is cuboidal (see Spatial grid
+types under Unsupported features in Features). This bundle carries no datasets at all, just
+the standard bundle attributes and `grid_type`.
+
+**Attributes**
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `grid_type` | string | The grid's SKIRT class name, converted from camel case to underscores (see above). |
+| `tree_type` | string | `OctTree` or `BinTree`. Tree grids only. |
+
+**Datasets** — shown here for an octree with `Nn` nodes (leaves and nonleaves combined) and
+`M` leaf cells:
+
+| Dataset | Dimensions | Type | Attributes |
+| --- | --- | --- | --- |
+| `is_leaf` | (Nn) | boolean | `description = "true for a leaf node"`. Tree grids only, breadth-first order. |
+| `min` | (M, 3) | 64-bit float | `description = "minimum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
+| `max` | (M, 3) | 64-bit float | `description = "maximum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
+
+`min` and `max` are present for tree, AMR, and Cartesian grids; `is_leaf` and `tree_type`
+for tree grids only. The row index into `min`/`max` matches the cell index used
+throughout the Medium state and Radiation field bundles.
 
 ### Medium state
 
