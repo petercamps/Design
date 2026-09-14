@@ -242,7 +242,7 @@ adding columns) — this becomes the bundle's own `description` attribute.
 
 | Attribute | Type | Description |
 | --- | --- | --- |
-| `description` | string | Free-form comment conventionally written first, before the columns. |
+| `description` | string | Free-form comment describing the output. |
 
 **Datasets** — one per column, as on the input side. Shown here for a 2-column SED output
 file, where `N` is the number of rows:
@@ -254,41 +254,61 @@ file, where `N` is the number of rows:
 
 ### FITS file
 
-Wraps SKIRT's existing `FITSInOut::write()` helper (built on `cfitsio`) for 2-D images and
-3-D data cubes (a stack of frames along a third axis, typically wavelength), used for
-instrument frames and data cubes, and for planar cuts or projections produced by probes.
-Kept at full 64-bit precision in the bundle — unlike a FITS output file, which stores pixel
-values as 32-bit floats. The third-axis coordinate values, stored today
-in a FITS table extension named `GRID_POINTS`, become an ordinary 1-D dataset.
+Wraps SKIRT's existing `FITSInOut::write()` and `FITSInOut::writeMap()` helpers (built on
+`cfitsio`) for 2-D data frames and 3-D data cubes (a stack of frames along a third axis).
+These are used for instrument fluxes (IFUs and STMs) and statistics, and for planar
+cuts or projections produced by probes.
+
+To limit storage requirements, data values are stored at 32-bit precision just like in
+FITS output files. The three axis coordinate values are the equivalent of information
+otherwise stored in the FITS header and/or in FITS table extensions named `GRID_POINTS`.
+The quantities represented by data and axes differ for the various use cases, as shown
+in the table below. The axis and data datasets each carry attributes defining the
+quantity type and unit.
+
+| Output type | x-axis | y-axis | z-axis | data |
+| --- | --- | --- | --- | --- |
+| Flux IFU | spatial | spatial | spectral | flux |
+| Statistics for flux IFU | spatial | spatial | spectral | contribution moments |
+| Flux STM | spectral | time lag | - | flux |
+| Statistics for flux STM | spectral | time lag | - | contribution moments |
+| Planar cut or projection | | | | |
+| ... for scalar quantity | spatial | spatial | - | ? |
+| ... for velocity | spatial | spatial | (vx, vy, vz) | velocity |
+| ... for spectral grid | spatial | spatial | spectral | ? |
 
 **Attributes**
 
 | Attribute | Type | Description |
 | --- | --- | --- |
-| `pixel_scale_x`, `pixel_scale_y` | 64-bit float | Pixel size along each axis (FITS `CDELT1`/`CDELT2`). |
-| `pixel_scale_unit` | string | Unit of the pixel-scale attributes (FITS `CUNIT1`/`CUNIT2`). |
-| `inclination` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA1`). |
-| `azimuth` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA2`). |
-| `roll` | 64-bit float, degrees | Distant-instrument output only, not probe projections (FITS `CROTA3`). |
-| `redshift` | 64-bit float | Distant-instrument output only (FITS `REDSHIFT`). |
-| `luminosity_distance` | 64-bit float | Distant-instrument output only (FITS `DISTLUMI`). |
-| `angular_diameter_distance` | 64-bit float | Distant-instrument output only (FITS `DISTANGD`). |
+| `description` | string | Free-form comment describing the output. |
+
+Only for distant-instrument IFUs:
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `inclination` | 64-bit float, degrees | Viewing inclination (FITS `CROTA1`). |
+| `azimuth` | 64-bit float, degrees | Viewing azimuth (FITS `CROTA2`). |
+| `roll` | 64-bit float, degrees | Viewing roll angle (FITS `CROTA3`). |
+| `redshift` | 64-bit float | Redshift of the source (FITS `REDSHIFT`). |
+| `luminosity_distance` | 64-bit float | Luminosity distance to the source (FITS `DISTLUMI`). |
+| `angular_diameter_distance` | 64-bit float | Angular-diameter distance to the source (FITS `DISTANGD`). |
 | `distance_unit` | string | Unit of the two distance attributes (FITS `DISTUNIT`). |
 
-**Datasets** — shown here for a 3-D data cube produced by a FrameInstrument:
+The remaining FITS header information is represented by the datasets and their attributes,
+as listed below, and by the `producer` and `created` attributes carried by the bundle.
+
+**Datasets** — shown here for a 3-D IFU data cube produced by a FrameInstrument:
 
 | Dataset | Dimensions | Type | Attributes |
 | --- | --- | --- | --- |
-| `image` | (ny, nx) or (nz, ny, nx) | 64-bit float | `unit = "MJy/sr"` |
-| `wavelength` | (nz) | 64-bit float | `unit = "micron"` |
+| `x` | (nx) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
+| `y` | (ny) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
+| `z` | (nz) | 64-bit float | `quantity = "wavelength"`, `unit = "micron"` |
+| `data` | (ny, nx) or (nz, ny, nx) | 32-bit float | `quantity = "frequencysurfacebrightness"`, `unit = "MJy/sr"` |
 
-`image` is 2-D for a single frame or 3-D for a cube — (100, 1024, 1024) for this example — and
-its `unit` attribute matches FITS `BUNIT`. `wavelength` gives the third-axis coordinate of
-each frame and is present only when `image` is 3-D; its own `unit` is independent of
-`image`'s. Not carried over: FITS `BSCALE`/`BZERO`
-(integer-scaling factors for compact storage) and `DATE`/`ORIGIN` (creation timestamp and
-producing software), none of which are needed once storage is native 64-bit float and
-every bundle already carries its own `producer` and `created` attributes.
+If `z` is missing or has a single value, `data` is 2-D representing a single data frame.
+If `z` is present with 2 or more values, `data` is 3-D representing a data cube.
 
 ### Spatial grid plot file
 

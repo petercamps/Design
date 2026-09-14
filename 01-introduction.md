@@ -20,9 +20,13 @@ format. [HDF5](https://www.hdfgroup.org) is a binary, self-describing, hierarchi
 designed for large scientific datasets. It is compact and efficient to read and write; a
 single HDF5 file can contain many distinct datasets organized in a nested structure similar
 to a filesystem. Datasets and groups can carry attributes, small pieces of metadata such as
-units or other descriptors, stored directly alongside the data they describe. It is also
-easily accessible from Python — widely used in the community for analysis and pipeline
-scripting — via the mature `h5py` package, whose interface closely mirrors NumPy arrays.
+units or other descriptors, stored directly alongside the data they describe.
+
+HDF5 files can be viewed and adjusted directly, without writing any code, using
+[HDFView](https://www.hdfgroup.org/download-hdfview/), a free graphical browser and editor
+distributed by the HDF Group. HDF5 is also easily accessible from Python — widely used in the
+community for analysis and pipeline scripting — via the mature `h5py` package, whose
+interface closely mirrors NumPy arrays.
 
 A further benefit is that HDF5 is well suited to checkpointing — periodically saving the
 complete internal state of a running simulation so that it can be resumed after an
@@ -41,6 +45,13 @@ superior HDF5 storage mechanisms:
 
 - The `scol` format, a SKIRT-specific binary alternative to regular text column files.
 - The specialized text format used for saving and re-loading spatial grid tree topology.
+
+## Impact on PTS
+
+These features will also require updates to PTS, the Python Toolkit for SKIRT — mostly its
+functionality for visualizing and testing SKIRT output. They may also enable new PTS
+capabilities that take advantage of the additional information now available, such as
+checkpoints. Working out these changes, however, is out of scope for this document.
 
 ## Overview
 
