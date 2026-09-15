@@ -98,14 +98,10 @@ hands this API an already-resolved bundle path.
   must close their read access to that file before the root process opens it for writing —
   reading and writing must not overlap in time (see Concurrency under Output in Features).
 
-- The spatial grid checkpoint bundle's topology is recorded and replayed breadth-first, not
-  depth-first as today's `TreeSpatialGridTopologyProbe`/`FileTreeSpatialGrid` do — see Tree
-  grids under Reusing grid topology in Features for why this is required, not optional.
-
-- Related to the redesigning of tree policies: tree construction is breadth-first,
-  level by level (see `DensityTreePolicy::constructTree()`), so the checkpoint policy must
-  match live nodes to its own recorded ones by tree position — parsed into a real tree at
-  setup — rather than by consuming the recorded sequence in order; once a live node falls
+- `CheckpointTreePolicy` must match each live node to its counterpart in the recorded
+  topology — parsed into a real tree at setup via its `parent_id` links — by following the
+  same parent/child-slot path from the root, rather than assuming live construction visits
+  nodes in the same order the checkpoint was originally written in; once a live node falls
   past what was recorded, it correctly answers no from there down.
 
 ## Stored table bundle

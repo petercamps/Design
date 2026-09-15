@@ -650,13 +650,6 @@ to load from. `CheckpointTreePolicy` then picks out the relevant bundle within t
 checkpoint on its own. The saved topology remains scale-free, so the simulation loading it
 still specifies the domain extent itself.
 
-The topology is recorded breadth-first, level by level — the same order
-`TreeSpatialGrid` builds any tree. This is required, not just a matter of taste: a tree
-grid's cell index is assigned by numbering its leaves in construction order, and that same
-index is what the Medium state and Radiation field bundles are keyed on. Recording and
-replaying the topology breadth-first keeps a leaf's cell index identical between the
-original run and any later replay of the same topology.
-
 **`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
 `filename` property can still name a plain text file of site positions, or now instead an
 HDF5 file, resolved relative to the input directory, with

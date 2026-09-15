@@ -433,15 +433,17 @@ list enabling visualization or sampling without reconstructing the grid (tree, A
 Cartesian grids), and Voronoi/Tetra grids get their site or vertex positions; other grid
 types carry no datasets at all.
 
-**`TreeSpatialGrid`.** *Topology*: stored as a breadth-first, level-by-level stream of
-leaf/nonleaf flags — the single root flag first, then one flag for each of its children (if
-any), then one flag for each of those children's children, and so on — the number of flags
-at each level is the number of `false` (nonleaf) flags at the level before, times the fixed
-number of children per split. Breadth-first order is required, not merely conventional, so
-that replaying the stream reproduces the exact same cell numbering as the original run (see
-Tree grids under Reusing grid topology in Features). `tree_type` records whether each nonleaf
-node splits into 2 children (`BinTree`) or 8 (`OctTree`), needed to decode the flag stream.
-*Linear cell list*: yes, as described below.
+**`TreeSpatialGrid`.** *Topology*: stored as one row per tree node — row `i` of `is_leaf`
+and `parent_id` describes the node with id `i`, the root always being id `0`. `parent_id`
+gives the id of that node's parent (`-1` for the root), making the hierarchy explicit rather
+than implied by storage order. A node's parent always has a smaller id than the node itself,
+since nothing can be subdivided into children before it exists, so replaying rows `0` to
+`Nn - 1` in order always reaches a parent before its children — regardless of when, during
+the run, any given node was actually subdivided. The format therefore does not depend on the
+tree having been built in a single top-down pass. `tree_type` records whether each nonleaf
+node splits into 2 children (`BinTree`) or 8 (`OctTree`), needed to map a node's children —
+the rows that name it as their `parent_id`, in ascending id order — onto the fixed geometric
+split of its box. *Linear cell list*: yes, as described below.
 
 **`AdaptiveMeshSpatialGrid` and `CartesianSpatialGrid`.** *Topology*: none. An AMR grid's
 structure comes wholesale, and deterministically, from its own text/HDF5 input bundle; a
@@ -474,13 +476,16 @@ the standard bundle attributes and `grid_type`.
 
 | Dataset | Dimensions | Type | Attributes |
 | --- | --- | --- | --- |
-| `is_leaf` | (Nn) | boolean | `description = "true for a leaf node"`. Tree grids only, breadth-first order. |
+| `is_leaf` | (Nn) | boolean | `description = "true for a leaf node"`. Tree grids only. |
+| `parent_id` | (Nn) | 32-bit integer | `description = "id of the parent node; -1 for the root"`. Tree grids only. |
 | `min` | (M, 3) | 64-bit float | `description = "minimum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
 | `max` | (M, 3) | 64-bit float | `description = "maximum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
 
-`min` and `max` are present for tree, AMR, and Cartesian grids; `is_leaf` and `tree_type`
-for tree grids only. The row index into `min`/`max` matches the cell index used
-throughout the Medium state and Radiation field bundles.
+`min` and `max` are present for tree, AMR, and Cartesian grids; `is_leaf`, `parent_id`, and
+`tree_type` for tree grids only. The row index into `min`/`max` matches the cell index `m`
+used throughout the Medium state and Radiation field bundles; for tree grids, `m` is assigned
+by scanning `is_leaf` in row (id) order and numbering the leaves in the order encountered,
+exactly as SKIRT itself does when the grid is freshly constructed.
 
 ### Medium state
 
