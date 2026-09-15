@@ -266,7 +266,7 @@ Wraps SKIRT's existing `FITSInOut::write()` and `FITSInOut::writeMap()` helpers 
 These are used for instrument fluxes (IFUs and STMs) and statistics, and for planar
 cuts or projections produced by probes.
 
-To limit storage requirements, data values are stored at 32-bit precision just like in
+Data values are stored at 64-bit float precision as opposed to 32-bit float in actual
 FITS output files. The three axis coordinate values are the equivalent of information
 otherwise stored in the FITS header and/or in FITS table extensions named `GRID_POINTS`.
 The quantities represented by data and axes differ for the various use cases, as shown
@@ -312,7 +312,7 @@ as listed below, and by the `producer` and `created` attributes carried by the b
 | `x` | (nx) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
 | `y` | (ny) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
 | `z` | (nz) | 64-bit float | `quantity = "wavelength"`, `unit = "micron"` |
-| `data` | (ny, nx) or (nz, ny, nx) | 32-bit float | `quantity = "frequencysurfacebrightness"`, `unit = "MJy/sr"` |
+| `data` | (ny, nx) or (nz, ny, nx) | 64-bit float | `quantity = "frequencysurfacebrightness"`, `unit = "MJy/sr"` |
 
 If `z` is missing or has a single value, `data` is 2-D representing a single data frame.
 If `z` is present with 2 or more values, `data` is 3-D representing a data cube.
