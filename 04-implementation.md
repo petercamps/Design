@@ -272,7 +272,60 @@ redirects output entirely, rather than falling back to it like `-i` does.
 `-c` always requires `<hdf>` (Resuming from a checkpoint in Features), so there is no
 plain-only row here.
 
-## Stored table bundle
+## Input
+
+### Column input
+
+**`ColumnInFile`** replaces direct `TextInFile` use at every call site that reads a genuine
+input text column file today (a Text column file bundle, per the Data model chapter,
+when HDF5 applies). A resource file never goes through this class — resource lookup never
+involves HDF5 at all, so it keeps using `TextInFile` directly.
+
+At construction, `ColumnInFile(const SimulationItem* item, string filename, string description)`
+only records its arguments; unlike `TextInFile`, it does not open anything yet.
+The `description` argument is only used for logging. `useColumns()` and `addColumn()` are
+called next, same as today. Once all `addColumn()` calls have happened,
+triggered by the first `readRow()`/`readAllRows()`/`readAllColumns()` call,
+the filename is resolved by calling `FilePaths::input(filename)`.
+If the plain-file candidate exists, it is opened through an internally held `TextInFile`.
+If not, the HDF5 candidate is opened as a bundle and each declared column is read from its own named dataset.
+Matching datasets with column names happens in the same way as for a plain text column file.
+`close()` and the destructor release whichever of the two
+was actually opened. `readNonLeaf()` has no counterpart here; AMR input needs a different
+mechanism, covered in its own subsection below.
+
+Call sites that construct a `TextInFile` for a genuine input file all move to
+`ColumnInFile`:
+
+- `Snapshot` (and, through it, every snapshot subclass: `CellSnapshot`, `ParticleSnapshot`,
+  `CylindricalCellSnapshot`, `SphericalCellSnapshot`, `AdaptiveMeshSnapshot`,
+  `VoronoiMeshSnapshot`) — imports per-particle or per-cell properties.
+- `VoronoiMeshSnapshot` — also reads site positions directly, separately from the shared
+  `Snapshot` mechanism above.
+- `FileWavelengthGrid`, `FileBorderWavelengthGrid` — wavelength grids.
+- `FileSED`, `FileLineSED`, `FileGaussianLinesSED` — spectral energy distributions.
+- `FileBand` — transmission curves.
+- `FileWavelengthDistribution` — wavelength probability distributions.
+- `FileGrainSizeDistribution` — grain size distributions.
+- `FileMesh` — mesh border points.
+- `TetraMeshSpatialGrid` — tetrahedral vertices.
+- `ClumpySphericalSpatialGrid` — clump centers and radii.
+- `MultiGaussianExpansionGeometry` — expansion parameters.
+- `MeanFileDustMix` — optical dust properties.
+- `NonLTELineGasMix` — initial level populations.
+- `AtPositionsForm` — probe sample positions.
+
+`AdaptiveMeshSnapshot` is a partial exception: its per-cell properties go through
+`Snapshot`'s shared mechanism like any other snapshot, but its AMR topology parsing
+(`readNonLeaf()` stays out of scope for this class.
+
+`GasLineEmission` and `XRayAtomicGasMix` construct `TextInFile` with `resource = true` at
+several call sites each; none of those move, since built-in resources never use
+`ColumnInFile`.
+
+### AMR input
+
+### Stored table bundle
 
 The data in a stored table input bundle cannot be memory mapped (as for a regular .stab file)
 for several reasons:
@@ -284,6 +337,69 @@ for several reasons:
 
 The StoredTable constructor for a bundle must therefore copy the data into newly allocated
 memory, and the destructor must deallocate that memory.
+
+### FITS input
+
+## Output
+
+### Column output
+
+**`ColumnOutFile`** replaces direct `TextOutFile` use at every call site that writes a
+genuine output text column file today (a Text column file bundle, per the Data model
+chapter, when HDF5 applies).
+
+At construction, `ColumnOutFile(const SimulationItem* item, string filename, string description)`
+only records its arguments; unlike `TextOutFile`, it opens nothing yet. A new
+`setLongDescription(string longDescription)` replaces the pattern every call site uses
+today of calling `writeLine()` to write a `#`-prefixed first line by hand.
+The constructor's `description` is used for logging, while the `longDescription` goes
+on the text file's first line and in the dataset's `description` attribute.
+
+`addColumn()` keeps its existing signature unchanged; its `format` and `precision` arguments
+only apply to the plain-text branch, since HDF5 stores each column as typed binary data
+with no formatting question to answer.
+
+`FilePaths::output(filename)` is only resolved once writing is actually finished, at
+`close()`, since the description and the full set of columns must be settled first. Unlike
+`ColumnInFile`, there is no trying one candidate and falling back to the other: per Name
+resolution, above, `output()`'s two candidates are already mutually exclusive, so
+`ColumnOutFile` writes the plain file if that candidate is non-empty, or creates the bundle
+and its datasets if the HDF5 candidate is.
+
+Call sites that construct a `TextOutFile` for a genuine column output file all move to
+`ColumnOutFile`:
+
+- `LinearCutForm`, `PerCellForm`, `MeridionalCutForm`, `AtPositionsForm` — the shared forms
+  `ProbeFormBridge` uses to write a probe's sampled quantities; `OpacityProbe`,
+  `RadiationFieldProbe`, `SecondaryLineLuminosityProbe`, `ImportedSourceLuminosityProbe`,
+  `CustomStateProbe`, and other probes supply their own column definitions to whichever form
+  they use, without constructing a file themselves.
+- `FluxRecorder` — SED, light curve, and instrument statistics tables.
+- `LaunchedPacketsProbe` — photon packets launched by primary sources.
+- `LuminosityProbe` — primary source luminosities.
+- `InstrumentTimeGridProbe`, `InstrumentWavelengthGridProbe` — instrument time and
+  wavelength grids.
+- `SpatialGridSourceDensityProbe` — gridded primary source densities.
+- `SpatialCellPropertiesProbe` — per-cell spatial grid properties.
+- `OpticalMaterialPropertiesProbe` — per-medium optical properties.
+- `DustGrainPopulationsProbe`, `DustGrainSizeDistributionProbe` — dust grain population and
+  size-distribution data.
+- `DustAbsorptionPerCellProbe`, `DustEmissivityProbe` — per-cell dust absorption and
+  emissivity data.
+- `IntegratedSecondaryLineLuminosityProbe` — integrated per-line luminosities.
+
+Three groups of `TextOutFile` use stay out of scope, for different reasons:
+
+- `ConvergenceInfoProbe` writes free-form, human-readable text (`convergence.dat`), not a
+  column table — an Unstructured text file bundle, not covered here.
+- `SpatialGridPlotFile` and the various spatial grid classes that write to it
+  (`CartesianSpatialGrid`, `StructuredSphereSpatialGrid`, `Cylinder2DSpatialGrid`,
+  `Cylinder3DSpatialGrid`, `Sphere2DSpatialGrid`) write raw polyline coordinates, not named
+  columns — a Spatial grid plot file bundle, covered in a separate section below.
+- `TreeSpatialGrid::writeTopology()` and `TreeSpatialGridTopologyProbe` are removed outright,
+  per Compatibility in Features, replaced by the spatial grid checkpoint bundle's topology.
+
+### FITS output
 
 ## Notes to revisit
 
