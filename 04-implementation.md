@@ -6,7 +6,7 @@
 
 ### Build option
 
-Whether HDF5 support is available is decided at compile-time, but 
+Whether HDF5 support is available is decided at compile-time, but
 client code links into the HDF5 target's API unconditionally, everywhere in SKIRT, rather
 than being scattered with `#ifdef BUILD_HDF5` guards.
 
@@ -135,9 +135,9 @@ A bundle created for writing attaches the three standard attributes (`producer`,
 `created`) automatically; one opened for reading exposes whatever attributes it actually has.
 A checkpoint handles the checkpoint-specific attributes (`when`, `iteration`, the ski
 parameters from Iterating across simulations) and hands out the up to four sub-bundles
-(Spatial grid, Medium state, Radiation field, Recorded fluxes) by name.
-The `hasAttribute()` function is needed
-because in some places attribute absence is meaningful and distinct from an empty value.
+(Spatial grid, Medium state, Radiation field, Recorded fluxes) by name. The
+`hasAttribute()` function is needed because in some places attribute absence is meaningful
+and distinct from an empty value.
 
 ### Object lifetime
 
@@ -260,10 +260,10 @@ to the HDF5 one only if that file does not exist.
 | `./data.hdf5:run1` | `mysim_i_total.fits` | `data.hdf5:run1/mysim_i_total.fits` |
 
 Both candidates are populated whenever applicable — the plain one unconditionally, the
-HDF5 one only when HDF5 is configured — rather than being mutually exclusive. Most callers
-use the HDF5 candidate when it is non-empty and the plain one otherwise.
-In some rare cases, the caller needs the plain file path regardless of HDF5 configuration.
-For example, `FileLog` always writes to a plain file first, and thus needs this path.
+HDF5 one only when `<hdf>` is configured — rather than being mutually exclusive. Most callers
+use the HDF5 candidate when it is non-empty and the plain one otherwise. In some rare cases,
+though, the caller needs the plain file path regardless of HDF5 configuration — `FileLog`,
+for example, always writes to a plain file first.
 
 **Checkpoint**
 
@@ -599,11 +599,11 @@ either the raw accumulated values or what was configured. New getters are needed
 
 Resuming means each affected class's setup needs a way to load its own state from the
 checkpoint named by `-c` instead of computing it the normal way. That needs one new, shared
-piece of infrastructure: something that resolves `-c`'s value once, via `H5Lib::openCheckpoint()`, and
-hands out the resulting `H5CheckpointR` to whichever `setupSelfBefore()`/`setupSelfAfter()`
-functions need it, plus a simple "is this a resume at all" query. 
-Since a checkpoint's sub-bundles are optional, each of the four
-cases below falls back to its normal, non-resume setup whenever its own bundle happens to be
+piece of infrastructure: something that resolves `-c`'s value once, via
+`H5Lib::openCheckpoint()`, and hands out the resulting `H5CheckpointR` to whichever
+`setupSelfBefore()`/`setupSelfAfter()` functions need it, plus a simple "is this a resume at
+all" query. Since a checkpoint's sub-bundles are optional, each of the four cases below
+falls back to its normal, non-resume setup whenever its own bundle happens to be
 absent (for example, resuming from a `Setup` checkpoint before any packet has been traced
 leaves Radiation field absent). Bundles the checkpoint probe only linked to, rather than
 storing fresh, resolve to the same underlying group HDF5's own hard-link mechanism already
@@ -620,8 +620,8 @@ setup to check for a resume first and, if one applies, load positions from the c
 separate "reusing grid topology" ski feature (see Features), just triggered automatically by
 `-c` rather than by an explicit policy choice.
 
-Tree grids need the most care. on resume, `is_leaf` and `parent_id` let the tree be rebuilt directly,
-without needing to reproduce any particular construction order — but if a future change lets
+Tree grids need the most care. On resume, `is_leaf` and `parent_id` let the tree be rebuilt
+directly, without needing to reproduce any particular construction order — but if a future change lets
 a tree be subdivided further during later iterations, resuming from an earlier checkpoint and
 continuing the run means live construction must still be able to extend the tree beyond what
 was recorded. The reconstruction therefore has to match each live node to its counterpart in
@@ -716,6 +716,7 @@ dust-absorbed secondary luminosity against a single remembered scalar, `_prevLab
 the iteration before. That one number would be cheap to add as a new checkpoint attribute,
 letting secondary-emission convergence resume exactly as it would have run uninterrupted.
 
-So we need to accept a less precise policy specifically for the iteration right after a resume
-— for example, always treating it as not yet converged and continuing up to
-`max_primary_iterations`, which is already a checkpoint attribute. 
+For primary iterations, unlike secondary, no single new attribute closes that gap. One option
+is to accept a less precise policy specifically for the iteration right after a resume — for
+example, always treating it as not yet converged and continuing up to
+`max_primary_iterations`, which is already a checkpoint attribute.
