@@ -340,6 +340,28 @@ memory, and the destructor must deallocate that memory.
 
 ### FITS input
 
+**`FITSInOutFile`** replaces `FITSInOut` wherever a call site reads or writes a genuine FITS
+file (a FITS bundle, per the Data model chapter, when HDF5 applies), as static functions
+wrapping the existing, cfitsio-backed `FITSInOut` static functions. Unlike
+`ColumnInFile`/`ColumnOutFile`, no deferred-open or buffering is needed: every `FITSInOut`
+call already carries, or produces, the complete array in one shot, so the shape an HDF5
+dataset needs at creation is always already known.
+
+`read()` keeps `FITSInOut::read()`'s exact signature. It resolves `FilePaths::input(filename)`
+and either delegates straight to the existing cfitsio-backed implementation for the plain-file
+candidate, or opens the HDF5 candidate as a bundle and reads its `image` dataset — its shape
+supplies `nx`/`ny`/`nz` — for the FITS input bundle already specified in the Data model
+chapter.
+
+`FITSInOut::read()` supports `[EXTNAME]`-style addressing for picking a non-primary data unit
+out of one FITS file. This has no equivalent in the HDF5 bundle scheme; instead each FITS
+data unit should be placed in its own individual HDF5 bundle.
+
+Call sites:
+
+- `ReadFitsGeometry` — a 2-D image.
+- `ReadFits3DGeometry` — a 3-D data cube.
+
 ## Output
 
 ### Column output
@@ -353,7 +375,7 @@ only records its arguments; unlike `TextOutFile`, it opens nothing yet. A new
 `setLongDescription(string longDescription)` replaces the pattern every call site uses
 today of calling `writeLine()` to write a `#`-prefixed first line by hand.
 The constructor's `description` is used for logging, while the `longDescription` goes
-on the text file's first line and in the dataset's `description` attribute.
+on the text file's first line and in the bundle's `description` attribute.
 
 `addColumn()` keeps its existing signature unchanged; its `format` and `precision` arguments
 only apply to the plain-text branch, since HDF5 stores each column as typed binary data
@@ -400,6 +422,21 @@ Three groups of `TextOutFile` use stay out of scope, for different reasons:
   per Compatibility in Features, replaced by the spatial grid checkpoint bundle's topology.
 
 ### FITS output
+
+`FITSInOutFile::write()` and `::writeMap()` keep `FITSInOut`'s exact signatures, including
+the optional `ObserverInfo` struct. `FilePaths::output(filename)` resolves the same way as
+for `read()`; the HDF5 branch creates the bundle and writes `data` plus whichever of `x`/`y`/
+`z` apply in one shot each, and sets the bundle's attributes — `description`, and, for
+distant-instrument IFUs, `ObserverInfo`'s fields — exactly as the FITS file output bundle
+already specifies in the Data model chapter.
+
+Call sites:
+
+- `FluxRecorder` — instrument fluxes (IFU and STM) and their statistics.
+- `PlanarCutsForm`, `ParallelProjectionForm`, `AllSkyProjectionForm` — planar cuts and
+  projections produced by probes.
+
+### Spatial grid plot file
 
 ## Notes to revisit
 
