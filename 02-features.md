@@ -109,8 +109,8 @@ worth of data, an output file, one component of a checkpoint — are more natura
 represented as several related datasets than as a single one. This document calls such a
 SKIRT-defined named object a **bundle**: in the file, a bundle is always an HDF5 group, even
 when it happens to need only a single dataset, containing one or more datasets with names
-fixed by SKIRT itself. Whenever this chapter refers to `<anchor>/<bundle>` addressing a
-location in the HDF5 file, it is a bundle's group being addressed, not necessarily a single
+fixed by SKIRT itself. Whenever this chapter refers to `<suite>/<bundle>` addressing a
+location in the HDF5 file, it is a bundle's group being addressed rather than a
 literal HDF5 dataset. The [Data model](03-data-model.md) chapter defines the exact bundle
 for each input, output, and checkpoint case.
 
@@ -120,13 +120,13 @@ The SKIRT command-line option that specifies the input location, `-i`, now accep
 three components combined into a single argument:
 
 ```
--i <dir>/<hdf>:<anchor>
+-i <dir>/<hdf>:<suite>
 ```
 
 - `<dir>` — the input directory, exactly as before.
 - `<hdf>` — optional: the name of an HDF5 file located inside `<dir>`, including the `.hdf5`
   extension.
-- `<anchor>` — optional, and only meaningful together with `<hdf>`: a path within the HDF5
+- `<suite>` — optional, and only meaningful together with `<hdf>`: a path within the HDF5
   file, used as described below.
 
 Only `<dir>` is required.
@@ -142,9 +142,9 @@ If `<hdf>` is also given, SKIRT looks for each input file in two steps: first as
 in `<dir>`, exactly as before; if that file is not found, SKIRT looks inside `<hdf>` instead,
 for a bundle whose name matches the input file name.
 
-If `<anchor>` is given as well, it is prefixed to the input file name before that lookup, so
-SKIRT looks for `<anchor>/<bundle>` rather than `<bundle>` alone. This makes it possible to
-store the input for several simulations inside a single HDF5 file, each under its own anchor,
+If `<suite>` is given as well, it is prefixed to the input file name before that lookup, so
+SKIRT looks for `<suite>/<bundle>` rather than `<bundle>` alone. This makes it possible to
+store the input for several simulations inside a single HDF5 file, each under its own suite,
 and select the right one per run through the `-i` option.
 
 ### Examples
@@ -157,7 +157,7 @@ Assuming a ski file `mysim.ski`, an input directory `in`, and an HDF5 file `data
   then as bundles in `in/data.hdf5`.
 - `skirt -i in/data.hdf5:run01 mysim.ski` — as above, but bundles are looked up under the
   `run01` group, i.e. as `run01/<bundle>`.
-- `skirt -i in/data.hdf5:campaign7/galaxy042 mysim.ski` — the anchor can itself be a
+- `skirt -i in/data.hdf5:campaign7/galaxy042 mysim.ski` — the suite can itself be a
   multi-level path, here selecting the input for one galaxy out of many stored in the same
   file.
 - `skirt -i ./data.hdf5 mysim.ski` — edge case: the HDF5 file sits directly in the current
@@ -208,7 +208,7 @@ HDF5, and how to read them from Python.
 ### Command-line syntax
 
 The command-line option that specifies the output location, `-o`, follows the same
-`<dir>/<hdf>:<anchor>` format as `-i`, with the same meaning for each component (see
+`<dir>/<hdf>:<suite>` format as `-i`, with the same meaning for each component (see
 Command-line syntax under Input, above).
 
 ### How output files are written
@@ -220,11 +220,11 @@ If `<hdf>` is also given, SKIRT writes into that HDF5 file instead. The file as 
 never replaced: if it already exists, SKIRT opens it and adds to it. Each individual output
 is written as a new bundle, or replaces an existing one if a bundle with the same name is
 already present; every other bundle in the file is left untouched. The bundle name matches
-the plain output file that would otherwise have been produced, prefixed with `<anchor>` if
+the plain output file that would otherwise have been produced, prefixed with `<suite>` if
 given, exactly as on the input side.
 
 This makes it possible to collect the output of several simulations in a single HDF5 file,
-each under its own anchor, or to store both the input and the output of a single simulation
+each under its own suite, or to store both the input and the output of a single simulation
 together in one file.
 
 ### Examples
@@ -409,16 +409,16 @@ extra checkpoint bundle, but this is left for future consideration.
 A new command-line option, `-c`, specifies the checkpoint data used to resume a simulation:
 
 ```
--c <dir>/<hdf>:<anchor>
+-c <dir>/<hdf>:<suite>
 ```
 
-This follows the same `<dir>/<hdf>:<anchor>` format as `-i` and `-o` (see Command-line
+This follows the same `<dir>/<hdf>:<suite>` format as `-i` and `-o` (see Command-line
 syntax under Input, above), except that `<hdf>` is required rather than optional, since a
 checkpoint exists only inside an HDF5 file, never as a collection of plain files.
 
-By default, SKIRT resumes from the most recent checkpoint found under the given anchor. To
-resume from an earlier one instead, extend the anchor with that checkpoint's own name, i.e.
-`<anchor>/<checkpoint>` rather than `<anchor>` alone (the [Data model](03-data-model.md) chapter
+By default, SKIRT resumes from the most recent checkpoint found under the given suite. To
+resume from an earlier one instead, extend the suite with that checkpoint's own name, i.e.
+`<suite>/<checkpoint>` rather than `<suite>` alone (the [Data model](03-data-model.md) chapter
 explains how individual checkpoints are named).
 
 Resuming does not read the ski file from the checkpoint data. The ski file governing the
@@ -645,7 +645,7 @@ in turn.
 captures the same topology as a side effect during checkpointing. The `filename` property
 of `CheckpointTreePolicy` names an HDF5 file — resolved relative to the simulation's input
 directory, like any other input file — followed by a mandatory `:<checkpoint>` component. This
-component consists of an optional anchor and a mandatory name identifying which checkpoint
+component consists of an optional suite and a mandatory name identifying which checkpoint
 to load from. `CheckpointTreePolicy` then picks out the relevant bundle within that
 checkpoint on its own. The saved topology remains scale-free, so the simulation loading it
 still specifies the domain extent itself.
