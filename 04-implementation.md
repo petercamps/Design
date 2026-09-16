@@ -206,9 +206,9 @@ filename or bundle name, these three functions combine that name with the setup 
 from the command line to construct fully resolved locations. For `input()`/`output()`, the
 first string of the pair is the absolute canonical path for a plain file corresponding to
 `name`, and the second is an HDF5 file path plus a resolved bundle path corresponding to
-`name`. Either string is empty if there is no such correspondence, independent of whether
-that file or bundle actually exists — these functions do no I/O. The caller is
-expected to try the plain file first, and fall back to the HDF5 bundle only if that fails.
+`name`; either string is empty if there is no such correspondence for that side. Neither
+function does any I/O of its own, so a non-empty string is never a guarantee that the file or
+bundle it names already exists.
 
 The setup and name-constructing functions throw a fatal error if the passed argument string
 implies HDF5 is needed but `H5Lib::available()` (above) returns false.
@@ -246,6 +246,9 @@ naming an input file may use the same mechanism:
 | `.` | — | `other.hdf5:campaign/mysim_checkpoint_primary_2` |
 | `./data.hdf5:run1` | — | `other.hdf5:campaign/mysim_checkpoint_primary_2` |
 
+For both forms, the caller is expected to try the plain-file candidate first, falling back
+to the HDF5 one only if that file does not exist.
+
 **Output**
 
 `output("i_total.fits")` resolves as follows:
@@ -253,11 +256,14 @@ naming an input file may use the same mechanism:
 | `-o` | Plain-file candidate | HDF5 candidate |
 | --- | --- | --- |
 | `.` | `mysim_i_total.fits` | — |
-| `./data.hdf5` | — | `data.hdf5:mysim_i_total.fits` |
-| `./data.hdf5:run1` | — | `data.hdf5:run1/mysim_i_total.fits` |
+| `./data.hdf5` | `mysim_i_total.fits` | `data.hdf5:mysim_i_total.fits` |
+| `./data.hdf5:run1` | `mysim_i_total.fits` | `data.hdf5:run1/mysim_i_total.fits` |
 
-Unlike `input()`, only one of the two candidates is ever non-empty: an `-o` with `<hdf>`
-redirects output entirely, rather than falling back to it like `-i` does.
+Both candidates are populated whenever applicable — the plain one unconditionally, the
+HDF5 one only when HDF5 is configured — rather than being mutually exclusive. Most callers
+use the HDF5 candidate when it is non-empty and the plain one otherwise.
+In some rare cases, the caller needs the plain file path regardless of HDF5 configuration.
+For example, `FileLog` always writes to a plain file first, and thus needs this path.
 
 **Checkpoint**
 
@@ -468,7 +474,52 @@ Call sites:
 - `PlanarCutsForm`, `ParallelProjectionForm`, `AllSkyProjectionForm` — planar cuts and
   projections produced by probes.
 
-### Spatial grid plot file
+### Spatial grid plot output
+
+**`SpatialGridPlotFile`** stays the same class, with the same public API: every grid type
+(and `VoronoiMeshSnapshot`, which plots its own tessellation directly) writes plot data
+exclusively through its eleven shape-drawing methods — `writeLine`, `writeRectangle`,
+`writeCircle`, `writeArc`, `writeCube`, `writeMeridionalHalfCircle`, `writeSphere`,
+`writePolyhedron` — never by touching a file directly. None of those call sites need to
+change; the whole adaptation is internal to this one class.
+
+Today, every one of those methods writes straight to the protected `_out` stream it
+privately inherits from `TextOutFile`, doing its own unit conversion inline —
+`SpatialGridPlotFile` never actually uses `TextOutFile`'s own public
+`writeLine(string)`/`addColumn()`/`writeRow()` API, just its constructor and protected
+members. This needs to become two private primitives, `moveTo`/`lineTo` — each with a 2D and
+a 3D overload, mirroring `writeLine`'s own two overloads, and matching the "moveto"/"lineto"
+terminology the class's own doc comment already uses — that every one of the eleven public
+methods is rewritten to call instead of writing to `_out` directly. `moveTo` starts a new
+polyline and `lineTo` continues the current one, matching the `points`/`moveto` datasets the
+Spatial grid plot file bundle already specifies in the Data model chapter.
+
+Because deciding between the plain file and the HDF5 bundle needs to wait until the total
+point count is known, exactly as for Column output, `SpatialGridPlotFile` can no longer
+construct its `TextOutFile` base immediately the way it does today; it needs to hold one
+internally instead, built lazily — the same shift `ColumnOutFile` already made. On the
+plain-text branch, `moveTo`/`lineTo` can still write immediately, since a text file needs no
+upfront point count; only the HDF5 branch actually needs to buffer until `close()`.
+
+Two call patterns exercise this file type, neither needing to change: most grid types
+override `SpatialGrid::write_xy()`/`write_xz()`/`write_yz()`/`write_xyz()`, each receiving an
+already-constructed `SpatialGridPlotFile*` from `SpatialGrid`'s own driving code, which
+constructs one file per view; `VoronoiMeshSnapshot` and `TetraMeshSpatialGrid` instead each
+construct their own four files directly, in one combined `writeGridPlotFiles()` method, since
+their geometry doesn't naturally split by view.
+
+### Unstructured text output
+
+Covers the three cases in the Data model chapter's Unstructured text file bundle —
+`convergence.dat`, `parameters.xml`, and `log.txt`.
+
+All three share the same underlying trick: write the complete text to a real plain file
+exactly as today, then, if `output()`'s HDF5 candidate is non-empty, reopen that finished
+file as an `std::ifstream` and hand it to `H5DatasetW::write()`'s `text` overload, setting
+the bundle's `type` attribute (`"free form"`, `"XML"`, or `"log"`, per the Data model
+chapter) along the way. Neither `ConvergenceInfoProbe`'s, `XmlHierarchyWriter`'s, nor
+`FileLog`'s own writing logic needs to know anything about HDF5 — only the point where each
+one is known to be finished changes. This "copy" step could live in one small shared helper.
 
 ## Notes to revisit
 
