@@ -297,8 +297,8 @@ mechanism, covered in its own subsection below.
 Call sites that construct a `TextInFile` for a genuine input file all move to
 `ColumnInFile`:
 
-- `Snapshot` (and, through it, every snapshot subclass: `CellSnapshot`, `ParticleSnapshot`,
-  `CylindricalCellSnapshot`, `SphericalCellSnapshot`, `AdaptiveMeshSnapshot`,
+- `Snapshot` (and snapshot subclasses: `CellSnapshot`,
+  `ParticleSnapshot`, `CylindricalCellSnapshot`, `SphericalCellSnapshot`,
   `VoronoiMeshSnapshot`) — imports per-particle or per-cell properties.
 - `VoronoiMeshSnapshot` — also reads site positions directly, separately from the shared
   `Snapshot` mechanism above.
@@ -315,9 +315,9 @@ Call sites that construct a `TextInFile` for a genuine input file all move to
 - `NonLTELineGasMix` — initial level populations.
 - `AtPositionsForm` — probe sample positions.
 
-`AdaptiveMeshSnapshot` is a partial exception: its per-cell properties go through
-`Snapshot`'s shared mechanism like any other snapshot, but its AMR topology parsing
-(`readNonLeaf()` stays out of scope for this class.
+`AdaptiveMeshSnapshot` does not use this mechanism at all: since its topology and properties
+are read from a single interleaved stream, it needs its own `AdaptiveMeshInFile` for the
+whole file, covered under AMR input, below.
 
 `GasLineEmission` and `XRayAtomicGasMix` construct `TextInFile` with `resource = true` at
 several call sites each; none of those move, since built-in resources never use
@@ -325,18 +325,50 @@ several call sites each; none of those move, since built-in resources never use
 
 ### AMR input
 
-### Stored table bundle
+**`AdaptiveMeshInFile`** replaces the `TextInFile` used today to parse the interleaved topology-and-property
+stream `readAndClose()` triggers via `new Node(extent, infile(), cells)`. It keeps
+`TextInFile::readNonLeaf(int& nx, int& ny, int& nz)`'s exact signature and behavior — peek
+the next line or entry; if it is a nonleaf specification, consume it and return true;
+otherwise leave the position untouched for the following `readRow()` call and return false —
+so `Node`'s recursive constructor needs no change beyond the type of the pointer it holds.
+`useColumns()`/`addColumn()`/`readRow()`, for leaf-cell properties, keep their `ColumnInFile`
+signatures.
 
-The data in a stored table input bundle cannot be memory mapped (as for a regular .stab file)
+On the plain-text branch, `AdaptiveMeshInFile` is a thin wrapper around one internally held
+`TextInFile`, unchanged from today. On the HDF5 branch, at first use it reads the bundle's
+whole `is_leaf` and `topology` datasets into memory and then walks `is_leaf` with an internal position counter.
+`readNonLeaf()` consumes the next `topology` row and returns true if the current entry is
+`false` (nonleaf), or returns false without consuming anything otherwise; `readRow()` reads
+the next row from each declared property dataset, using a separate counter over the `N` leaf
+entries only, exactly as the Data model chapter's AMR text file bundle specifies.
+
+Call sites: `AdaptiveMeshSnapshot`.
+
+### Stored table input
+
+A wrapper is needed here too, to branch between the plain `.stab` file and the HDF5 bundle,
+resolved via `FilePaths::input()` as elsewhere in this chapter.
+
+The data in a stored table input bundle cannot be memory mapped (as for a regular `.stab` file)
 for several reasons:
 
-- The quantity values are ordered differently (interleaved in .stab, per dataset in bundle).
+- The quantity values are ordered differently (interleaved in `.stab`, per dataset in bundle).
 - The bundle datasets may be compressed and/or chunked.
 - If the same HDF file is used for input and output, memory mapping a portion of the file
   is unsafe because writing to the file might relocate its contents.
 
 The StoredTable constructor for a bundle must therefore copy the data into newly allocated
 memory, and the destructor must deallocate that memory.
+
+Call sites that open a genuine input stored table (`resource = false`) move to this wrapper:
+
+- `FileIndexedSEDFamily` — an indexed SED family template.
+- `FileSSPSEDFamily` — SSP SED family templates, with or without an ionization-parameter axis.
+- `FilePolarizedPointSource` — the four Stokes-parameter (I/Q/U/V) tables of a polarized
+  point source.
+
+Every other `StoredTable::open()` call site uses `resource = true` (the default) and stays
+untouched.
 
 ### FITS input
 
