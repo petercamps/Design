@@ -661,3 +661,61 @@ during the run, and nothing lets a caller load a previously accumulated value ba
 raw value the checkpoint probe's new getters (above) read out needs a matching setter here,
 so that resuming can restore a `FluxRecorder` to exactly the state the checkpoint captured
 before the run resumes accumulating on top of it.
+
+### The checkpoint probe's own setup
+
+Resuming affects the checkpoint probe's own setup too, independently of the four bundles
+above. On a fresh run, `probeSetup()` always writes a `Setup` checkpoint; on resume, it must
+not — `Setup` was already checkpointed in the original run (every resumable checkpoint
+implies it), and writing another one would target the exact same bundle name
+(`<prefix>_checkpoint_setup_0`), which `H5Lib::createCheckpoint()` would erase and overwrite
+outright. So on resume, `probeSetup()`'s override needs to skip writing entirely at that
+point.
+
+It still has work to do there, though: whatever bookkeeping the probe uses, for each of the
+four bundle types, to decide "store fresh" versus "link to what I already wrote" needs to be
+seeded from the checkpoint being resumed from, rather than starting empty the way it would
+for a fresh run — otherwise the first post-resume checkpoint would have nothing to link to
+and would re-store everything, including data (such as the spatial grid) that never changes.
+Seeding is simple, thanks to `hasBundle<Name>()` and HDF5's transparent hard-link following:
+for each bundle type present in the resumed-from checkpoint, record that checkpoint's own
+name as where the probe should link to next; for any bundle type absent there (for example,
+Radiation field when resuming from `Setup` before any packet has been traced), leave it
+unrecorded, exactly as for a fresh run — linking, when the data is unchanged, transitively
+reaches whichever earlier checkpoint actually stored it fresh, so the probe never needs to
+know more than the one checkpoint it is resuming from.
+
+One thing this section does not need to solve: `probePrimary(int iter)`/`probeSecondary(int
+iter)` simply use whatever iteration index they are called with, so getting `<iteration>`
+right after resuming is not the checkpoint probe's own concern — see Iteration continuity,
+below, for what that actually takes.
+
+### Iteration continuity
+
+This belongs to `MonteCarloSimulation`, which drives the primary- and secondary-emission
+loops, not to the checkpoint probe. Two separate things need to happen.
+
+The easy one: the next iteration's number and which phase to resume into both come directly
+from the checkpoint's own `when`/`iteration` attributes — resuming from
+`mysim_checkpoint_primary_2` means continuing at primary iteration 3, or moving on to
+secondary emission (or `Run`) if primary has already reached `max_primary_iterations`.
+
+The hard one: whether there even *should* be a primary iteration 3 depends on convergence,
+and that decision is currently made from data a checkpoint does not preserve.
+`runPrimaryEmissionIterations()` gets its `converged` flag from
+`MediumSystem::updatePrimaryDynamicMediumState()`, which relies on `MediumState`'s aggregate
+cells — comparing the current iteration's aggregate state against one or more previous ones
+— exactly the history Checkpoint bundles (Unsupported features) in Features already
+excludes. Resuming can recompute the *current* iteration's aggregate state freely, since it
+derives from the medium state and radiation field the checkpoint does preserve, but it has no
+previous aggregate state left to compare it against.
+
+The secondary-emission loop has the same shape but a much smaller version of the problem: its
+convergence check, `DustAbsorptionConvergence`, compares the current iteration's total
+dust-absorbed secondary luminosity against a single remembered scalar, `_prevLabsseco`, from
+the iteration before. That one number would be cheap to add as a new checkpoint attribute,
+letting secondary-emission convergence resume exactly as it would have run uninterrupted.
+
+So we need to accept a less precise policy specifically for the iteration right after a resume
+— for example, always treating it as not yet converged and continuing up to
+`max_primary_iterations`, which is already a checkpoint attribute. 
