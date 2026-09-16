@@ -210,9 +210,67 @@ first string of the pair is the absolute canonical path for a plain file corresp
 that file or bundle actually exists — these functions do no I/O. The caller is
 expected to try the plain file first, and fall back to the HDF5 bundle only if that fails.
 
-For example, with `-i /mydisk/mydata.hdf5:mysim` on the command line, `input("import.txt")`
-returns `/mydisk/import.txt` as the first string and `/mydisk/mydata.hdf5:mysim/import.txt`
-as the second.
+The setup and name-constructing functions throw a fatal error if the passed argument string
+implies HDF5 is needed but `H5Lib::available()` (above) returns false.
+
+The following tables illustrate the various combinations these three functions can resolve
+to, assuming every file sits in the current directory and ignoring the canonical-path detail
+in the returned strings — resolving absolute and relative paths is a well-understood problem,
+not what these examples are about. The output and checkpoint tables further assume
+`setOutputPrefix("mysim")`, i.e. a ski file `mysim.ski`.
+
+**Input**
+
+`input("import.txt")` resolves as follows:
+
+| `-i` | Plain-file candidate | HDF5 candidate |
+| --- | --- | --- |
+| `.` | `import.txt` | — |
+| `./data.hdf5` | `import.txt` | `data.hdf5:import.txt` |
+| `./data.hdf5:run1` | `import.txt` | `data.hdf5:run1/import.txt` |
+| `./data.hdf5:campaign7/run1` | `import.txt` | `data.hdf5:campaign7/run1/import.txt` |
+
+A `name` argument can itself embed a `<hdf>:<suite>/...` reference. When it does, `input()` resolves the
+HDF5 candidate directly from that embedded reference, regardless of what `-i` itself
+specifies — even if `-i` names no HDF5 file at all, or a different one; only `-i`'s
+directory component still applies, exactly as for any other input file.
+`CheckpointTreePolicy::filename` requires this, since it must be able to point at a
+checkpoint in a file unrelated to whatever `-i` is reading from, but any ski file property
+naming an input file may use the same mechanism:
+
+`input("other.hdf5:campaign/mysim_checkpoint_primary_2")` resolves as follows:
+
+| `-i` | Plain-file candidate | HDF5 candidate |
+| --- | --- | --- |
+| *(not given)* | — | `other.hdf5:campaign/mysim_checkpoint_primary_2` |
+| `.` | — | `other.hdf5:campaign/mysim_checkpoint_primary_2` |
+| `./data.hdf5:run1` | — | `other.hdf5:campaign/mysim_checkpoint_primary_2` |
+
+**Output**
+
+`output("i_total.fits")` resolves as follows:
+
+| `-o` | Plain-file candidate | HDF5 candidate |
+| --- | --- | --- |
+| `.` | `mysim_i_total.fits` | — |
+| `./data.hdf5` | — | `data.hdf5:mysim_i_total.fits` |
+| `./data.hdf5:run1` | — | `data.hdf5:run1/mysim_i_total.fits` |
+
+Unlike `input()`, only one of the two candidates is ever non-empty: an `-o` with `<hdf>`
+redirects output entirely, rather than falling back to it like `-i` does.
+
+**Checkpoint**
+
+`checkpoint("checkpoint_primary_2")` resolves as follows:
+
+| `-c` | Result |
+| --- | --- |
+| `./data.hdf5` | `data.hdf5:mysim_checkpoint_primary_2` |
+| `./data.hdf5:run1` | `data.hdf5:run1/mysim_checkpoint_primary_2` |
+| `./data.hdf5:campaign7/run1` | `data.hdf5:campaign7/run1/mysim_checkpoint_primary_2` |
+
+`-c` always requires `<hdf>` (Resuming from a checkpoint in Features), so there is no
+plain-only row here.
 
 ## Stored table bundle
 
