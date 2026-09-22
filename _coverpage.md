@@ -1,7 +1,5 @@
-# HDF5 in SKIRT
+# SKIRT design notes
 
-> Design note on implementing HDF5 input/output/checkpoint support in SKIRT
+> Design notes for the SKIRT radiative transfer code
 
-<small>This document's existence does not imply any commitments to implement the described features.</small>
-
-<a href="#/01-introduction">Get Started</a>
+<small>These documents' existence does not imply any commitments to implement the described features.</small>

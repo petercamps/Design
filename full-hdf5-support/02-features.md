@@ -86,7 +86,7 @@ source data:
 - **FITS** — a binary image format widely used in astronomy. It is used to import two- or
   three-dimensional geometries (`ReadFitsGeometry` and `ReadFits3DGeometry`).
 
-The [Data model](03-data-model.md) chapter explains how each of these maps to HDF5
+The [Data model](full-hdf5-support/03-data-model.md) chapter explains how each of these maps to HDF5
 storage mechanisms and how to generate those from Python.
 
 **Incompatibility notes**:
@@ -111,7 +111,7 @@ SKIRT-defined named object a **bundle**: in the file, a bundle is always an HDF5
 when it happens to need only a single dataset, containing one or more datasets with names
 fixed by SKIRT itself. Whenever this chapter refers to `<suite>/<bundle>` addressing a
 location in the HDF5 file, it is a bundle's group being addressed rather than a
-literal HDF5 dataset. The [Data model](03-data-model.md) chapter defines the exact bundle
+literal HDF5 dataset. The [Data model](full-hdf5-support/03-data-model.md) chapter defines the exact bundle
 for each input, output, and checkpoint case.
 
 ### Command-line syntax
@@ -197,7 +197,7 @@ SKIRT currently writes the following kinds of output files:
   simulation's progress in real-time, the log file is always written as a regular file
   and then stored in the HDF file after the simulation has ended.
 
-The [Data model](03-data-model.md) chapter explains how each of these maps to bundles in
+The [Data model](full-hdf5-support/03-data-model.md) chapter explains how each of these maps to bundles in
 HDF5, and how to read them from Python.
 
 **Incompatibility note**:
@@ -351,7 +351,7 @@ or pixel scale (such calibration happens just before the instrument output is wr
 If applicable, the accumulated statistics (higher moments of the detected fluxes)
 are stored as well.
 
-The [Data model](03-data-model.md) chapter provides details on how these are stored in HDF5.
+The [Data model](full-hdf5-support/03-data-model.md) chapter provides details on how these are stored in HDF5.
 
 ### Checkpoint probe behavior
 
@@ -418,7 +418,7 @@ checkpoint exists only inside an HDF5 file, never as a collection of plain files
 
 By default, SKIRT resumes from the most recent checkpoint found under the given suite. To
 resume from an earlier one instead, extend the suite with that checkpoint's own name, i.e.
-`<suite>/<checkpoint>` rather than `<suite>` alone (the [Data model](03-data-model.md) chapter
+`<suite>/<checkpoint>` rather than `<suite>` alone (the [Data model](full-hdf5-support/03-data-model.md) chapter
 explains how individual checkpoints are named).
 
 Resuming does not read the ski file from the checkpoint data. The ski file governing the

@@ -66,15 +66,15 @@ checkpoints. Working out these changes, however, is out of scope for this docume
 
 The remaining chapters are organized as follows:
 
-- **[Features](02-features.md)** describes the proposed HDF5 input, output, and checkpoint
+- **[Features](full-hdf5-support/02-features.md)** describes the proposed HDF5 input, output, and checkpoint
   features and how to use them — prerequisites, command-line options, and ski file settings.
   It is aimed at SKIRT users.
-- **[Data model](03-data-model.md)** specifies how SKIRT data is represented in HDF5: the
+- **[Data model](full-hdf5-support/03-data-model.md)** specifies how SKIRT data is represented in HDF5: the
   overall structure, the detailed layout that replaces today's text input/output files and
   FITS files, and the checkpoint bundles that capture a running simulation's internal
   state. It is aimed at authors of Python scripts that prepare or consume SKIRT
   input/output. Also, together with the features description in the previous chapter, it
   forms the basis for the implementation in SKIRT.
-- **[Implementation](04-implementation.md)** describes how HDF5 support will be implemented
+- **[Implementation](full-hdf5-support/04-implementation.md)** describes how HDF5 support will be implemented
   in SKIRT: the architecture and the code changes and additions involved. It is aimed at
   those carrying out that implementation.

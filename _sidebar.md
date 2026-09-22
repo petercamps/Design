@@ -1,5 +1,2 @@
-- [Home](/)
-- [Introduction](01-introduction.md)
-- [Features](02-features.md)
-- [Data model](03-data-model.md)
-- [Implementation](04-implementation.md)
+- [SKIRT 10](skirt-10/01-introduction.md)
+- [Full HDF5 support](full-hdf5-support/01-introduction.md)
