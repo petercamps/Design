@@ -1,7 +1,5 @@
 # Implementation
 
-> Status: draft
-
 ## HDF5 target
 
 ### Build option

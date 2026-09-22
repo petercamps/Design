@@ -1,7 +1,5 @@
 # Features
 
-> Status: draft
-
 ## Prerequisites
 
 SKIRT uses the official C HDF5 library — not the C++ wrapper layer that HDF5 also

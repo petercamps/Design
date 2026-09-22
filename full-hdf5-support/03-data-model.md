@@ -1,7 +1,5 @@
 # Data model
 
-> Status: draft
-
 ## HDF5 concepts
 
 The Features chapter introduced the basics of HDF5's file organization: a root group that

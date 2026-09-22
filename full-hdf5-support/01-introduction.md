@@ -1,7 +1,5 @@
 # Introduction
 
-> Status: draft
-
 ## Motivation
 
 SKIRT is increasingly used for large campaigns that post-process cosmological simulations,
