@@ -60,11 +60,11 @@ transitive dependency; install with `npm install -g docsify-cli --ignore-scripts
 
 ## GitHub / Pages
 
-- Repo: `github.com/petercamps/HDF5design` — public, personal account, remote `origin`,
+- Repo: `github.com/petercamps/Design` — public, personal account, remote `origin`,
   branch `main`. Made public specifically to enable Pages: on a personal (non-Enterprise)
   plan, Pages on a private repo requires a paid plan.
 - GitHub Pages is enabled, serving from `main` at the repository root, live at
-  `https://petercamps.github.io/HDF5design/`.
-- The repo name still predates this becoming a multi-note hub; renaming it is a separate,
-  not-yet-made decision. If it happens, the live Pages URL changes to match the new name
-  (`https://petercamps.github.io/<new-name>/`).
+  `https://petercamps.github.io/Design/`.
+- Renamed from `HDF5design` once the repo became a multi-note hub. GitHub redirects the
+  old name for git and web access, but a further rename would move the live Pages URL
+  again, so update this file's URLs if that ever happens.
