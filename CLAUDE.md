@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 Project-local instructions for Claude Code working in this repo. This file is not part of
-the design notes themselves — never link it from `_sidebar.md`, `_coverpage.md`,
-`README.md`, or any chapter file.
+the design notes themselves — never link it from `_sidebar.md`, `README.md`, or any
+chapter file.
 
 ## What this repo is
 
@@ -34,23 +34,17 @@ into Doxygen-format pages for the SKIRT website (Doxygen has native Markdown sup
 
 ## Site structure (Docsify)
 
-- `index.html` — Docsify bootstrap and config (site name, sidebar, cover page, TOC depth).
-- `_sidebar.md`, `_coverpage.md`, `README.md` at the repo root — the landing page, listing
-  every design note.
-- `.nojekyll` — required empty file so GitHub Pages serves underscore-prefixed files
-  (`_sidebar.md`, `_coverpage.md`) instead of Jekyll silently dropping them.
+- `index.html` — Docsify bootstrap and config (site name, sidebar, TOC depth).
+- `_sidebar.md` and `README.md` at the repo root — the landing page, listing every design
+  note. There is no `_coverpage.md`; the home route is a regular content page like any
+  other, not a separate hero section.
+- `.nojekyll` — required empty file so GitHub Pages serves underscore-prefixed files like
+  `_sidebar.md` instead of Jekyll silently dropping them.
 - Each design note's folder has its own `_sidebar.md` with that note's chapter
   navigation, plus a `[← All design notes](/)` link back to the root. Docsify loads
   `_sidebar.md` from whichever folder the current page is in (falling back up the tree if
   none exists there) — this is default Docsify behavior with `loadSidebar: true`, no
   plugin or extra config required.
-
-### Known Docsify gotcha
-
-A Markdown link `[text](#/route)` written inside a `_coverpage.md` gets rewritten by
-Docsify's cover-page compiler into a same-page anchor scroll, no matter what it targets —
-it cannot do cross-route navigation. Use a raw HTML anchor instead, e.g.
-`<a href="#/full-hdf5-support/01-introduction">Get Started</a>`.
 
 ## Local preview
 
