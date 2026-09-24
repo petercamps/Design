@@ -150,13 +150,13 @@ order and short-circuiting on the first one that asks for subdivision. Since
 each policy implementing its own as today's `TreePolicy` subclasses do. A policy narrows
 to a per-node test that this shared loop calls into.
 
-Nodes stay pointer-based and individually allocated during construction — growing a tree
-incrementally is what that representation is good at, and evaluation does not care
+Nodes stay pointer-based and are allocated in a std::deque during construction — growing
+a tree incrementally is what that representation is good at, and evaluation does not care
 whether nodes are reached through pointers or indices. Once construction finishes, the
 tree is converted to the flat, index-linked array `BinTreeSpatialGrid` and
 `OctTreeSpatialGrid` use for path segment generation (see below), establishing neighbor
 links for every node in a single top-down pass over the now-complete tree. The
-pointer-based nodes are then discarded.
+pointer-based nodes can then be discarded.
 
 ### Policies 
 
