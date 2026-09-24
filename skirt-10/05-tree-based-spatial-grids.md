@@ -80,12 +80,12 @@ in more detail below the table.
 |  &emsp;`BoxTreePolicy` | `minX`, ..., `maxZ`, `policy` |
 |  &emsp;`TopologyTreePolicy` | `filename` |
 
-**Material properties**. There now is a seperate policy for each material type and
+**Material properties**. There now is a separate policy for each material type and
 property. This clearly separates the various independent criteria, and makes it easy to
 add another criterion (say, electron optical depth) without changing existing policies.
 
 **Site list**. The `SiteListTreePolicy` carries over unchanged. It uses a site list
-given as position coordinates in an inpout file or, if the filename property is empty,
+given as position coordinates in an input file or, if the filename property is empty,
 offered by one of the media components in the medium system. In a first step the tree is
 subdivided in such a way that each leaf node contains at most one of the sites in the
 list. Subsequently each of these leaf nodes is further subdivided a fixed number of

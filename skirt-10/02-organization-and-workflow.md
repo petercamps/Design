@@ -1,4 +1,4 @@
-# Organisation and workflow
+# Organization and workflow
 
 ## Repositories
 
@@ -162,7 +162,7 @@ resource pack must always be installed; the other packs need to be installed onl
 the features that depend on them are actually used.
 
 Resource packs are versioned, and the SKIRT code includes a list of the specific versions
-expected for that commit. This scheme is agnostic to and thus can be used unchanged with
-the SKIRT versioning proposed here. Checking out another commit, whether on the `master`
+expected for that commit. This scheme is agnostic to the SKIRT versioning proposed here,
+and can therefore be used unchanged. Checking out another commit, whether on the `master`
 or `9` branch, will automatically update the expected resource pack versions.
 

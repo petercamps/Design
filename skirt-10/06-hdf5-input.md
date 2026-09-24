@@ -178,7 +178,7 @@ so each dataset also carries its own 0-based `column` attribute to record its po
 explicitly.
 
 > SKIRT's text column files carry 1-based column numbers, while the corresponding HDF5 bundle
-carries 0-based column numbers, aligning with the programmatic standards in both Python and C++.
+> carries 0-based column numbers, aligning with the programmatic standards in both Python and C++.
 
 **Attributes**
 
@@ -236,7 +236,7 @@ points, and one or more named, unit-tagged quantities tabulated over the full gr
 by all axes combined.
 
 > SKIRT's built-in resources continue to be supplied in .stab format because using
-HDF5 would force a non-optional dependency on the HDF5 library.
+> HDF5 would force a non-optional dependency on the HDF5 library.
 
 Because the `.stab` format is designed to be memory-mapped directly rather than read through
 regular file I/O, it also carries its own version tag, endianness tag, and end-of-file tag
@@ -393,7 +393,7 @@ handle this, the `FilePaths` class's API is adjusted as follows.
 - `input(string name)` returns a pair of strings: a plain-file form and an HDF5 form.
 
 Given the value of a ski file's `filename` attribute, or a programmatically fabricated
-filename or bundle name, the `input` function combine that name with the setup value
+filename or bundle name, the `input` function combines that name with the setup value
 taken from the command line to construct fully resolved locations. The first string of
 the returned pair is the absolute canonical path for a plain file corresponding to
 `name`, and the second is an HDF5 file path plus a resolved bundle path corresponding to

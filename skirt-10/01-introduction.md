@@ -6,10 +6,10 @@
 
 SKIRT 9 was publicly released on May 10, 2019. In the seven years since, both its physics
 capabilities and its supporting infrastructure have grown substantially. On the physics
-side, major additions include a full Lyman-alpha photon cycle, polarised secondary
+side, major additions include a full Lyman-alpha photon cycle, polarized secondary
 emission by aligned dust grains, gas emission with self-consistent non-LTE line transfer,
 X-ray photo-absorption, fluorescence and Compton scattering, 21 cm hydrogen spin-flip
-line emission, treatment of diffuse ionised gas, and new SED templates for stellar
+line emission, treatment of diffuse ionized gas, and new SED templates for stellar
 populations (BPASS) and star formation regions (TODDLERS). On the infrastructure side,
 the probe system was redesigned around composable probe forms, the dynamic medium state
 execution flow was substantially revised, and new spatial grid types — cylindrical,
@@ -39,15 +39,15 @@ versions in parallel — maintaining SKIRT 9 for existing users while developing
 
 The remaining chapters are organized as follows:
 
-- **[Organisation and workflow](02-organisation-and-workflow.md)** describes the
+- **[Organization and workflow](skirt-10/02-organization-and-workflow.md)** describes the
   proposed repository restructuring and the workflow for developing SKIRT 9 and SKIRT 10
   in parallel.
-- **[System requirements](03-system-requirements.md)** lists what is needed to build and
-  run SKIRT 10, including the new optional HDF5 dependency.
-- **[Incompatibilities](04-incompatibilities.md)** lists the features dropped and the
-  ski file changes required when upgrading from SKIRT 9.
-- **[Tree-based spatial grids](05-tree-based-spatial-grids.md)** proposes a
+- **[System requirements](skirt-10/03-system-requirements.md)** lists what is needed to
+  build and run SKIRT 10, including the new optional HDF5 dependency.
+- **[Incompatibilities](skirt-10/04-incompatibilities.md)** lists the features dropped
+  and the ski file changes required when upgrading from SKIRT 9.
+- **[Tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md)** proposes a
   restructuring of the hierarchical tree classes, described separately because of its
   scope.
-- **[HDF5 input](06-hdf5-input.md)** proposes optional HDF5 support for simulation
-  input.
+- **[HDF5 input](skirt-10/06-hdf5-input.md)** proposes optional HDF5 support for
+  simulation input.

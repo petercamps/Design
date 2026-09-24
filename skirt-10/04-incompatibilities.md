@@ -36,7 +36,7 @@ feature right away.
 SKIRT offers a simulation mode and some options specifically intended for use by the
 Lyman-alpha resonant scattering implemented by the `LyaNeutralHydrogenGasMix` material
 mix. The more recently added `XRayIonicGasMix` material mix supports resonant scattering
-for a range of hydrogen-like and and helium-like ions, and honors those same options.
+for a range of hydrogen-like and helium-like ions, and honors those same options.
 It is therefore appropriate to adjust the simulation mode and option names to reflect a
 general resonant scattering context. While this invalidates all ski files configured with
 either of the material mixes mentioned above, the upgrade is a trivial rename:
@@ -58,20 +58,20 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Replace each `FullInstrument` by consecutive `SED`- and `FrameInstrument`s.
 
-- Replace `FileTreeSpatialGrid` by `OctTreeSpatialGrid` with `TopologyTreePolicy`  policy
-and very wide `minLevel` .. `maxLevel` range. Because `FileTreeSpatialGrid` reads the
-tree type from file, this upgrade will be incorrect for a binary tree.
+- Replace `FileTreeSpatialGrid` by `OctTreeSpatialGrid` with the `TopologyTreePolicy`
+  policy and a very wide `minLevel`..`maxLevel` range. Because `FileTreeSpatialGrid`
+  reads the tree type from file, this upgrade will be incorrect for a binary tree.
 
 - Replace `PolicyTreeSpatialGrid` by `OctTreeSpatialGrid` or `BinTreeSpatialGrid`
   depending on the configured tree type, and replace the configured policy as follows:
-  
+
   - `DensityTreePolicy` becomes one or more of `DustDensityTreePolicy`,
     `DustOpticalDepthTreePolicy`, or `DustDispersionTreePolicy` depending on the
-     configured criteria.
-    
+    configured criteria.
+
   - `NestedDensityTreePolicy` becomes one or more `BoxTreePolicy` plus `DustXxxTreePolicy`,
-  again depending on the configured criteria.
-  
+    again depending on the configured criteria.
+
   - `SiteListTreePolicy` retains the same name.
 
 - Rename Lya simulation modes and options as proposed above.
