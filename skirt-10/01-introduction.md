@@ -44,8 +44,8 @@ The remaining chapters are organized as follows:
   in parallel.
 - **[System requirements](03-system-requirements.md)** lists what is needed to build and
   run SKIRT 10, including the new optional HDF5 dependency.
-- **[Removals and incompatibilities](04-removals-and-incompatibilities.md)** lists the
-  features dropped and the ski file changes required when upgrading from SKIRT 9.
+- **[Incompatibilities](04-incompatibilities.md)** lists the features dropped and the
+  ski file changes required when upgrading from SKIRT 9.
 - **[Tree-based spatial grids](05-tree-based-spatial-grids.md)** proposes a
   restructuring of the hierarchical tree classes, described separately because of its
   scope.

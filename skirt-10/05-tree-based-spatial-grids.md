@@ -2,7 +2,7 @@
 
 ## Motivation
 
-This section proposes a significant restructuring of SKIRT's hierarchical tree classes
+This chapter proposes a significant restructuring of SKIRT's hierarchical tree classes
 and their helpers, including the classes that define cell subdivision policies. This
 change invalidates any existing ski file that configures an octree or binary tree spatial
 grid. This is annoying, even if PTS provides a procedure to automatically upgrade ski
@@ -16,15 +16,12 @@ The key objectives are to:
   with their own distinct criteria.
 
 - Enable new type of cell subdivision policies, for example based on an imported scalar
-  field (other than density) or employing information from neighboring cells.
-
-- Dynamically refine the grid after each primary or secondary iteration, based on the 
-  calculated radiation field or quantities in the (standard or custom) medium state.
+  field (other than density), an imported grid, or a list of regions to be resolved.
 
 - Increase performance of path segment generation by providing a specific implementation 
-  for each tree type (octree or binary tree).
+  for each tree type (octtree or binary tree).
 
-## Static tree construction
+## Features
 
 ### Replaced or adjusted classes
 
@@ -79,7 +76,7 @@ in more detail below the table.
 |  &emsp;`DustDispersionTreePolicy` | `maxDispersion` |
 |  &emsp;`ElectronDensityTreePolicy` | `maxFraction` |
 |  &emsp;`GasDensityTreePolicy` | `maxFraction` |
-|  &emsp;`SiteListTreePolicy` | `numExtraLevels` |
+|  &emsp;`SiteListTreePolicy` | `filename`, `numExtraLevels` |
 |  &emsp;`BoxTreePolicy` | `minX`, ..., `maxZ`, `policy` |
 |  &emsp;`TopologyTreePolicy` | `filename` |
 
@@ -87,7 +84,8 @@ in more detail below the table.
 property. This clearly separates the various independent criteria, and makes it easy to
 add another criterion (say, electron optical depth) without changing existing policies.
 
-**Site list**. The `SiteListTreePolicy` carries over unchanged. It locates a site list
+**Site list**. The `SiteListTreePolicy` carries over unchanged. It uses a site list
+given as position coordinates in an inpout file or, if the filename property is empty,
 offered by one of the media components in the medium system. In a first step the tree is
 subdivided in such a way that each leaf node contains at most one of the sites in the
 list. Subsequently each of these leaf nodes is further subdivided a fixed number of
@@ -128,13 +126,10 @@ The `ResolvedSpheresTreePolicy` reads a list of spheres defined by their positio
 radius, and ensures that the grid resolves each sphere with at least `numBins` in each
 spatial direction - again limited to the global `maxLevel`.
 
-## Dynamic tree refinement
-
-To be completed.
 
 ## Implementation
 
-### Static tree construction
+### Construction
 
 `TreeSpatialGrid` builds its tree level by level, the same way `DensityTreePolicy` does
 today: starting from a one-node list holding the root, each pass evaluates every node at
@@ -165,7 +160,7 @@ pointer-based nodes are then discarded.
 
 ### Policies 
 
-Most policies fit the shared per-node test directly, since their subdivision criterion is
+Many policies fit the shared per-node test directly, since their subdivision criterion is
 purely a property of the individual cell — e.g. a sampled density — with no dependency on
 other nodes. Some policies need a closer look.
 
