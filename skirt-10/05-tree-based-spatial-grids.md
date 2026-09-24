@@ -108,14 +108,16 @@ is sufficiently wide. It is now possible, however, to refine a previously record
 by configuring other policies alongside it. Note that the `TreeSpatialGridTopologyProbe`
 output remains unchanged; only its implementation is adjusted to the new tree classes.
 
-New policies can be easily added. Two examples are listed in the following table, but
-others can and will be devised in the future.
+The following new policies are added right away; others can be devised in the future.
 
 | Policy | Properties |
 | --- | --- |
 | `TreePolicy` | |
 |  &emsp;`ParticleFieldTreePolicy` | `filename`, `maxFraction` |
-|  &emsp;`ResolvedSpheresTreePolicy` | `filename`, `numBins` |
+|  &emsp;`ResolvedSpheresTreePolicy` | `filename`, `numBins`, `reach`, `importNumBins`, `importReach` |
+|  &emsp;`AdaptiveMeshTreePolicy` | `filename` |
+|  &emsp;`CellTreePolicy` | `filename` |
+|  &emsp;`GasThermalEnergyTreePolicy` | `maxFraction` |
 
 The `ParticleFieldTreePolicy` imports a density field defined by a list of smoothed
 particles, each with their position and smoothing length plus some "mass" in arbitrary
@@ -123,8 +125,22 @@ units. The field can reflect a property of the medium other than those actually 
 the simulation, or the particles can be positioned "by hand" in strategic positions.
 
 The `ResolvedSpheresTreePolicy` reads a list of spheres defined by their position and
-radius, and ensures that the grid resolves each sphere with at least `numBins` in each
-spatial direction - again limited to the global `maxLevel`.
+radius, and ensures that the grid resolves each sphere with at least `numBins` cells
+across its radius in each spatial direction, enforced out to `reach` radii from the
+sphere's center rather than only within the sphere itself. The optional `importNumBins`
+and `importReach` flags read a per-sphere override for either property from extra columns
+in the same file, for spheres that need a different resolution or reach than the rest.
+
+`AdaptiveMeshTreePolicy` and `CellTreePolicy` ensure the tree is never coarser than an
+imported adaptive mesh or cell mesh, respectively: any node whose extent is coarser than
+the imported mesh's leaf at its center is refined. If `filename` is given, that policy
+imports its own snapshot to refine against; if it is left empty, the policy instead uses
+whichever adaptive mesh or cell mesh the medium system has already imported, avoiding a
+second copy of the same file that could drift out of sync with the actual medium.
+
+`GasThermalEnergyTreePolicy` refines cells holding more than `maxFraction` of the total
+gas thermal energy, `n T V`, mirroring the density-fraction policies above but for a
+gas-physics quantity instead.
 
 
 ## Implementation
@@ -203,18 +219,19 @@ first — because another policy in the list kept subdividing past where this re
 stops — it answers no. Each call repeats this descent independently from the root, so the
 test needs no state carried between calls and no particular calling order.
 
-A node's box needs subdividing if it overlaps a sphere and the node's own largest axis
-extent still exceeds that sphere's required cell size — `2 * radius / numBins`, the same
-in every direction since a sphere is isotropic. As with the particle-like entities in
-`ParticleSnapshot`, "overlaps" means the sphere itself, not just its bounding box.
-
 `ResolvedSpheresTreePolicy` builds a `BoxSearch` at setup, bulk-loaded with the spheres'
 bounding boxes — the same pattern `ParticleSnapshot` already uses for its own smoothed
 particles. The per-node test queries `entitiesFor(box)` for candidate spheres, verifies
 each with an exact box-sphere intersection test, and subdivides if any of them is still
 under-resolved in this node. No precomputation walk is needed here, unlike the site list:
-each sphere's required cell size follows directly from its own radius, with nothing that
-depends on the tree's evolving structure.
+each sphere's required cell size follows directly from its own properties, with nothing
+that depends on the tree's evolving structure.
+
+`AdaptiveMeshTreePolicy` and `CellTreePolicy` need no comparable treatment: given a node,
+the per-node test asks the imported snapshot for the cell at the node's center and
+compares that cell's extent to the node's. There is no cross-node bookkeeping or ordering
+concern to design around: each node's test only looks at its own center against an
+already-built, read-only snapshot.
 
 ### Path segment generation
 
