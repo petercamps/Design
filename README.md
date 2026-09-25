@@ -9,4 +9,6 @@
 <small>The existence of these documents does not imply any commitments to implement the described features.</small>
 
 - [SKIRT 10](skirt-10/01-introduction.md)
+- [Ski file issues](ski-file-issues/01-wavelength-grids.md)
+- [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
 - [Full HDF5 support](full-hdf5-support/01-introduction.md)
