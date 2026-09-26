@@ -1,20 +1,14 @@
 # Open questions
 
-**Owner of the history.** The history can be a child of `MonteCarloSimulation`, locatable by any
-simulation item, or a member of `MediumSystem`, passed to other clients. A child of the simulation
-is proposed, because the iteration loops are clients too, and because the configuration object
-provides a precedent for a helper item that is not configured by the user.
+**End of a loop.** The history has no `endLoop()` function. Loop-lifetime series are cleared when
+the next loop begins, so they remain available after a loop has finished, for example to a probe
+performed at the end of the run. Also, each iteration loop has several exit points, including
+early returns, all of which would need to call `endLoop()`. The drawback is that `loop()` and
+`iteration()` keep reporting the last loop after it has finished. If a client needs to know that
+no loop is running, each iteration function can create a small guard object whose constructor
+calls `beginLoop()` and whose destructor resets the loop to `None` without clearing any series,
+covering all exit paths.
 
-**Name.** `IterationHistory` describes what the object holds; `ConvergenceHistory` describes its
-main purpose, but fits the cell windows of dynamic grid refinement less well, since these feed
-refinement decisions rather than convergence tests.
-
-**Shared aggregates.** Aggregate series are owned by the client that requests them, so two clients
-requesting the same aggregate each get a series of their own, and the medium system calculates the
-same value twice. Sharing a single series per aggregate, keyed on the medium component and the
-custom variable index, would avoid this, but it would reintroduce a second kind of key, or ids with
-an encoded meaning, to keep the shared series apart from those chosen by clients. The duplicate
-calculation costs one number per iteration, so the proposal accepts it.
 
 **Keeping references.** Because declaration is idempotent and cheap, the proposal lets clients
 declare their series whenever they need them. Clients with a setup phase could instead keep the

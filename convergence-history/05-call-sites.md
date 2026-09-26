@@ -197,8 +197,8 @@ information, as envisioned by the comment in `MediumSystem::updateDynamicStateRe
 ## Possible future dynamic grid refinement recipe
 
 The [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) design note proposes
-subdividing cells between primary iterations, based on a field averaged over a window of
-iterations. A refinement recipe (or criterion) could use the history as follows.
+subdividing cells between iterations, based on a field averaged over a window of
+iterations. A refinement recipe could use the history as follows.
 
 **Access.** The recipe locates the history during setup, like any other recipe, and keys its
 windows on itself, with one id per field it watches.

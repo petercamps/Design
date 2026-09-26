@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: under construction
+> Status: draft
 
 ## Motivation
 
