@@ -9,7 +9,6 @@ no loop is running, each iteration function can create a small guard object whos
 calls `beginLoop()` and whose destructor resets the loop to `None` without clearing any series,
 covering all exit paths.
 
-
 **Keeping references.** Because declaration is idempotent and cheap, the proposal lets clients
 declare their series whenever they need them. Clients with a setup phase could instead keep the
 returned references. This saves a map lookup per iteration, which is negligible, at the cost of an

@@ -3,6 +3,16 @@
 This chapter proposes the interface of the new classes, and the changes to existing classes. The
 declarations show the essential functions only; the documentation comments state their contracts.
 
+## Module
+
+The new classes live in the `tools` module, next to `SimulationItem` and other non-configurable
+services such as `Configuration`, `Log`, and `ParallelFactory`. They depend only on `SimulationItem`
+and the `fundamentals` module, and all their clients, in the `material`, `medium`, and `simulation`
+modules, already depend on `tools`, so no new dependencies between modules arise. The aggregation
+rule refers to a `Medium`, which lives in the higher-level `medium` module. Because the history only
+stores and compares this pointer and never dereferences it, a forward declaration suffices, without
+including any header from that module.
+
 ## Series key
 
 ```cpp
