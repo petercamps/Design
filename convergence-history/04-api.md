@@ -9,14 +9,23 @@ declarations show the essential functions only; the documentation comments state
 /** A SeriesKey identifies a series in the IterationHistory. */
 struct SeriesKey
 {
-    /** The kind of series: kept by a client, or an aggregate managed by the medium system. */
-    enum class Kind { Client, Aggregate };
-
     const SimulationItem* item;  // the item on whose behalf the series is kept
-    Kind kind;                   // the kind of series
-    int id;                      // client-chosen id, or custom state variable index for an aggregate
+    int id;                      // an id chosen by the client, unique for that item
 
     bool operator<(const SeriesKey& other) const;  // lexicographic, so that keys can index a map
+};
+```
+
+## Aggregation rule
+
+```cpp
+/** An AggregationRule specifies the value that the medium system records in an aggregate series:
+    the volume integral over all cells of the custom state variable with the specified index, for
+    the specified medium component. */
+struct AggregationRule
+{
+    const Medium* medium;  // the medium component
+    int customIndex;       // the index of the custom state variable
 };
 ```
 
@@ -52,6 +61,9 @@ public:
     const SeriesKey& key() const;
     const string& description() const;
     int depth() const;
+
+    /** Returns the aggregation rule if this is an aggregate series, or null otherwise. */
+    const AggregationRule* aggregationRule() const;
 };
 ```
 
@@ -121,30 +133,36 @@ public:
     Loop loop() const;
     int iteration() const;
 
-    //======== Client series ========
+    //======== Declaring series ========
 
-    /** Returns the scalar series with the key (item, Client, id), creating it if needed. If the
-        series exists with a smaller depth, it grows to the requested depth, preserving its values.
+    /** Returns the scalar series with the key (item, id), creating it if needed. If the series
+        exists with a smaller depth, it grows to the requested depth, preserving its values. Throws
+        a fatal error if the series exists with a different lifetime or with an aggregation rule.
         The returned reference remains valid for the lifetime of the history. */
     ScalarSeries& scalarSeries(const SimulationItem* item, int id, int depth, Lifetime lifetime,
                                string description);
 
-    /** Returns the cell window with the key (item, Client, id), creating it for the specified
-        number of cells if needed. The returned reference remains valid for the lifetime of the
-        history. */
+    /** Returns the aggregate series with the key (item, id), creating it if needed with the
+        specified aggregation rule and simulation lifetime. The medium system records the value of
+        the series after setup and after each medium state update. The series must therefore be
+        declared during setup, before the medium system records the initial values. Throws a fatal
+        error if the series exists with a different aggregation rule or without one. */
+    ScalarSeries& aggregateSeries(const SimulationItem* item, int id, const AggregationRule& rule,
+                                  int depth = 2, string description = "");
+
+    /** Returns the cell window with the key (item, id), creating it for the specified number of
+        cells if needed. The returned reference remains valid for the lifetime of the history. */
     CellWindow& cellWindow(const SimulationItem* item, int id, int numCells, Lifetime lifetime,
                            string description);
 
-    //======== Aggregates ========
+    //======== Retrieving series ========
 
-    /** Returns the aggregate series for the custom state variable with the specified index of the
-        specified medium component, requesting it if needed. The series has simulation lifetime. It
-        must be requested during setup, before the medium system records the initial aggregates. */
-    ScalarSeries& aggregateSeries(const Medium* medium, int customIndex, int depth = 2,
-                                  string description = "");
+    /** Returns the existing scalar series with the key (item, id), for example an aggregate series
+        declared during setup. Throws a fatal error if there is no such series. */
+    ScalarSeries& series(const SimulationItem* item, int id);
 
-    /** Returns all requested aggregate series, so that the medium system can record their values. */
-    vector<ScalarSeries*> requestedAggregates();
+    /** Returns all aggregate series, so that the medium system can record their values. */
+    vector<ScalarSeries*> aggregates();
 
     //======== Dynamic grid refinement ========
 
@@ -179,15 +197,15 @@ public:
     /** Creates a scope for the specified history and item. */
     HistoryScope(IterationHistory* history, const SimulationItem* item);
 
-    /** Returns the scalar series with the key (item, Client, id), as described for
+    /** Returns the scalar series with the key (item, id), as described for
         IterationHistory::scalarSeries(). */
     ScalarSeries& scalarSeries(int id, int depth, IterationHistory::Lifetime lifetime,
                                string description) const;
 
-    /** Returns the aggregate series for the custom state variable with the specified index, where
-        the item bound to this scope is the medium component. Throws a fatal error if this aggregate
-        was not requested during setup. */
-    const ScalarSeries& aggregate(int customIndex) const;
+    /** Returns the existing scalar series with the key (item, id), as described for
+        IterationHistory::series(). A material mix uses this function to retrieve the aggregate
+        series declared on its behalf by the medium system. */
+    const ScalarSeries& series(int id) const;
 
     /** Returns the current loop and iteration index. */
     IterationHistory::Loop loop() const;
@@ -200,15 +218,17 @@ public:
 **StateVariable.** A custom variable can be marked for aggregation:
 
 ```cpp
-/** Returns a copy of this state variable marked for aggregation. After setup and after each
-    medium state update, the medium system records the volume integral of the variable over all
-    cells in an aggregate series, which the material mix can retrieve through
-    HistoryScope::aggregate(). Only custom variables can be marked. The aggregate is meaningful
-    for densities; this is not enforced. */
-StateVariable aggregated() const;
+/** Returns a copy of this state variable marked for aggregation into the series with the specified
+    id. When it initializes the medium state, the medium system declares an aggregate series with
+    the key (medium component, id) for the variable. The material mix chooses the id, which must be
+    unique among the ids of all its series, and retrieves the series through HistoryScope::series().
+    Only custom variables can be marked. The aggregate is meaningful for densities; this is not
+    enforced. */
+StateVariable aggregated(int seriesId) const;
 
-/** Returns true if this state variable is marked for aggregation. */
+/** Return true if this state variable is marked for aggregation, and the id of its series. */
 bool isAggregated() const;
+int aggregateSeriesId() const;
 ```
 
 **MaterialMix.** The convergence function receives a history scope instead of the current and
@@ -230,7 +250,7 @@ vector<double> volumeIntegrals(const vector<std::pair<int, int>>& variables) con
 ```
 
 **MediumSystem.** `beginDynamicMediumStateIteration()` is removed, and a private function
-`recordAggregates()` records the values of all requested aggregate series.
+`recordAggregates()` records the values of all aggregate series.
 
 **DynamicStateRecipe.** No change. A recipe that needs history locates the history itself (see the
 Call sites chapter).

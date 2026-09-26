@@ -9,11 +9,12 @@ provides a precedent for a helper item that is not configured by the user.
 main purpose, but fits the cell windows of dynamic grid refinement less well, since these feed
 refinement decisions rather than convergence tests.
 
-**Key design.** The proposal identifies a series by an item pointer, a kind, and an id. The kind
-exists only to keep the ids of aggregates apart from the ids chosen by a client for the same item.
-Alternatives are to reserve negative ids for aggregates, which avoids the extra field but encodes
-meaning in a number, or to key aggregates on a different item, such as the medium system with an id
-combining the component and variable indices, which complicates the lookup by the material mix.
+**Shared aggregates.** Aggregate series are owned by the client that requests them, so two clients
+requesting the same aggregate each get a series of their own, and the medium system calculates the
+same value twice. Sharing a single series per aggregate, keyed on the medium component and the
+custom variable index, would avoid this, but it would reintroduce a second kind of key, or ids with
+an encoded meaning, to keep the shared series apart from those chosen by clients. The duplicate
+calculation costs one number per iteration, so the proposal accepts it.
 
 **Keeping references.** Because declaration is idempotent and cheap, the proposal lets clients
 declare their series whenever they need them. Clients with a setup phase could instead keep the
@@ -37,7 +38,8 @@ no client uses these values. Support for standard variables can be added when a 
 
 **Aggregation types.** The proposal supports a single type of aggregation, the volume integral,
 which is meaningful for densities. Other types, such as a volume-weighted or mass-weighted average,
-could be offered by giving `aggregated()` an argument, when a client needs them.
+could be offered by adding an aggregation type to the aggregation rule, and a corresponding
+optional argument to `aggregated()`, when a client needs them.
 
 **Parallel accumulation.** Cell windows are accumulated in a serial loop over all cells, because
 `ParallelFactory` offers no task mode in which each process performs all tasks with multiple

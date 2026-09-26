@@ -57,8 +57,9 @@ _config = find<Configuration>();
 _history = find<IterationHistory>();
 ```
 
-**Requesting aggregates.** When initializing the medium state, the medium system requests an
-aggregate series for each state variable that a material mix marked for aggregation:
+**Declaring aggregates for material mixes.** When initializing the medium state, the medium system
+declares an aggregate series on behalf of the material mix for each state variable that the mix
+marked for aggregation. The series is keyed on the medium component, with the id chosen by the mix:
 
 ```cpp
 for (auto medium : _media)
@@ -67,13 +68,16 @@ for (auto medium : _media)
     _state.initSpecificStateVariables(variables);
     for (const auto& variable : variables)
         if (variable.isAggregated())
-            _history->aggregateSeries(medium, variable.customIndex(), 2, variable.description());
+            _history->aggregateSeries(medium, variable.aggregateSeriesId(),
+                                      AggregationRule{medium, variable.customIndex()}, 2,
+                                      variable.description());
 }
 ```
 
-**Recording aggregates.** The private function `recordAggregates()` collects the requested
-aggregate series, maps each medium to its component index, calculates all volume integrals in a
-single pass through `MediumState::volumeIntegrals()`, and sets the current value of each series.
+**Recording aggregates.** The private function `recordAggregates()` retrieves all aggregate series
+from the history, whoever declared them. For each series, it maps the medium in the aggregation
+rule to its component index, calculates all volume integrals in a single pass through
+`MediumState::volumeIntegrals()`, and sets the current value of each series.
 It is called where `calculateAggregate()` is called today: at the end of setup (recording the
 initial state), after the dynamic state recipes update the state, and after the material mixes
 update the state. With dynamic grid refinement, it is also called after each refinement round.
@@ -95,19 +99,27 @@ for (int h : (primary ? _pdms_hv : _sdms_hv))
 its own: the `mutable` members `_convergedFractionHistory` and `_convergenceHistorySize` are
 removed.
 
+**Series ids.** The mix defines the ids of all its series, including its aggregates, in a single
+enumeration:
+
+```cpp
+enum HistoryId { ConvergedFraction, IonizedHydrogen, FirstIonFraction };
+```
+
 **Aggregates.** The mix marks its ionized hydrogen density and its ion fraction aggregates for
 aggregation, keeping their current quantity type:
 
 ```cpp
 result.push_back(StateVariable::custom(index++, "ionized hydrogen number density",
-                                       "numbervolumedensity").aggregated());
+                                       "numbervolumedensity").aggregated(IonizedHydrogen));
 ```
+
+The ion fraction aggregates are marked with the ids `FirstIonFraction + i`.
 
 **Convergence.** The plateau criterion uses a series with loop lifetime, and the global criterion
 uses the aggregate series:
 
 ```cpp
-enum HistoryId { ConvergedFraction };
 constexpr int plateauLength = 3;
 
 auto& fractions = history.scalarSeries(ConvergedFraction, plateauLength,
@@ -115,11 +127,11 @@ auto& fractions = history.scalarSeries(ConvergedFraction, plateauLength,
 fractions.set(convergedFraction);
 bool stabilityConverged = fractions.isStable(plateauLength, stabilityConvergenceThreshold());
 
-const auto& ionizedH = history.aggregate(_indexNHIonized);
+const auto& ionizedH = history.series(IonizedHydrogen);
 bool globalConverged = ionizedH.relativeChange() <= maxChangeInGlobalIonizedH();
 ```
 
-The logged ion fractions use `history.aggregate(_indexFirstIonFractionAgg + i)` in the same way.
+The logged ion fractions use `history.series(FirstIonFraction + i)` in the same way.
 In the first primary iteration, the previous value of each aggregate is the initial state recorded
 at setup, as today.
 
@@ -133,14 +145,15 @@ has not been reached, the plateau is no longer restarted. Both changes seem to b
 
 **Access.** Through the scope passed to `isSpecificStateConverged()`.
 
-**Aggregates.** The mix marks only its level populations for aggregation. Its collision partner
-densities, which are aggregated today without being used, are no longer aggregated.
+**Aggregates.** The mix marks only its level populations for aggregation, using the level index `p`
+as the series id, since it keeps no other series. Its collision partner densities, which are
+aggregated today without being used, are no longer aggregated.
 
 **Convergence.** The global criterion keeps its own formula, which is relative to the previous
 value rather than the current one, and reads the values from the aggregate series:
 
 ```cpp
-const auto& population = history.aggregate(_indexFirstLevelPopulation + p);
+const auto& population = history.series(p);
 double currentPop = population.value(0);
 double previousPop = population.value(1);
 ```
@@ -154,27 +167,31 @@ unchanged.
 ## Dynamic state recipes
 
 The existing recipes need no history and remain unchanged. A future recipe that needs history
-locates the history during setup, keeps the pointer, and keys its series on itself:
+locates the history during setup, keeps the pointer, and keys all its series, including any
+aggregates, on itself:
 
 ```cpp
+enum HistoryId { NotConverged, TotalFragmentDensity };
+
 void SomeRecipe::setupSelfAfter()
 {
     DynamicStateRecipe::setupSelfAfter();
     _history = find<IterationHistory>();
-    _history->aggregateSeries(medium, customIndex);  // only if aggregates are needed
+    _history->aggregateSeries(this, TotalFragmentDensity, AggregationRule{medium, customIndex});
 }
 
 bool SomeRecipe::endUpdate(int numCells, int numUpdated, int numNotConverged)
 {
-    auto& series = _history->scalarSeries(this, 0, 2, IterationHistory::Lifetime::Loop,
+    auto& series = _history->scalarSeries(this, NotConverged, 2, IterationHistory::Lifetime::Loop,
                                           "number of not-converged cells");
     series.set(numNotConverged);
+    double change = _history->series(this, TotalFragmentDensity).relativeChange();
     ...
 }
 ```
 
 Recipes are set up before the final setup phase of the medium system, so the aggregates they
-request are recorded from the initial state onward. This gives recipes access to aggregate
+declare are recorded from the initial state onward. This gives recipes access to aggregate
 information, as envisioned by the comment in `MediumSystem::updateDynamicStateRecipes()`.
 
 ## Possible future dynamic grid refinement recipe

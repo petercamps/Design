@@ -42,12 +42,8 @@ mix itself. The medium system, which calls the mix's convergence function for a 
 hands the mix a *scope* bound to that component. The mix then only chooses the id. This has three
 advantages: the mix does not need to know which component it belongs to; the key remains stable
 when a component uses a material mix family, where the mix object in a given cell is an
-implementation detail; and the mix's own series live alongside the aggregates of the same
-component.
-
-A key also carries a *kind*, distinguishing series chosen by a client from the aggregates managed
-by the medium system. For an aggregate, the id is the custom index of the state variable, so the
-kind keeps these ids from colliding with the ids chosen by the client for its own series.
+implementation detail; and all series of the mix, including its aggregates (see below), share a
+single id space that the mix controls.
 
 Identification by name was considered and rejected: names are not unique when several instances of
 the same class are present, unless they include some instance identification, which leads back to
@@ -58,21 +54,39 @@ human-readable description.
 
 All series are created on demand. If no client asks for a series, the history holds no data and
 costs nothing. Declaring a series is idempotent: declaring it again with the same key returns the
-existing series, and if the requested depth is larger, the series grows to that depth. A client can
+existing series, and if the requested depth is larger, the series grows to that depth. Declaring an
+existing series with a different lifetime or aggregation rule is a fatal error. A client can
 therefore simply declare its series each time it needs it, without separate setup code.
+
+## Aggregates
+
+An aggregate is the volume integral of a medium state variable over all cells, for a given medium
+component. Only the medium system can calculate it: it requires a pass over the complete,
+synchronized medium state, and it must be recalculated whenever the state changes, including after
+updates by dynamic state recipes, which the material mix is not aware of.
+
+The medium system does not need to *own* the aggregates, however. An aggregate series is an
+ordinary scalar series, owned by the client that requests it and keyed like any other series of
+that client, with an *aggregation rule* attached: the medium component and the custom state
+variable to integrate. The medium system sets the value of every series carrying such a rule. As a
+result, the client chooses all ids in its own key space, and no separate kind of key is needed.
 
 Aggregates are the one case where the timing of the request matters. The first value of an
 aggregate series describes the initial medium state, and must be recorded at the end of the medium
 system setup, before any iteration starts. Aggregates must therefore be requested during setup:
 
-- A material mix requests an aggregate by marking the corresponding state variable as aggregated in
-  the list it returns from `specificStateVariableInfo()`. The medium system declares the aggregate
-  series when it initializes the medium state.
+- A material mix requests an aggregate by marking the corresponding state variable as aggregated,
+  with a series id of its choice, in the list it returns from `specificStateVariableInfo()`. When
+  it initializes the medium state, the medium system declares the aggregate series on behalf of
+  the mix, keyed on the medium component and the id chosen by the mix.
 - Any other client, such as a dynamic state recipe, declares an aggregate series directly with the
-  history during its own setup, which precedes the final setup phase of the medium system.
+  history during its own setup, keyed on itself. The setup of all such clients precedes the final
+  setup phase of the medium system.
 
-The medium system calculates only the requested aggregates, so the fake aggregate cells disappear
-from the medium state.
+If two clients request the same aggregate, each gets its own series, and the medium system
+calculates the same value twice. This costs one extra number per iteration, which is negligible
+compared to the simplicity gained. The medium system calculates only the requested aggregates, so
+the fake aggregate cells disappear from the medium state.
 
 ## Iteration alignment and lifetime
 
