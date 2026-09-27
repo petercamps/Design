@@ -11,8 +11,8 @@ enough everywhere such a layer might appear is prohibitively large. A grid built
 distribution alone, on the other hand, typically under-resolves these layers, which biases line
 luminosities and line ratios.
 
-Dynamic grid refinement addresses this by subdividing cells between primary emission iterations,
-wherever a quantity derived from the radiation field varies too steeply across a cell. The
+Dynamic grid refinement addresses this by subdividing cells between iterations, wherever a
+quantity derived from the radiation field varies too steeply across a cell. The
 simulation continues on the finer grid, and the iterations proceed until both the medium state and
 the grid have stopped changing. Child cells start from their parent's state, so each iteration
 after a refinement round starts close to the previous solution rather than from scratch.
@@ -30,27 +30,28 @@ consists of two parts:
   chapter on [Tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md), notably as the
   `ResolvedSpheresTreePolicy`.
 
-- **Dynamic refinement** (on the fly): during the primary emission iterations, cells across which
-  a chosen gas quantity changes steeply are subdivided between iterations. This is the subject of
+- **Dynamic refinement** (on the fly): during the dynamic medium state iterations, cells across
+  which a chosen gas quantity changes steeply are subdivided between iterations. This is the subject of
   this note.
 
 The design follows the reference implementation wherever it proved itself in production, and
 departs from it where the SKIRT 10 grid design or existing SKIRT conventions suggest a cleaner
-structure. The departures are listed at the end of the Features chapter.
+structure.
 
 ## Scope and assumptions
 
-- The note assumes that the SKIRT 10 restructuring of the tree-based spatial grids has been
+- The note assumes that the SKIRT 10 restructuring of the
+  [tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md) has been
   implemented, including the flat, index-linked node array used for path segment generation.
+- The note also assumes that the central iteration history described in the
+  [Convergence history](convergence-history/01-introduction.md) design note has been implemented.
+  Dynamic refinement keeps all of its historical data in that history.
 - Only tree-based spatial grids (octree and binary tree) support dynamic refinement. Cells are
   only ever subdivided, never merged.
-- Refinement happens only during primary emission iterations.
+- Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
+  secondary emission iterations.
 - The mechanism is generic, but at present only the `DiffuseIonizedGasMix` offers quantities that
   are useful to drive refinement.
-
-Iterating towards a self-consistent state requires comparing each iteration with earlier ones.
-SKIRT already keeps such historical data in several unrelated places, and dynamic refinement adds
-more. A separate chapter catalogs these instances and proposes how to centralize them.
 
 ## Overview
 
@@ -58,7 +59,5 @@ more. A separate chapter catalogs these instances and proposes how to centralize
   refinement criteria, and the behavior of the iteration loop, as seen by the user.
 - **[Implementation](dynamic-grid-refinement/03-implementation.md)** describes the refinement
   step, the grid operations, and the growth of the per-cell data structures.
-- **[Convergence history](dynamic-grid-refinement/04-convergence-history.md)** catalogs the
-  historical data kept to evaluate convergence and proposes how to centralize it.
-- **[Open questions](dynamic-grid-refinement/05-open-questions.md)** collects the design
+- **[Open questions](dynamic-grid-refinement/04-open-questions.md)** collects the design
   decisions that need input, and observations on the reference implementation.

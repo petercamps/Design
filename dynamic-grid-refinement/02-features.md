@@ -7,9 +7,8 @@ A simulation with dynamic refinement proceeds as follows:
 1. The tree is constructed as usual by the configured tree policies. This initial grid should
    already be adequate for the density distribution and, where applicable, resolve the expected
    Strömgren spheres (see `ResolvedSpheresTreePolicy`).
-2. The primary emission iterations start. After the medium state has been updated at the end of
-   each iteration, the refinement step records the value of each configured refinement field in
-   each cell.
+2. The iterations start. After the medium state has been updated at the end of each iteration, the
+   refinement step records the value of each configured refinement field in each cell.
 3. At the end of each averaging window of a few iterations, each refinement criterion evaluates
    the window-averaged fields, and the cells across which a field changes too steeply are
    subdivided. The child cells inherit their parent's state.
@@ -22,8 +21,8 @@ A simulation with dynamic refinement proceeds as follows:
 
 The refinement configuration is proposed as a new optional property of `TreeSpatialGrid`, called
 `dynamicRefinementOptions`, next to the `policies` list that governs the initial construction. It
-is relevant only if the simulation iterates over primary emission, and it is displayed only at
-the expert user level, like the `iteratePrimaryEmission` flag itself.
+is relevant only if the simulation iterates over primary or secondary emission, and it is displayed
+only at the expert user level, like the `iteratePrimaryEmission` flag.
 
 The reference implementation places the refinement recipes in `DynamicStateOptions` instead. The
 grid is proposed as the better home for three reasons. First, the schema then offers dynamic
@@ -31,9 +30,9 @@ refinement only for grids that support it, instead of failing at run time for ot
 Second, the static and dynamic refinement of the same grid are configured in one place. Third, the
 refinement is conceptually a property of the grid, even if it is driven by the medium state.
 
-Dynamic refinement requires at least one medium component with a primary dynamic medium state,
-because otherwise the refinement fields do not change between iterations. Setup reports a fatal
-error if this is not the case.
+Dynamic refinement requires that the medium component providing each refinement field has a
+dynamic medium state, primary or secondary, because otherwise the field does not change between
+iterations. Setup reports a fatal error if this is not the case.
 
 ### Example
 
@@ -69,7 +68,7 @@ nature.
 | `maxLevel` | absolute maximum level of any cell created by dynamic refinement | `maxLevel` |
 | `maxExtraLevels` | maximum number of levels a cell may gain beyond its level in the initial grid (a negative value means no limit) | `maxLevelsAboveSeed` |
 | `maxCellCount` | hard cap on the total number of cells | `maxCellCount` (smallest over recipes) |
-| `numInitialIterations` | number of initial primary iterations during which refinement is not considered | `numIterationsBeforeRefinement` (largest over recipes) |
+| `numInitialIterations` | number of initial iterations of each iteration loop during which refinement is not considered | `numIterationsBeforeRefinement` (largest over recipes) |
 | `windowSize` | number of iterations over which the refinement fields are averaged before each decision | `requiredPersistence` |
 | `criteria` | the list of refinement criteria | `refinementRecipes` |
 
@@ -149,11 +148,14 @@ offers the requested one.
 
 ## Iteration and convergence
 
-Dynamic refinement takes place only in the primary emission iteration loop, and not in the merged
-primary and secondary iterations that may follow. By the time secondary emission is involved, the
-grid is final.
+Dynamic refinement can take place in each of the iteration loops: primary emission iterations,
+secondary emission iterations, and merged primary and secondary emission iterations. In a given
+loop, only the criteria whose field is updated in that loop take part. A field of a mix with a
+primary dynamic medium state is updated in the primary and merged loops, and a field of a mix with
+a secondary dynamic medium state in the secondary and merged loops. If no criterion takes part, the
+refinement step does nothing in that loop.
 
-The refinement step goes through the following phases:
+In each loop, the refinement step starts afresh and goes through the following phases:
 
 - During the first `numInitialIterations` iterations, refinement is not considered at all, so
   that the first decision is based on a settled radiation field.
@@ -168,8 +170,16 @@ refinement has settled, meaning that a complete window after the initial iterati
 subdivision requests, or that no further subdivision is possible because of the cell cap or the
 level limits. During the initial iterations and while a window is open, the refinement is not
 settled. As a result, each refinement round costs at least `windowSize + 1` extra iterations. If
-the loop ends because it reaches the maximum number of primary iterations while the refinement
-has not settled, a warning is issued.
+the loop ends because it reaches the maximum number of iterations while the refinement has not
+settled, a warning is issued.
+
+In a simulation with primary and merged iterations, refinement thus continues in the merged loop,
+where the secondary radiation field may change the fields further. In a simulation with separate
+secondary iterations, the primary emission has been completed before the secondary loop starts:
+the primary radiation field is not recalculated, and the instruments have recorded the primary
+emission. A cell created in the secondary loop receives its share of the parent's primary radiation
+field, which is uniform over the parent, so that refinement in this loop resolves only structure
+caused by the secondary radiation field.
 
 ## Initial state of child cells
 
@@ -177,6 +187,8 @@ A child cell inherits its parent's complete medium state, including the number d
 temperature, and all custom variables such as the iterated ionization state, as well as its
 parent's material mix. Only the cell volume is recalculated from the grid. The total mass of each
 medium component is therefore conserved, and the next iteration starts from the previous solution.
+The radiation field stored for the parent is divided among the children in proportion to their
+volume, so that each child starts with its parent's mean intensity.
 
 > Inheriting the state means that the refinement does not resolve any density structure within
 > the parent cell. Re-sampling the input model for the child cells is a possible alternative (see
@@ -193,9 +205,9 @@ load this topology with the `TopologyTreePolicy`. It then starts from the refine
 skipping dynamic refinement altogether, for example to calculate other diagnostics for the same
 model, or refining further.
 
-To follow the refinement from one iteration to the next, probes offering a `Primary` option for
-their `probeAfter` property can be used, such as the `CustomStateProbe`. Probes performed after a
-primary iteration see the refined grid, where the new cells still hold their inherited state. The
+To follow the refinement from one iteration to the next, probes offering a `Primary` or `Secondary`
+option for their `probeAfter` property can be used, such as the `CustomStateProbe`. Probes performed
+after an iteration see the refined grid, where the new cells still hold their inherited state. The
 reference implementation's `RefinedGridDumpProbe` combines grid geometry with fields specific to
 the `DiffuseIonizedGasMix`. It is not proposed for inclusion. Instead, the `SpatialCellPropertiesProbe`
 gains a column with the tree level of each cell when used with a tree grid.
@@ -227,9 +239,13 @@ chapter.
 4. The iteration loop cannot converge before the refinement has settled. In the reference
    implementation, the loop can terminate during the initial iterations or while a window is
    still open.
-5. Refinement is limited to the primary emission iteration loop. In the reference implementation,
-   it also takes place in merged primary and secondary iterations.
+5. Refinement can take place in all iteration loops, but only for the criteria whose field is
+   updated in the loop. In the reference implementation, it takes place in the primary and merged
+   loops, for all recipes.
 6. Child cells inherit their parent's material mix. The reference implementation re-evaluates the
    mix at each child's center, while inheriting the rest of the state from the parent.
-7. Refinement fields are selected by the name of a medium state variable, rather than through an
+7. The radiation field of a parent cell is divided among its children in proportion to their
+   volume. The reference implementation copies the parent's values to each child, which multiplies
+   the mean intensity in the children by the ratio of the parent and child volumes.
+8. Refinement fields are selected by the name of a medium state variable, rather than through an
    enumeration in the `MaterialMix` base class.

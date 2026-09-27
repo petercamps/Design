@@ -13,12 +13,17 @@ system orchestrates the work.
   answer geometric queries: cell level, initial level, bounding box, and face neighbors.
 - `MediumSystem` performs the refinement step: it accumulates the refinement fields, invokes the
   criteria, selects the cells to subdivide, and grows all per-cell data structures.
-- `MonteCarloSimulation` calls the refinement step from the primary emission iteration loop.
+- `IterationHistory` holds all historical data of the refinement step, keyed on the
+  `DynamicRefinementOptions` item: a cell window per refinement field, and a scalar series with the
+  number of cells subdivided in each iteration. `MediumSystem` keeps no refinement state of its own.
+- `MonteCarloSimulation` calls the refinement step from each of the three iteration loops.
 
 ## Iteration loop
 
-The refinement step becomes an explicit step in `runPrimaryEmissionIterations()`, directly after
-the dynamic medium state update and before the probe system is notified:
+The refinement step becomes an explicit step in `runPrimaryEmissionIterations()`,
+`runSecondaryEmissionIterations()`, and `runMergedEmissionIterations()`. It is the last step of each
+iteration, after all medium state updates and convergence checks, and before the probe system is
+notified. For example, in the primary loop:
 
 ```cpp
 converged = mediumSystem()->updatePrimaryDynamicMediumState();
@@ -26,28 +31,66 @@ converged &= mediumSystem()->updateDynamicRefinement();
 ```
 
 The reference implementation calls the refinement step from within
-`updatePrimaryDynamicMediumState()`, which is also called from the merged iteration loop. Calling
-it explicitly from the primary loop limits refinement to that loop, and makes it visible as a
-separate step in the loop's structure.
+`updatePrimaryDynamicMediumState()`, which is called from the primary and merged loops. Calling it
+explicitly makes it visible as a separate step in each loop's structure, and makes it available in
+the secondary loop.
 
 The `updateDynamicRefinement()` function returns true if the refinement has settled, as defined in
-the Features chapter. It keeps an iteration counter and the window schedule. After the initial
-iterations, it proceeds as follows in each iteration:
+the Features chapter. It first determines the criteria that take part in the current loop, based on
+the history's `loop()` and on whether the material mix providing each field has a primary or
+secondary dynamic medium state. If no criterion takes part, it returns true right away. Otherwise,
+it relies on the iteration history for all state that must survive from one iteration to the next:
 
-1. Unless this iteration directly follows a refinement round, add the current value of each
-   distinct refinement field to that field's running sum for each cell.
-2. If the window is not yet complete, return false.
+- The **iteration index** within the current loop is provided by the history, so the function
+  compares `iteration()` with `numInitialIterations` rather than keeping a counter.
+- A **scalar series** with loop lifetime records the number of cells subdivided in each iteration,
+  zero if there was no refinement round. An iteration directly follows a refinement round if the
+  value one iteration back is nonzero. The series also serves to log the progress of the
+  refinement.
+- A **cell window** with loop lifetime holds the running sums for each distinct refinement field
+  of the participating criteria.
+  All windows are accumulated and reset together, so they share a single schedule, and the window
+  is complete when `numIterations()` reaches `windowSize`.
+
+The series and windows are declared on demand, the first time the function needs them:
+
+```cpp
+enum HistoryId { SubdividedCells, FirstField };
+
+auto& subdivided = _history->scalarSeries(options, SubdividedCells, 2, IterationHistory::Lifetime::Loop,
+                                          "number of subdivided cells");
+subdivided.set(0);
+bool followsRound = subdivided.has(1) && subdivided.value(1) > 0;
+
+auto& window = _history->cellWindow(options, FirstField + f, _numCells, IterationHistory::Lifetime::Loop,
+                                    "window-averaged " + fieldName);
+```
+
+Here `options` is the `DynamicRefinementOptions` item, and `f` is the index of the field among the
+distinct fields used by the criteria. This replaces the iteration counter and the per-cell
+persistence counters kept by `MediumSystem` in the reference implementation, as well as the
+`mutable` running sums and transient flag of its `NeighborRefinementRecipe`, including the
+`cellsSubdivided()` notification needed to keep them consistent with the grid.
+
+Because all these data have loop lifetime, they are cleared automatically when a loop starts, so
+that the refinement schedule starts afresh in each loop. Each iteration, the function first records
+a zero in the subdivision series. Then, after the initial iterations, it proceeds as follows:
+
+1. Unless this iteration directly follows a refinement round, accumulate the current value of each
+   distinct refinement field into the corresponding cell window.
+2. If the windows are not yet complete, return false.
 3. If any criterion uses normalization, determine the percentile of the window-averaged field over
    all cells with a valid value above the floor.
-4. Evaluate all cells in parallel. For each cell below both level limits, ask each criterion for
-   its measure and compute the excess, the ratio of the measure to the criterion's threshold. The
-   cell is a candidate if its largest excess is greater than one.
+4. Evaluate all cells in parallel. For each cell below both level limits, ask each participating
+   criterion for its measure and compute the excess, the ratio of the measure to the criterion's
+   threshold. The cell is a candidate if its largest excess is greater than one.
 5. Sort the candidates by decreasing excess, breaking ties on cell index, and keep as many as fit
    under the cell cap. Each subdivision adds seven cells for an octree and one cell for a binary
    tree.
 6. Subdivide the selected cells and grow the per-cell data structures (see below).
-7. Reset all running sums, mark the next iteration to be left out of the averaging, recalculate
-   the aggregate medium state, and log the result.
+7. Reset all cell windows, record the number of subdivided cells in the subdivision series, which
+   leaves the next iteration out of the averaging, record the aggregate series of the iteration
+   history so that they reflect the refined grid, and log the result.
 
 The function returns true only if a complete window produced no candidates, or if no candidate
 could be subdivided because of the cell cap. The reference implementation computes the number of
@@ -59,9 +102,10 @@ trees.
 The refinement decisions are made independently by each MPI process, without communication. This
 is valid because the fields are read from the medium state after it has been synchronized between
 processes, so all processes see identical input and make identical decisions. The same holds for
-the running sums. Any data that is local to a process, such as a radiation field before it has
-been communicated, must not enter the decision. The explicit tie-breaking in the sort guarantees
-that the selection does not depend on the sort implementation.
+the cell windows, which the history accumulates in a single serial pass over all cells. Any data
+that is local to a process, such as a radiation field before it has been communicated, must not
+enter the decision. The explicit tie-breaking in the sort guarantees that the selection does not
+depend on the sort implementation.
 
 ## Grid operations
 
@@ -113,15 +157,25 @@ per-cell structures, based on the current code.
 | tree grid | node array, cell-to-node map, initial levels | new nodes; parent's initial level |
 | `MediumSystem` | cached number of cells | updated |
 | `MediumState` | state variables for each cell | parent's values; volume recalculated from the grid |
-| `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values |
+| `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values times the child's volume fraction |
 | `MediumSystem` | material mixes per cell, if applicable | parent's mixes |
-| `MediumSystem` | running sums of the refinement fields | reset for all cells |
+| `IterationHistory` | cell windows, including those of the refinement fields | parent's running sums |
 
-The primary radiation field is cleared at the start of each iteration, so the values copied into
-`_rf1` are irrelevant; copying keeps the growth operation uniform. Other components need no
-changes: the secondary sources size their per-cell arrays each time they prepare for launch, the
-cell libraries are used only for secondary emission, probes query the number of cells when they
-are performed, and instruments hold no per-cell data.
+The radiation field tables hold, for each cell, the sum of luminosity times path length of the
+photon packets crossing the cell, and the mean intensity follows by dividing this sum by the cell
+volume. The parent's values are therefore divided among the children in proportion to their
+volume, including the first child, which keeps the parent's cell index. Each child then starts with
+the parent's mean intensity, and the total absorbed luminosity is conserved. In the primary and
+merged loops, the tables are cleared at the start of the next iteration, but probes performed after
+the refining iteration, such as the `RadiationFieldProbe`, read them. In the secondary loop, the
+primary field is never recalculated, and the secondary field of one iteration determines the
+emission of the secondary sources in the next.
+
+The iteration history grows all its cell windows in a single call to `appendCells()`, whichever
+client declared them. The windows of the refinement fields are reset after each refinement round
+anyway. Other components need no changes: the secondary sources size their per-cell arrays and
+obtain the cell library mapping each time they prepare for launch, probes query the number of cells
+when they are performed, and instruments hold no per-cell data.
 
 `MediumSystem` gathers the growth of all these structures in a single function that is called for
 each refinement round, followed by a check that the size of each structure matches the new number
@@ -129,10 +183,11 @@ of cells. Forgetting to grow one of the structures is the most likely bug in thi
 check turns it into an immediate fatal error rather than memory corruption. If the number of
 per-cell structures grows in the future, a registration mechanism can replace the explicit list.
 
-The `MediumState` class stores its aggregate states as additional cells at the end of the data
-array. The function that appends cells must therefore insert the new cells before the aggregate
-cells, as the reference implementation does. The proposal in the Convergence history chapter would
-remove this complication.
+With the iteration history in place, the medium state no longer stores aggregate states as
+additional cells at the end of its data array, so appending cells is a plain extension of that
+array. The reference implementation, in contrast, has to insert the new cells before the aggregate
+cells. The aggregate series are recorded again after each refinement round, so that they describe
+the refined grid.
 
 Each growth operation reallocates and copies the affected arrays, so memory use temporarily
 doubles for the largest structures, the medium state and the radiation field tables. With a small
@@ -160,12 +215,12 @@ on the abundance mode of the `DiffuseIonizedGasMix`, so names would be more robu
 
 The decision step is proportional to the number of cells times the average number of face
 neighbors, and runs in parallel over the cells. It is performed once per window, so its cost is
-small compared to the photon packet transport of an iteration. Accumulating the fields costs one
-pass over the cells per iteration. The running sums need one number per field per cell, which is
-negligible compared to the medium state of the `DiffuseIonizedGasMix`.
+small compared to the photon packet transport of an iteration. Accumulating the fields into the cell
+windows costs one serial pass over the cells per iteration. The windows need one number per field
+per cell, which is negligible compared to the medium state of the `DiffuseIonizedGasMix`.
 
 Appended cells lose their spatial locality in the cell list. If this turns out to affect
-performance, the cells could be renumbered once the primary iterations have finished, which
+performance, the cells could be renumbered once the last iteration loop has finished, which
 requires permuting all per-cell structures, including the node array's cell indices. This is not
 proposed until measurements show a need.
 

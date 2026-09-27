@@ -49,9 +49,13 @@ the material mix at the child's center, while inheriting the rest of the state f
 This can make the mix inconsistent with the state variables that were initialized from the input
 model for the parent.
 
-**Merged iterations.** Refinement could continue during merged primary and secondary iterations,
-but this would require growing the data structures of the secondary sources during these
-iterations, and has not been tested. The proposal limits refinement to the primary iteration loop.
+**Refinement in later loops.** Refinement can take place in each iteration loop, and its schedule
+starts afresh in each loop. In a simulation with primary and merged iterations, the merged loop
+therefore cannot converge before `numInitialIterations + windowSize` iterations, even if the grid
+refined in the primary loop needs no further refinement. Merged iterations are relatively
+expensive, so this may matter. Alternatives are a property that selects the loops in which
+refinement takes place, or a shorter schedule in a loop that follows a loop in which the
+refinement settled. The proposal accepts the extra iterations until experience shows otherwise.
 
 **Convergence rule.** The proposal requires a complete window without subdivision requests before
 the loop can converge. The alternative is to accept convergence of the medium state in any
@@ -74,7 +78,7 @@ copies, but wastes memory when the cap is not reached. Growing in chunks is a co
 complicates the classes that assume contiguous storage, such as the radiation field tables.
 
 **Renumbering cells.** Cells created by refinement are appended at the end of the cell list. The
-cells could be renumbered after the primary iterations to restore spatial locality. This is not
+cells could be renumbered after the last iteration loop to restore spatial locality. This is not
 proposed until measurements show a performance impact.
 
 **Coarsening.** Merging cells whose fields have become smooth is not supported. It would require
@@ -96,6 +100,11 @@ not been verified by running it:
 - The refinement step is called from `updatePrimaryDynamicMediumState()`, which is also called in
   merged primary and secondary iterations. Refinement can therefore take place in those
   iterations, even though the recipes are configured as relevant for primary iterations.
+- The radiation field tables are grown by copying the parent's values to each new child, while the
+  first child keeps the parent's values. Because the tables hold sums over path lengths within the
+  cell, the mean intensity in each child is overestimated by the ratio of the parent and child
+  volumes. This is harmless for the next iteration, which clears the tables, but affects probes of
+  the radiation field performed after a refining iteration.
 - The iteration loop can converge in an iteration in which no cell happens to be subdivided,
   although candidates are still accumulating persistence or an averaging window is still open. It
   can also converge during the initial iterations, before refinement has been considered at all.
