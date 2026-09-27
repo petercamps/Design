@@ -19,13 +19,12 @@ A simulation with dynamic refinement proceeds as follows:
 
 ### Placement in the ski file
 
-The refinement configuration is proposed as a new optional property of `TreeSpatialGrid`, called
+The refinement configuration is a new optional property of `TreeSpatialGrid`, called
 `dynamicRefinementOptions`, next to the `policies` list that governs the initial construction. It
 is relevant only if the simulation iterates over primary or secondary emission, and it is displayed
 only at the expert user level, like the `iteratePrimaryEmission` flag.
 
-The reference implementation places the refinement recipes in `DynamicStateOptions` instead. The
-grid is proposed as the better home for three reasons. First, the schema then offers dynamic
+There are three reasons for placing these options here. First, the schema then offers dynamic
 refinement only for grids that support it, instead of failing at run time for other grids.
 Second, the static and dynamic refinement of the same grid are configured in one place. Third, the
 refinement is conceptually a property of the grid, even if it is driven by the medium state.
@@ -36,7 +35,7 @@ iterations. Setup reports a fatal error if this is not the case.
 
 ### Example
 
-The following fragment reproduces the configuration used for the reference galaxy run, which
+The following fragment shows an example configuration for a galaxy simulation that
 refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
 
 ```xml
@@ -45,8 +44,8 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
         <ResolvedSpheresTreePolicy filename="sources.txt" numBins="2" reach="2"/>
     </policies>
     <dynamicRefinementOptions type="DynamicRefinementOptions">
-        <DynamicRefinementOptions maxLevel="25" maxExtraLevels="4" maxCellCount="40000000"
-                                  numInitialIterations="3" windowSize="4">
+        <DynamicRefinementOptions maxRefinementLevel="15" maxExtraLevels="4" maxCells="9000000"
+                                  numIterationsBeforeRefinement="3" numAveragedIterations="4">
             <criteria type="RefinementCriterion">
                 <GradientRefinementCriterion field="x_NII" maxChange="0.3" minValue="5e-3"/>
                 <GradientRefinementCriterion field="x_OIII" maxChange="0.3" minValue="5e-3"/>
@@ -56,33 +55,30 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
 </OctTreeSpatialGrid>
 ```
 
+In this example, a cell can gain at most four levels beyond its level in the initial grid, and no
+cell can exceed level 15. A cell at level 10 in the initial grid can thus reach level 14, whereas a
+cell at the grid's maximum level 12 can reach only level 15.
+
 ### Refinement options
 
-The `DynamicRefinementOptions` item holds the settings shared by all criteria. In the reference
-implementation, each recipe carries its own copy of these settings, and the driver combines them
-(the smallest cell cap, the longest initial delay), which indicates that they are global in
-nature.
+The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 
-| Property | Description | Reference implementation |
-| --- | --- | --- |
-| `maxLevel` | absolute maximum level of any cell created by dynamic refinement | `maxLevel` |
-| `maxExtraLevels` | maximum number of levels a cell may gain beyond its level in the initial grid (a negative value means no limit) | `maxLevelsAboveSeed` |
-| `maxCellCount` | hard cap on the total number of cells | `maxCellCount` (smallest over recipes) |
-| `numInitialIterations` | number of initial iterations of each iteration loop during which refinement is not considered | `numIterationsBeforeRefinement` (largest over recipes) |
-| `windowSize` | number of iterations over which the refinement fields are averaged before each decision | `requiredPersistence` |
-| `criteria` | the list of refinement criteria | `refinementRecipes` |
+| Property | Description |
+| --- | --- |
+| `maxRefinementLevel` | absolute maximum level of any cell created by dynamic refinement |
+| `maxExtraLevels` | maximum number of levels a cell may gain beyond its level in the initial grid (zero means no limit) |
+| `maxCells` | hard cap on the total number of cells |
+| `numIterationsBeforeRefinement` | number of initial iterations of each iteration loop during which refinement is not considered |
+| `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision |
+| `criteria` | the list of refinement criteria |
 
 The `maxLevel` property of the grid itself continues to limit the initial construction only.
-Construction policies such as the density criteria often rely on it as a stopping criterion, so
-it is not reused as the ceiling for dynamic refinement.
-
-The `maxExtraLevels` limit is expressed relative to each cell's level in the initial grid. When
-the initial grid resolves each Strömgren sphere with a fixed number of cells per radius, this
-limit yields a fixed maximum number of cells per Strömgren radius everywhere, rather than a single
-physical cell size everywhere. For a binary tree, which splits a cell along one axis per level,
+The `maxExtraLevels` limit is expressed relative to each cell's level in the initial grid. 
+The `maxRefinementLevel` property imposes an absolute maximum level even after dynamic refinement.
+For a binary tree, which splits a cell along one axis per level,
 three levels correspond to one octree level.
 
-When the cell cap prevents subdividing all cells that ask for it, the cells with the largest
+When the `maxCells` cap prevents subdividing all cells that ask for it, the cells with the largest
 excess over their threshold are subdivided first, and a warning reports how many cells were left
 unsplit.
 
@@ -93,17 +89,17 @@ at once, for example one per ion; a cell is subdivided if any of them asks for i
 offers a single concrete criterion, `GradientRefinementCriterion`, which compares a field between a
 cell and its face neighbors.
 
-| Property | Description | Reference implementation |
-| --- | --- | --- |
-| `field` | the name of the medium state variable that drives the criterion (see below) | `field`, `emittingIonAtomicNumber`, `emittingIonStage` |
-| `measure` | `Gradient` or `NeighborDifference` (see below) | `comparison` |
-| `normalization` | `None`, or `Percentile` to divide by a percentile of the field over the grid | `comparison` (`MaxNormalizedDifference`) |
-| `normalizationPercentile` | the percentile, relevant for `Percentile` normalization | `normalizationPercentile` |
-| `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value | `maxNeighborDifference` |
-| `minValue` | cells with a field value below this floor are never subdivided | `minScalar` |
+| Property | Description |
+| --- | --- |
+| `field` | the name of the medium state variable that drives the criterion (see below) |
+| `measure` | `Gradient` or `NeighborDifference` (see below) |
+| `normalization` | `None`, or `Percentile` to divide by a percentile of the field over the grid |
+| `normalizationPercentile` | the percentile, relevant for `Percentile` normalization |
+| `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value |
+| `minValue` | cells with a field value below this floor are never subdivided |
 
-The `Gradient` measure, used in the production runs, takes the larger of two quantities, both
-expressed as a change in the field across the cell:
+The `Gradient` measure takes the larger of two quantities, both expressed as a change in the field
+across the cell:
 
 - the magnitude of the gradient obtained from central differences between the neighbors on
   opposite walls, multiplied by the cell size, which captures a front spread over several cells
@@ -119,23 +115,19 @@ value above the floor. This makes a single threshold comparable across fields wi
 peak values, such as N+ (peaking near 0.3) and O2+ (peaking near 1). A percentile is used rather
 than the maximum, so that a single Monte Carlo outlier cannot set the scale.
 
-> Only the `Gradient` measure without normalization was used in production. The other options are
-> included because they are simple and were part of the reference implementation, but they could
-> be dropped until there is a use case (see Open questions).
-
 ### Refinement fields
 
 A criterion's `field` property names a medium state variable. Any state variable of any material
 mix can drive refinement, provided the mix gives it a short name. The standard `temperature`
 variable is available for all mixes that store a temperature. The `DiffuseIonizedGasMix` names
-the custom variables that correspond to the fields of the reference implementation:
+the following custom variables:
 
-| Field | Meaning | Reference implementation |
-| --- | --- | --- |
-| `logU` | the ionization parameter (resolves the ionized region) | `IonizationParameter` |
-| `x_HI` | the neutral hydrogen fraction (resolves the ionization front) | `NeutralFraction` |
-| `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | the fraction of H+, N+, O0, O+, O2+, or S+ (resolves that ion's emitting layer) | `EmittingIonFraction` with atomic number and stage |
-| `temperature` | the gas temperature (resolves thermal transitions) | `Temperature` |
+| Field | Meaning |
+| --- | --- |
+| `logU` | the ionization parameter (resolves the ionized region) |
+| `x_HI` | the neutral hydrogen fraction (resolves the ionization front) |
+| `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | the fraction of H+, N+, O0, O+, O2+, or S+ (resolves that ion's emitting layer) |
+| `temperature` | the gas temperature (resolves thermal transitions) |
 
 The field is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component
@@ -157,21 +149,32 @@ refinement step does nothing in that loop.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
-- During the first `numInitialIterations` iterations, refinement is not considered at all, so
-  that the first decision is based on a settled radiation field.
-- The refinement fields are then accumulated for `windowSize` iterations, after which each
-  criterion evaluates the window-averaged values. Averaging over several iterations reduces the
+- During the first `numIterationsBeforeRefinement` iterations, refinement is not considered at
+  all, so that the first decision is based on a settled radiation field.
+- The refinement fields are then accumulated for `numAveragedIterations` iterations, after which
+  each criterion evaluates the window-averaged values. Averaging over several iterations reduces the
   Monte Carlo noise that reaches the decision.
 - If cells are subdivided, the next iteration is left out of the averaging, because the field is
   still adjusting to the changed grid. A new window starts after that.
+
+The initial iterations and the window address different problems. The window reduces Monte Carlo
+noise, which scatters around the current solution. At the start of a loop, however, the medium
+state drifts systematically from its initial guess toward the solution, for example as ionization
+fronts move outward, and the early primary iterations may use fewer photon packets. Averaging a
+drifting field yields a value between the initial guess and the solution rather than the solution
+itself. Because cells are never merged, a subdivision based on such transient structure is
+permanent, whereas a missed subdivision is simply caught by a later window. A longer window could
+also absorb the transient, but it would lengthen every refinement round, whereas the initial
+iterations delay only the first decision in each loop. Skipping the iteration after a refinement
+round follows the same reasoning.
 
 The iteration loop is considered converged only if the medium state has converged and the
 refinement has settled, meaning that a complete window after the initial iterations produced no
 subdivision requests, or that no further subdivision is possible because of the cell cap or the
 level limits. During the initial iterations and while a window is open, the refinement is not
-settled. As a result, each refinement round costs at least `windowSize + 1` extra iterations. If
-the loop ends because it reaches the maximum number of iterations while the refinement has not
-settled, a warning is issued.
+settled. As a result, each refinement round costs at least `numAveragedIterations + 1` extra
+iterations. If the loop ends because it reaches the maximum number of iterations while the
+refinement has not settled, a warning is issued.
 
 In a simulation with primary and merged iterations, refinement thus continues in the merged loop,
 where the secondary radiation field may change the fields further. In a simulation with separate
@@ -208,44 +211,15 @@ model, or refining further.
 To follow the refinement from one iteration to the next, probes offering a `Primary` or `Secondary`
 option for their `probeAfter` property can be used, such as the `CustomStateProbe`. Probes performed
 after an iteration see the refined grid, where the new cells still hold their inherited state. The
-reference implementation's `RefinedGridDumpProbe` combines grid geometry with fields specific to
-the `DiffuseIonizedGasMix`. It is not proposed for inclusion. Instead, the `SpatialCellPropertiesProbe`
-gains a column with the tree level of each cell when used with a tree grid.
+`SpatialCellPropertiesProbe` gains a column with the tree level of each cell when used with a tree
+grid.
 
 ## Limitations
 
 - Only tree-based spatial grids support dynamic refinement, and cells are never merged.
 - The medium state is replicated on each MPI process, so memory use per process grows with the
-  number of cells. In the reference galaxy runs, this was about 7 GB per million cells per process,
-  mostly due to the size of the `DiffuseIonizedGasMix` state.
+  number of cells. With the `DiffuseIonizedGasMix`, whose state is large, this amounts to about
+  7 GB per million cells per process.
 - Cells created by refinement are appended at the end of the cell list. This preserves all
   existing cell indices, but spatially adjacent cells no longer have nearby indices, which may
   reduce memory locality.
-
-## Departures from the reference implementation
-
-The following list summarizes the differences with the reference implementation that affect the
-configuration or the behavior. Implementation differences are discussed in the Implementation
-chapter.
-
-1. The configuration moves from `DynamicStateOptions` to the tree grid, and the settings shared by
-   all criteria move from the individual recipes to a single options item.
-2. Temporal filtering uses window averaging for all criteria, on a single schedule for all cells.
-   The reference implementation uses per-cell windows for its averaged gradient comparison and a
-   count of consecutive positive decisions for the other comparisons.
-3. Cells are prioritized by the ratio of their measure to the criterion's threshold, rather than
-   by the raw measure. This keeps priorities comparable between criteria that watch fields with
-   different units, even without normalization.
-4. The iteration loop cannot converge before the refinement has settled. In the reference
-   implementation, the loop can terminate during the initial iterations or while a window is
-   still open.
-5. Refinement can take place in all iteration loops, but only for the criteria whose field is
-   updated in the loop. In the reference implementation, it takes place in the primary and merged
-   loops, for all recipes.
-6. Child cells inherit their parent's material mix. The reference implementation re-evaluates the
-   mix at each child's center, while inheriting the rest of the state from the parent.
-7. The radiation field of a parent cell is divided among its children in proportion to their
-   volume. The reference implementation copies the parent's values to each child, which multiplies
-   the mean intensity in the children by the ratio of the parent and child volumes.
-8. Refinement fields are selected by the name of a medium state variable, rather than through an
-   enumeration in the `MaterialMix` base class.

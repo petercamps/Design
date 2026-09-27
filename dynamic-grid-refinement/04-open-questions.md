@@ -9,11 +9,20 @@ this note.
 remain in `DynamicStateOptions` as in the reference implementation. The grid is proposed, because
 the schema then offers dynamic refinement only where it is supported.
 
-**Absolute level ceiling.** The ceiling for dynamic refinement can be a separate `maxLevel`
-property of the refinement options, or the existing `maxLevel` property of the grid. A separate
-property is proposed, because construction policies often rely on the grid's `maxLevel` as a
+**Absolute level ceiling.** The ceiling for dynamic refinement can be a separate
+`maxRefinementLevel` property of the refinement options, or the existing `maxLevel` property of the
+grid. A separate property is proposed, because construction policies often rely on the grid's `maxLevel` as a
 stopping criterion, and a single value would force the user to raise the construction limit in
 order to allow deeper dynamic refinement.
+
+**Initial level after reuse.** The `maxExtraLevels` limit is relative to each cell's level in the
+initial grid. When a subsequent simulation loads a refined topology with the `TopologyTreePolicy`,
+the refined grid becomes the initial grid, so that cells can gain another `maxExtraLevels` levels
+beyond those already reached. This behavior can be accepted and documented, leaving it to the user
+to lower `maxExtraLevels` when refining further. Alternatively, the topology file can store each
+cell's initial level, which changes the file format and requires the `TopologyTreePolicy` to pass
+these levels to the grid. Documenting the behavior is proposed, because `maxRefinementLevel` still
+bounds the absolute level.
 
 **Selecting the refinement field.** A field can be selected by the name of a medium state variable,
 or through an enumeration defined by the material mix as in the reference implementation. Names
@@ -51,8 +60,8 @@ model for the parent.
 
 **Refinement in later loops.** Refinement can take place in each iteration loop, and its schedule
 starts afresh in each loop. In a simulation with primary and merged iterations, the merged loop
-therefore cannot converge before `numInitialIterations + windowSize` iterations, even if the grid
-refined in the primary loop needs no further refinement. Merged iterations are relatively
+therefore cannot converge before `numIterationsBeforeRefinement + numAveragedIterations`
+iterations, even if the grid refined in the primary loop needs no further refinement. Merged iterations are relatively
 expensive, so this may matter. Alternatives are a property that selects the loops in which
 refinement takes place, or a shorter schedule in a loop that follows a loop in which the
 refinement settled. The proposal accepts the extra iterations until experience shows otherwise.
@@ -89,6 +98,67 @@ identified.
 refinement decisions. A test-only criterion that refines deterministically can test the mechanics,
 but testing the actual criteria requires tolerances in the comparison with reference output, which
 may or may not be supported well by the current functional test procedure.
+
+## Departures from the reference implementation
+
+The following list summarizes the differences with the reference implementation that affect the
+configuration or the behavior. Implementation differences are discussed in the Implementation
+chapter.
+
+1. The configuration moves from `DynamicStateOptions` to the tree grid, and the settings shared by
+   all criteria move from the individual recipes to a single options item. In the reference
+   implementation, each recipe carries its own copy of these settings, and the driver combines
+   them (the smallest cell cap, the longest initial delay), which indicates that they are global in
+   nature.
+2. Temporal filtering uses window averaging for all criteria, on a single schedule for all cells.
+   The reference implementation uses per-cell windows for its averaged gradient comparison and a
+   count of consecutive positive decisions for the other comparisons.
+3. Cells are prioritized by the ratio of their measure to the criterion's threshold, rather than
+   by the raw measure. This keeps priorities comparable between criteria that watch fields with
+   different units, even without normalization.
+4. The iteration loop cannot converge before the refinement has settled. In the reference
+   implementation, the loop can terminate during the initial iterations or while a window is
+   still open.
+5. Refinement can take place in all iteration loops, but only for the criteria whose field is
+   updated in the loop. In the reference implementation, it takes place in the primary and merged
+   loops, for all recipes.
+6. Child cells inherit their parent's material mix. The reference implementation re-evaluates the
+   mix at each child's center, while inheriting the rest of the state from the parent.
+7. The radiation field of a parent cell is divided among its children in proportion to their
+   volume. The reference implementation copies the parent's values to each child, which multiplies
+   the mean intensity in the children by the ratio of the parent and child volumes.
+8. Refinement fields are selected by the name of a medium state variable, rather than through an
+   enumeration in the `MaterialMix` base class.
+9. The reference implementation's `RefinedGridDumpProbe`, which combines grid geometry with fields
+   specific to the `DiffuseIonizedGasMix`, is not included. Instead, the
+   `SpatialCellPropertiesProbe` gains a column with the tree level of each cell.
+
+The configuration properties correspond to those of the reference implementation as follows.
+
+| Proposal | Reference implementation |
+| --- | --- |
+| `maxRefinementLevel` | `maxLevel` |
+| `maxExtraLevels` (zero means no limit) | `maxLevelsAboveSeed` (a negative value means no limit) |
+| `maxCells` | `maxCellCount` (smallest over recipes) |
+| `numIterationsBeforeRefinement` | `numIterationsBeforeRefinement` (largest over recipes) |
+| `numAveragedIterations` | `requiredPersistence` |
+| `criteria` | `refinementRecipes` |
+| `field` | `field`, `emittingIonAtomicNumber`, `emittingIonStage` |
+| `measure` | `comparison` |
+| `normalization` | `comparison` (`MaxNormalizedDifference`) |
+| `normalizationPercentile` | `normalizationPercentile` |
+| `maxChange` | `maxNeighborDifference` |
+| `minValue` | `minScalar` |
+
+The refinement fields named by the `DiffuseIonizedGasMix` correspond to the values of the reference
+implementation's `field` property as follows.
+
+| Proposal | Reference implementation |
+| --- | --- |
+| `logU` | `IonizationParameter` |
+| `x_HI` | `NeutralFraction` |
+| `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | `EmittingIonFraction` with atomic number and stage |
+| `temperature` | `Temperature` |
 
 ## Observations on the reference implementation
 

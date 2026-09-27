@@ -210,7 +210,7 @@ the current field values, and decides once the window is complete:
 auto& window = _history->cellWindow(this, fieldId, ms->numCells(), IterationHistory::Lifetime::Loop,
                                     "window-averaged ionization parameter");
 window.accumulate([ms, h, offset](int m) { return ms->stateValue(m, h, offset); });
-if (window.numIterations() >= windowSize())
+if (window.numIterations() >= numAveragedIterations())
 {
     for (int m = 0; m != numCells; ++m)
     {

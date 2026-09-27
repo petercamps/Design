@@ -42,7 +42,7 @@ secondary dynamic medium state. If no criterion takes part, it returns true righ
 it relies on the iteration history for all state that must survive from one iteration to the next:
 
 - The **iteration index** within the current loop is provided by the history, so the function
-  compares `iteration()` with `numInitialIterations` rather than keeping a counter.
+  compares `iteration()` with `numIterationsBeforeRefinement` rather than keeping a counter.
 - A **scalar series** with loop lifetime records the number of cells subdivided in each iteration,
   zero if there was no refinement round. An iteration directly follows a refinement round if the
   value one iteration back is nonzero. The series also serves to log the progress of the
@@ -50,7 +50,7 @@ it relies on the iteration history for all state that must survive from one iter
 - A **cell window** with loop lifetime holds the running sums for each distinct refinement field
   of the participating criteria.
   All windows are accumulated and reset together, so they share a single schedule, and the window
-  is complete when `numIterations()` reaches `windowSize`.
+  is complete when `numIterations()` reaches `numAveragedIterations`.
 
 The series and windows are declared on demand, the first time the function needs them:
 

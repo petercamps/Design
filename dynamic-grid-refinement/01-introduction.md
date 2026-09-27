@@ -60,4 +60,5 @@ structure.
 - **[Implementation](dynamic-grid-refinement/03-implementation.md)** describes the refinement
   step, the grid operations, and the growth of the per-cell data structures.
 - **[Open questions](dynamic-grid-refinement/04-open-questions.md)** collects the design
-  decisions that need input, and observations on the reference implementation.
+  decisions that need input, the departures from the reference implementation, and observations
+  on that implementation.
