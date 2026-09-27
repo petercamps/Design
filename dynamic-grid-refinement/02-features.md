@@ -44,7 +44,7 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
         <ResolvedSpheresTreePolicy filename="sources.txt" numBins="2" reach="2"/>
     </policies>
     <dynamicRefinementOptions type="DynamicRefinementOptions">
-        <DynamicRefinementOptions maxRefinementLevel="15" maxExtraLevels="4" maxCells="9000000"
+        <DynamicRefinementOptions maxExtraLevels="4" maxCells="9000000"
                                   numIterationsBeforeRefinement="3" numAveragedIterations="4">
             <criteria type="RefinementCriterion">
                 <GradientRefinementCriterion field="x_NII" maxChange="0.3" minValue="5e-3"/>
@@ -55,9 +55,9 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
 </OctTreeSpatialGrid>
 ```
 
-In this example, a cell can gain at most four levels beyond its level in the initial grid, and no
-cell can exceed level 15. A cell at level 10 in the initial grid can thus reach level 14, whereas a
-cell at the grid's maximum level 12 can reach only level 15.
+In this example, a cell can gain at most four levels beyond its level in the initial grid. A cell at
+level 10 in the initial grid can thus reach level 14, and a cell at the grid's maximum level 12 can
+reach level 16.
 
 ### Refinement options
 
@@ -65,17 +65,16 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 
 | Property | Description |
 | --- | --- |
-| `maxRefinementLevel` | absolute maximum level of any cell created by dynamic refinement |
 | `maxExtraLevels` | maximum number of levels a cell may gain beyond its level in the initial grid (zero means no limit) |
-| `maxCells` | hard cap on the total number of cells |
+| `maxCells` | hard cap on the total number of cells (zero means no cap) |
 | `numIterationsBeforeRefinement` | number of initial iterations of each iteration loop during which refinement is not considered |
 | `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision |
 | `criteria` | the list of refinement criteria |
 
-The `maxLevel` property of the grid itself continues to limit the initial construction only.
-The `maxExtraLevels` limit is expressed relative to each cell's level in the initial grid. 
-The `maxRefinementLevel` property imposes an absolute maximum level even after dynamic refinement.
-For a binary tree, which splits a cell along one axis per level,
+The `maxLevel` property of the grid itself limits the initial construction only.
+The `maxExtraLevels` limit is expressed relative to each cell's level in the initial grid. If it is
+zero, only the `maxCells` cap limits the refinement, and if both are zero, refinement continues as
+long as the criteria ask for it. For a binary tree, which splits a cell along one axis per level,
 three levels correspond to one octree level.
 
 When the `maxCells` cap prevents subdividing all cells that ask for it, the cells with the largest
@@ -92,28 +91,23 @@ cell and its face neighbors.
 | Property | Description |
 | --- | --- |
 | `field` | the name of the medium state variable that drives the criterion (see below) |
-| `measure` | `Gradient` or `NeighborDifference` (see below) |
-| `normalization` | `None`, or `Percentile` to divide by a percentile of the field over the grid |
-| `normalizationPercentile` | the percentile, relevant for `Percentile` normalization |
-| `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value |
+| `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value (see below) |
 | `minValue` | cells with a field value below this floor are never subdivided |
 
-The `Gradient` measure takes the larger of two quantities, both expressed as a change in the field
-across the cell:
+The measure is the larger of two quantities, both expressed as a change in the field across the
+cell:
 
-- the magnitude of the gradient obtained from central differences between the neighbors on
-  opposite walls, multiplied by the cell size, which captures a front spread over several cells
-  regardless of its orientation relative to the grid;
-- the largest difference between the cell and the neighbors on a single wall, scaled to the cell
-  size, which captures a layer only one cell thick, where central differences vanish.
+- the magnitude of the gradient, with along each axis the difference between the values on the two
+  opposite walls divided by the distance between them, multiplied by the cell size, which captures
+  a front spread over several cells regardless of its orientation relative to the grid;
+- the largest difference between the cell and a single wall, scaled to the cell size, which
+  captures a layer only one cell thick, where the values on opposite walls are similar and the
+  first quantity is therefore close to zero.
 
-When a wall has several (smaller) neighbors, their values are averaged. The `NeighborDifference`
-measure simply takes the largest absolute difference between the cell and any face neighbor.
-
-Normalization divides the measure by a high percentile of the field over all cells with a valid
-value above the floor. This makes a single threshold comparable across fields with very different
-peak values, such as N+ (peaking near 0.3) and O2+ (peaking near 1). A percentile is used rather
-than the maximum, so that a single Monte Carlo outlier cannot set the scale.
+When a wall has several (smaller) neighbors, their values and center positions are averaged. At the
+edge of the domain, the cell itself takes the place of a missing neighbor. The measure and the
+threshold are expressed in the units of the field, so fields with very different peak values, such
+as N+ (peaking near 0.3) and O2+ (peaking near 1), may need different thresholds.
 
 ### Refinement fields
 
@@ -136,7 +130,6 @@ offers the requested one.
 > Selecting a field by name keeps the `MaterialMix` base class free of mix-specific enumerations
 > and ion index tables, and makes new fields available simply by naming a state variable. The
 > price is that the schema cannot validate the name, so MakeUp cannot offer a list of choices.
-> See Open questions.
 
 ## Iteration and convergence
 
@@ -171,7 +164,7 @@ round follows the same reasoning.
 The iteration loop is considered converged only if the medium state has converged and the
 refinement has settled, meaning that a complete window after the initial iterations produced no
 subdivision requests, or that no further subdivision is possible because of the cell cap or the
-level limits. During the initial iterations and while a window is open, the refinement is not
+level limit. During the initial iterations and while a window is open, the refinement is not
 settled. As a result, each refinement round costs at least `numAveragedIterations + 1` extra
 iterations. If the loop ends because it reaches the maximum number of iterations while the
 refinement has not settled, a warning is issued.

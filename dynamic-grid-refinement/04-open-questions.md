@@ -9,11 +9,13 @@ this note.
 remain in `DynamicStateOptions` as in the reference implementation. The grid is proposed, because
 the schema then offers dynamic refinement only where it is supported.
 
-**Absolute level ceiling.** The ceiling for dynamic refinement can be a separate
-`maxRefinementLevel` property of the refinement options, or the existing `maxLevel` property of the
-grid. A separate property is proposed, because construction policies often rely on the grid's `maxLevel` as a
-stopping criterion, and a single value would force the user to raise the construction limit in
-order to allow deeper dynamic refinement.
+**Absolute level ceiling.** Dynamic refinement can be limited by an absolute ceiling on the cell
+level, in addition to the `maxExtraLevels` limit relative to the initial grid and the `maxCells`
+cap. The existing `maxLevel` property of the grid cannot serve as that ceiling, because
+construction policies often rely on it as a stopping criterion, so a separate property would be
+needed. In the reference galaxy run, the ceiling was equal to the grid's `maxLevel` and the
+relative limit did the real work. The proposal therefore omits the ceiling. It can be added later as
+an optional property if a use case arises.
 
 **Initial level after reuse.** The `maxExtraLevels` limit is relative to each cell's level in the
 initial grid. When a subsequent simulation loads a refined topology with the `TopologyTreePolicy`,
@@ -21,8 +23,8 @@ the refined grid becomes the initial grid, so that cells can gain another `maxEx
 beyond those already reached. This behavior can be accepted and documented, leaving it to the user
 to lower `maxExtraLevels` when refining further. Alternatively, the topology file can store each
 cell's initial level, which changes the file format and requires the `TopologyTreePolicy` to pass
-these levels to the grid. Documenting the behavior is proposed, because `maxRefinementLevel` still
-bounds the absolute level.
+these levels to the grid. Documenting the behavior is proposed, because the user configures
+`maxExtraLevels` for the new simulation anyway.
 
 **Selecting the refinement field.** A field can be selected by the name of a medium state variable,
 or through an enumeration defined by the material mix as in the reference implementation. Names
@@ -36,14 +38,16 @@ offers it, as in the reference implementation, or from a component selected expl
 The first component is proposed for simplicity. An explicit index can be added when a use case with
 several photoionized components arises.
 
-**Measures and normalization.** Only the `Gradient` measure without normalization was used in
-production. The proposal includes the `NeighborDifference` measure and percentile normalization
-because they are simple. Alternatively, they can be omitted until there is a use case, reducing the
-number of options to document and test.
+**Measures and normalization.** The reference implementation also offers the plain largest
+difference with the face neighbors as a measure, and a normalization that divides the measure by a
+high percentile of the field over the grid, making a single threshold comparable across fields with
+very different peak values. Only the gradient measure without normalization was used in production,
+so the proposal omits the other options, reducing the number of options to document and test.
+They can be added as properties of the criterion if a use case arises.
 
 **Temporal filtering.** The reference implementation averages over per-cell windows in its main
 comparison, and counts consecutive positive decisions in its other comparisons. The proposal uses
-window averaging for all criteria, with a single schedule for all cells. This makes the decision
+window averaging, with a single schedule for all cells. This makes the decision
 points, and therefore the convergence rule, well defined, at the cost of delaying some decisions by
 up to one window. The effect on the number of iterations in production runs has not been measured.
 
@@ -110,12 +114,11 @@ chapter.
    implementation, each recipe carries its own copy of these settings, and the driver combines
    them (the smallest cell cap, the longest initial delay), which indicates that they are global in
    nature.
-2. Temporal filtering uses window averaging for all criteria, on a single schedule for all cells.
-   The reference implementation uses per-cell windows for its averaged gradient comparison and a
-   count of consecutive positive decisions for the other comparisons.
+2. Temporal filtering uses window averaging on a single schedule for all cells. The reference
+   implementation uses per-cell windows for its averaged gradient comparison.
 3. Cells are prioritized by the ratio of their measure to the criterion's threshold, rather than
    by the raw measure. This keeps priorities comparable between criteria that watch fields with
-   different units, even without normalization.
+   different units.
 4. The iteration loop cannot converge before the refinement has settled. In the reference
    implementation, the loop can terminate during the initial iterations or while a window is
    still open.
@@ -132,21 +135,23 @@ chapter.
 9. The reference implementation's `RefinedGridDumpProbe`, which combines grid geometry with fields
    specific to the `DiffuseIonizedGasMix`, is not included. Instead, the
    `SpatialCellPropertiesProbe` gains a column with the tree level of each cell.
+10. Only the averaged gradient comparison is offered, without normalization, and there is no
+    absolute ceiling on the level of refined cells. The reference implementation also offers the
+    `MaxAbsoluteDifference` and `MaxNormalizedDifference` comparisons, and a `maxLevel` property.
 
 The configuration properties correspond to those of the reference implementation as follows.
 
 | Proposal | Reference implementation |
 | --- | --- |
-| `maxRefinementLevel` | `maxLevel` |
+| — | `maxLevel` |
 | `maxExtraLevels` (zero means no limit) | `maxLevelsAboveSeed` (a negative value means no limit) |
-| `maxCells` | `maxCellCount` (smallest over recipes) |
+| `maxCells` (zero means no cap) | `maxCellCount` (smallest over recipes) |
 | `numIterationsBeforeRefinement` | `numIterationsBeforeRefinement` (largest over recipes) |
 | `numAveragedIterations` | `requiredPersistence` |
 | `criteria` | `refinementRecipes` |
 | `field` | `field`, `emittingIonAtomicNumber`, `emittingIonStage` |
-| `measure` | `comparison` |
-| `normalization` | `comparison` (`MaxNormalizedDifference`) |
-| `normalizationPercentile` | `normalizationPercentile` |
+| — (always the gradient measure) | `comparison` (only `AveragedGradient` is supported) |
+| — | `normalizationPercentile` |
 | `maxChange` | `maxNeighborDifference` |
 | `minValue` | `minScalar` |
 

@@ -79,16 +79,14 @@ a zero in the subdivision series. Then, after the initial iterations, it proceed
 1. Unless this iteration directly follows a refinement round, accumulate the current value of each
    distinct refinement field into the corresponding cell window.
 2. If the windows are not yet complete, return false.
-3. If any criterion uses normalization, determine the percentile of the window-averaged field over
-   all cells with a valid value above the floor.
-4. Evaluate all cells in parallel. For each cell below both level limits, ask each participating
+3. Evaluate all cells in parallel. For each cell below its level limit, ask each participating
    criterion for its measure and compute the excess, the ratio of the measure to the criterion's
    threshold. The cell is a candidate if its largest excess is greater than one.
-5. Sort the candidates by decreasing excess, breaking ties on cell index, and keep as many as fit
+4. Sort the candidates by decreasing excess, breaking ties on cell index, and keep as many as fit
    under the cell cap. Each subdivision adds seven cells for an octree and one cell for a binary
    tree.
-6. Subdivide the selected cells and grow the per-cell data structures (see below).
-7. Reset all cell windows, record the number of subdivided cells in the subdivision series, which
+5. Subdivide the selected cells and grow the per-cell data structures (see below).
+6. Reset all cell windows, record the number of subdivided cells in the subdivision series, which
    leaves the next iteration out of the averaging, record the aggregate series of the iteration
    history so that they reflect the refined grid, and log the result.
 
