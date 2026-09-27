@@ -26,24 +26,38 @@ cell's initial level, which changes the file format and requires the `TopologyTr
 these levels to the grid. Documenting the behavior is proposed, because the user configures
 `maxExtraLevels` for the new simulation anyway.
 
-**Selecting the refinement field.** A field can be selected by the name of a medium state variable,
-or through an enumeration defined by the material mix as in the reference implementation. Names
+**Selecting a medium state variable.** A `MediumStateGradientCriterion` can select its variable by
+name, or through an enumeration defined by the material mix as in the reference implementation. Names
 are proposed, because they keep mix-specific knowledge out of the `MaterialMix` base class and make
 any state variable usable. The downside is that neither the schema nor MakeUp can validate the name
 or offer a list of choices; setup must report an error listing the available names. There does not
 seem to be a mechanism in SMILE that combines both advantages.
 
-**Media with multiple components.** A field can be taken from the first medium component that
-offers it, as in the reference implementation, or from a component selected explicitly by index.
+**Media with multiple components.** A medium state variable can be taken from the first medium
+component that offers it, as in the reference implementation, or from a component selected explicitly by index.
 The first component is proposed for simplicity. An explicit index can be added when a use case with
 several photoionized components arises.
 
-**Measures and normalization.** The reference implementation also offers the plain largest
-difference with the face neighbors as a measure, and a normalization that divides the measure by a
-high percentile of the field over the grid, making a single threshold comparable across fields with
-very different peak values. Only the gradient measure without normalization was used in production,
-so the proposal omits the other options, reducing the number of options to document and test.
-They can be added as properties of the criterion if a use case arises.
+**Measures.** The reference implementation also offers the plain largest difference with the face
+neighbors as a measure. Only the gradient measure was used in production, so the proposal omits
+the other measure, reducing the number of options to document and test. It can be added as a
+property of `GradientCriterion`, or as a separate criterion class, if a use case arises.
+
+**Normalization.** Only unnormalized fields were used in production. The proposal nevertheless
+offers normalization for all gradient criteria, because the criteria now cover fields with very
+different units, such as ion fractions and dust temperatures, and normalization allows similar
+values of `maxChange` and `minValue` for all of them. Unlike the reference implementation, which
+compares the floor with the raw field, the proposal applies the floor to the normalized field, so
+that both properties have the same meaning. Normalization could also be the default, with a
+percentile of 99, but this would silently produce meaningless results for fields that can be
+negative, such as the logarithmic ionization parameter. The proposal therefore disables
+normalization by default.
+
+**Radiation field criteria.** A `RadiationFieldGradientCriterion` could refine on quantities
+derived directly from the radiation field, such as the mean intensity integrated over a wavelength
+range, or a ratio of two such integrals that traces the hardness of the field. The properties that
+select the quantity, and the relation with the wavelength grid on which the radiation field is
+stored, need further thought, so this criterion is not part of the proposal.
 
 **Temporal filtering.** The reference implementation averages over per-cell windows in its main
 comparison, and counts consecutive positive decisions in its other comparisons. The proposal uses
@@ -65,10 +79,21 @@ model for the parent.
 **Refinement in later loops.** Refinement can take place in each iteration loop, and its schedule
 starts afresh in each loop. In a simulation with primary and merged iterations, the merged loop
 therefore cannot converge before `numIterationsBeforeRefinement + numAveragedIterations`
-iterations, even if the grid refined in the primary loop needs no further refinement. Merged iterations are relatively
-expensive, so this may matter. Alternatives are a property that selects the loops in which
+iterations, even if the grid refined in the primary loop needs no further refinement. Merged
+iterations are relatively expensive, so this may matter. Alternatives are a property that selects the loops in which
 refinement takes place, or a shorter schedule in a loop that follows a loop in which the
 refinement settled. The proposal accepts the extra iterations until experience shows otherwise.
+
+**Refinement in the secondary loop.** The secondary loop does not recalculate the primary
+radiation field, and new cells receive a uniform share of their parent's primary field. For a field
+that depends mostly on the primary radiation field, such as the dust temperature in many models,
+the jump at the boundary of a subdivided cell therefore persists at every level, and the cells along
+that boundary may keep asking for subdivision until the level limit or the cell cap stops them.
+Alternatives are to exclude the dust temperature criterion from the secondary loop, which removes
+dust temperature refinement from simulations without primary iterations, or to recalculate the
+primary radiation field after each refinement round in the secondary loop, which costs a primary
+emission segment per round. The proposal accepts the behavior and documents it, relying on the
+limits, until experience shows otherwise.
 
 **Convergence rule.** The proposal requires a complete window without subdivision requests before
 the loop can converge. The alternative is to accept convergence of the medium state in any
@@ -122,40 +147,46 @@ chapter.
 4. The iteration loop cannot converge before the refinement has settled. In the reference
    implementation, the loop can terminate during the initial iterations or while a window is
    still open.
-5. Refinement can take place in all iteration loops, but only for the criteria whose field is
-   updated in the loop. In the reference implementation, it takes place in the primary and merged
+5. Refinement can take place in all iteration loops, but only for the criteria whose field
+   changes in the loop. In the reference implementation, it takes place in the primary and merged
    loops, for all recipes.
 6. Child cells inherit their parent's material mix. The reference implementation re-evaluates the
    mix at each child's center, while inheriting the rest of the state from the parent.
 7. The radiation field of a parent cell is divided among its children in proportion to their
    volume. The reference implementation copies the parent's values to each child, which multiplies
    the mean intensity in the children by the ratio of the parent and child volumes.
-8. Refinement fields are selected by the name of a medium state variable, rather than through an
-   enumeration in the `MaterialMix` base class.
+8. Medium state variables are selected by name, rather than through an enumeration in the
+   `MaterialMix` base class.
 9. The reference implementation's `RefinedGridDumpProbe`, which combines grid geometry with fields
    specific to the `DiffuseIonizedGasMix`, is not included. Instead, the
    `SpatialCellPropertiesProbe` gains a column with the tree level of each cell.
-10. Only the averaged gradient comparison is offered, without normalization, and there is no
-    absolute ceiling on the level of refined cells. The reference implementation also offers the
-    `MaxAbsoluteDifference` and `MaxNormalizedDifference` comparisons, and a `maxLevel` property.
+10. Only the gradient measure is offered, and there is no absolute ceiling on the level of refined
+    cells. The reference implementation also offers the `MaxAbsoluteDifference` comparison, and a
+    `maxLevel` property.
+11. Normalization is available for the gradient measure, and applies to the floor as well as to
+    the measure. The reference implementation offers normalization only with its plain difference
+    measure, and always compares the floor with the raw field.
+12. Criteria can also be based on a quantity that is not stored in the medium state, such as the
+    indicative dust temperature.
 
 The configuration properties correspond to those of the reference implementation as follows.
 
 | Proposal | Reference implementation |
 | --- | --- |
+| `MediumStateGradientCriterion` | `NeighborRefinementRecipe` |
 | — | `maxLevel` |
 | `maxExtraLevels` (zero means no limit) | `maxLevelsAboveSeed` (a negative value means no limit) |
 | `maxCells` (zero means no cap) | `maxCellCount` (smallest over recipes) |
 | `numIterationsBeforeRefinement` | `numIterationsBeforeRefinement` (largest over recipes) |
 | `numAveragedIterations` | `requiredPersistence` |
 | `criteria` | `refinementRecipes` |
-| `field` | `field`, `emittingIonAtomicNumber`, `emittingIonStage` |
-| — (always the gradient measure) | `comparison` (only `AveragedGradient` is supported) |
-| — | `normalizationPercentile` |
+| `variable` | `field`, `emittingIonAtomicNumber`, `emittingIonStage` |
+| — (always the gradient measure) | `comparison` (`AveragedGradient`; `MaxAbsoluteDifference` is not supported) |
+| `normalizationPercentile` (zero means no normalization) | `comparison` (`MaxNormalizedDifference`), `normalizationPercentile` |
 | `maxChange` | `maxNeighborDifference` |
 | `minValue` | `minScalar` |
 
-The refinement fields named by the `DiffuseIonizedGasMix` correspond to the values of the reference
+The state variables named by the `DiffuseIonizedGasMix` correspond to the values of the reference
 implementation's `field` property as follows.
 
 | Proposal | Reference implementation |

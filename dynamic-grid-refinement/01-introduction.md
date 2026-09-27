@@ -50,8 +50,9 @@ structure.
   only ever subdivided, never merged.
 - Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
   secondary emission iterations.
-- The mechanism is generic, but at present only the `DiffuseIonizedGasMix` offers quantities that
-  are useful to drive refinement.
+- Refinement can be driven by medium state variables or by the indicative dust temperature. At
+  present, only the `DiffuseIonizedGasMix` offers medium state variables that are useful to drive
+  refinement.
 
 ## Overview
 

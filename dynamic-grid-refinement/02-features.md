@@ -8,7 +8,8 @@ A simulation with dynamic refinement proceeds as follows:
    already be adequate for the density distribution and, where applicable, resolve the expected
    Strömgren spheres (see `ResolvedSpheresTreePolicy`).
 2. The iterations start. After the medium state has been updated at the end of each iteration, the
-   refinement step records the value of each configured refinement field in each cell.
+   refinement step records, for each configured refinement criterion, the value of its field in
+   each cell.
 3. At the end of each averaging window of a few iterations, each refinement criterion evaluates
    the window-averaged fields, and the cells across which a field changes too steeply are
    subdivided. The child cells inherit their parent's state.
@@ -27,11 +28,8 @@ only at the expert user level, like the `iteratePrimaryEmission` flag.
 There are three reasons for placing these options here. First, the schema then offers dynamic
 refinement only for grids that support it, instead of failing at run time for other grids.
 Second, the static and dynamic refinement of the same grid are configured in one place. Third, the
-refinement is conceptually a property of the grid, even if it is driven by the medium state.
-
-Dynamic refinement requires that the medium component providing each refinement field has a
-dynamic medium state, primary or secondary, because otherwise the field does not change between
-iterations. Setup reports a fatal error if this is not the case.
+refinement is conceptually a property of the grid, even if it is driven by the medium state or the
+radiation field.
 
 ### Example
 
@@ -47,8 +45,8 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
         <DynamicRefinementOptions maxExtraLevels="4" maxCells="9000000"
                                   numIterationsBeforeRefinement="3" numAveragedIterations="4">
             <criteria type="RefinementCriterion">
-                <GradientRefinementCriterion field="x_NII" maxChange="0.3" minValue="5e-3"/>
-                <GradientRefinementCriterion field="x_OIII" maxChange="0.3" minValue="5e-3"/>
+                <MediumStateGradientCriterion variable="x_NII" maxChange="0.3" minValue="5e-3"/>
+                <MediumStateGradientCriterion variable="x_OIII" maxChange="0.3" minValue="5e-3"/>
             </criteria>
         </DynamicRefinementOptions>
     </dynamicRefinementOptions>
@@ -84,15 +82,27 @@ unsplit.
 ### Refinement criteria
 
 `RefinementCriterion` is the abstract base class for criteria. Several criteria can be configured
-at once, for example one per ion; a cell is subdivided if any of them asks for it. The proposal
-offers a single concrete criterion, `GradientRefinementCriterion`, which compares a field between a
-cell and its face neighbors.
+at once, for example one per ion; a cell is subdivided if any of them asks for it. Like the
+subclasses of `DynamicStateRecipe`, the subclasses omit the base class name from their own names.
+
+`GradientCriterion` is an abstract subclass for criteria that compare a per-cell quantity, called
+the field of the criterion, between a cell and its face neighbors. Its concrete subclasses define
+the field:
+
+| Criterion | Field |
+| --- | --- |
+| `MediumStateGradientCriterion` | a medium state variable |
+| `DustTemperatureGradientCriterion` | the indicative dust temperature |
+
+### Gradient criteria
+
+All gradient criteria offer the following properties.
 
 | Property | Description |
 | --- | --- |
-| `field` | the name of the medium state variable that drives the criterion (see below) |
 | `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value (see below) |
 | `minValue` | cells with a field value below this floor are never subdivided |
+| `normalizationPercentile` | the percentile of the field over the grid by which the field is divided (zero means no normalization) |
 
 The measure is the larger of two quantities, both expressed as a change in the field across the
 cell:
@@ -105,40 +115,68 @@ cell:
   first quantity is therefore close to zero.
 
 When a wall has several (smaller) neighbors, their values and center positions are averaged. At the
-edge of the domain, the cell itself takes the place of a missing neighbor. The measure and the
-threshold are expressed in the units of the field, so fields with very different peak values, such
-as N+ (peaking near 0.3) and O2+ (peaking near 1), may need different thresholds.
+edge of the domain, the cell itself takes the place of a missing neighbor.
 
-### Refinement fields
+Without normalization, the measure, the threshold, and the floor are expressed in the units of the
+field, so fields with very different peak values, such as N+ (peaking near 0.3), O2+ (peaking near
+1), or a dust temperature of tens of kelvin, need very different values for `maxChange` and
+`minValue`. If `normalizationPercentile` is nonzero, the window-averaged field is divided by that
+percentile of the field over all cells in which it is positive, before the floor and the measure
+are evaluated. The threshold and the floor then become fractions of the field's typical peak
+value, so that similar values can be used for all criteria. A high percentile, such as 99, is used
+rather than the maximum, so that a single Monte Carlo outlier cannot set the scale. Normalization
+makes sense only for fields with positive values, and not, for example, for the logarithmic
+ionization parameter.
 
-A criterion's `field` property names a medium state variable. Any state variable of any material
-mix can drive refinement, provided the mix gives it a short name. The standard `temperature`
-variable is available for all mixes that store a temperature. The `DiffuseIonizedGasMix` names
-the following custom variables:
+### Medium state variables
 
-| Field | Meaning |
+The `MediumStateGradientCriterion` adds a `variable` property that names a medium state variable.
+Any state variable of any material mix can drive refinement, provided the mix gives it a short
+name. The standard `temperature` variable is available for all mixes that store a temperature. The
+`DiffuseIonizedGasMix` names the following custom variables:
+
+| Variable | Meaning |
 | --- | --- |
 | `logU` | the ionization parameter (resolves the ionized region) |
 | `x_HI` | the neutral hydrogen fraction (resolves the ionization front) |
 | `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | the fraction of H+, N+, O0, O+, O2+, or S+ (resolves that ion's emitting layer) |
 | `temperature` | the gas temperature (resolves thermal transitions) |
 
-The field is taken from the first medium component whose material mix offers a state variable
+The variable is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component
-offers the requested one.
+offers the requested one, and also if that component has no dynamic medium state, primary or
+secondary, because the variable then does not change between iterations.
 
-> Selecting a field by name keeps the `MaterialMix` base class free of mix-specific enumerations
+> Selecting a variable by name keeps the `MaterialMix` base class free of mix-specific enumerations
 > and ion index tables, and makes new fields available simply by naming a state variable. The
 > price is that the schema cannot validate the name, so MakeUp cannot offer a list of choices.
+
+### Dust temperature
+
+The `DustTemperatureGradientCriterion` uses the indicative dust temperature of each cell as its
+field, as calculated by `MediumSystem::indicativeDustTemperature()`. This temperature is obtained by
+solving the energy balance equation for a representative grain of each dust component in the local
+radiation field, averaged over the dust components weighted by their mass in the cell. It is not
+stored in the medium state, but calculated from the radiation field when needed. The criterion has
+no properties beyond those of all gradient criteria. Setup reports a fatal error if the simulation
+has no dust or does not store the radiation field.
+
+### Other criteria
+
+Other quantities derived from the radiation field, such as the mean intensity integrated over a
+given wavelength range, or the ratio of two such integrals, could drive refinement through a
+`RadiationFieldGradientCriterion`. Such a criterion is not part of this proposal, because the
+properties that select the quantity need further thought.
 
 ## Iteration and convergence
 
 Dynamic refinement can take place in each of the iteration loops: primary emission iterations,
 secondary emission iterations, and merged primary and secondary emission iterations. In a given
-loop, only the criteria whose field is updated in that loop take part. A field of a mix with a
-primary dynamic medium state is updated in the primary and merged loops, and a field of a mix with
-a secondary dynamic medium state in the secondary and merged loops. If no criterion takes part, the
-refinement step does nothing in that loop.
+loop, only the criteria whose field changes in that loop take part. A variable of a mix with a
+primary dynamic medium state changes in the primary and merged loops, and a variable of a mix with
+a secondary dynamic medium state in the secondary and merged loops. The dust temperature changes in
+all loops, because each loop recalculates at least part of the radiation field. If no criterion
+takes part, the refinement step does nothing in that loop.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
@@ -175,7 +213,10 @@ secondary iterations, the primary emission has been completed before the seconda
 the primary radiation field is not recalculated, and the instruments have recorded the primary
 emission. A cell created in the secondary loop receives its share of the parent's primary radiation
 field, which is uniform over the parent, so that refinement in this loop resolves only structure
-caused by the secondary radiation field.
+caused by the secondary radiation field. For a field that depends mostly on the primary radiation
+field, the jump in value at the boundary of a subdivided cell does not diminish with further
+subdivision, so that cells along that boundary may keep asking for subdivision until the level
+limit or the cell cap stops them (see Open questions).
 
 ## Initial state of child cells
 

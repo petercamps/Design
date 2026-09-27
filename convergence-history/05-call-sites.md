@@ -194,39 +194,50 @@ Recipes are set up before the final setup phase of the medium system, so the agg
 declare are recorded from the initial state onward. This gives recipes access to aggregate
 information, as envisioned by the comment in `MediumSystem::updateDynamicStateRecipes()`.
 
-## Possible future dynamic grid refinement recipe
+## Possible future dynamic grid refinement
 
 The [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) design note proposes
-subdividing cells between iterations, based on a field averaged over a window of
-iterations. A refinement recipe could use the history as follows.
+subdividing cells between iterations, based on per-cell fields, such as medium state variables or
+the indicative dust temperature, averaged over several iterations. If that proposal is implemented,
+its refinement step would use the history as follows.
 
-**Access.** The recipe locates the history during setup, like any other recipe, and keys its
-windows on itself, with one id per field it watches.
+**Access.** The refinement step is performed by the medium system, which locates the history
+during setup. It keys the scalar series with the number of subdivided cells on the
+`DynamicRefinementOptions` item that configures the refinement, and the cell window of each
+refinement criterion on that criterion. The criteria themselves keep no history.
 
-**Accumulating and deciding.** After each primary iteration's state update, the recipe accumulates
-the current field values, and decides once the window is complete:
+**Accumulating and deciding.** At the end of each iteration, in any iteration loop, the refinement
+step records the number of subdivided cells, accumulates the current field values unless the
+iteration directly follows a refinement round, and evaluates the criteria once the windows are
+complete:
 
 ```cpp
-auto& window = _history->cellWindow(this, fieldId, ms->numCells(), IterationHistory::Lifetime::Loop,
-                                    "window-averaged ionization parameter");
-window.accumulate([ms, h, offset](int m) { return ms->stateValue(m, h, offset); });
-if (window.numIterations() >= numAveragedIterations())
+auto& subdivided = _history->scalarSeries(options, 0, 2, IterationHistory::Lifetime::Loop,
+                                          "number of subdivided cells");
+subdivided.set(0);
+bool followsRound = subdivided.has(1) && subdivided.value(1) > 0;
+
+auto& window = _history->cellWindow(criterion, 0, _numCells, IterationHistory::Lifetime::Loop,
+                                    "window-averaged " + criterion->fieldDescription());
+if (!followsRound) window.accumulate([criterion](int m) { return criterion->value(m); });
+if (window.numIterations() >= options->numAveragedIterations())
 {
-    for (int m = 0; m != numCells; ++m)
-    {
-        double value = window.mean(m);
-        // compare with the window means of the neighbors of cell m, flag the cell if needed
-    }
-    window.reset();
+    // evaluate the criteria on the window means of each cell and its face neighbors,
+    // subdivide the selected cells, reset the windows, and record the number of subdivided cells
 }
 ```
 
-**Growing the grid.** When cells are subdivided, the medium system calls
-`_history->appendCells(parentCells)` along with growing its other per-cell data structures, so the
-recipe itself does not need to be notified of subdivisions.
+Because the series have loop lifetime, the refinement schedule starts afresh in each loop. The
+history's `iteration()` tells the refinement step when the initial iterations without refinement
+have passed.
 
-**Convergence.** The recipe can keep a scalar series with the number of cells subdivided in each
-round, both to decide whether the refinement has settled and to log the progress of the refinement.
+**Growing the grid.** When cells are subdivided, the medium system calls
+`_history->appendCells(parentCells)` along with growing its other per-cell data structures, so that
+the cell windows of all clients remain consistent with the grid without any client being notified.
+The medium system also records the aggregate series again, so that they describe the refined grid.
+
+**Convergence.** The refinement has settled when a complete window produced no subdivision
+requests. The subdivision series also serves to log the progress of the refinement.
 
 ## Removed code
 
