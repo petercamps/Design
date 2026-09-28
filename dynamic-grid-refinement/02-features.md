@@ -6,10 +6,10 @@ A simulation with dynamic refinement proceeds as follows:
 
 1. The tree is constructed as usual by the configured tree policies. This initial grid should
    already be adequate for the density distribution and, where applicable, resolve the expected
-   Strömgren spheres (see `ResolvedSpheresTreePolicy`).
-2. The iterations start. After the medium state has been updated at the end of each iteration, the
-   refinement step records, for each configured refinement criterion, the value of its field in
-   each cell.
+   areas of special interest (e.g. through `ResolvedSpheresTreePolicy`).
+2. The iterations start. After the radiation field and medium state have been updated at the
+   end of each iteration, the refinement step records, for each configured refinement criterion,
+   the value of its field in each cell.
 3. At the end of each averaging window of a few iterations, each refinement criterion evaluates
    the window-averaged fields, and the cells across which a field changes too steeply are
    subdivided. The child cells inherit their parent's state.
@@ -83,7 +83,7 @@ unsplit.
 
 `RefinementCriterion` is the abstract base class for criteria. Several criteria can be configured
 at once, for example one per ion; a cell is subdivided if any of them asks for it. Like the
-subclasses of `DynamicStateRecipe`, the subclasses omit the base class name from their own names.
+subclasses of `DynamicStateRecipe`, the subclasses omit part of the base class name from their own names.
 
 `GradientCriterion` is an abstract subclass for criteria that compare a per-cell quantity, called
 the field of the criterion, between a cell and its face neighbors. Its concrete subclasses define
@@ -227,16 +227,17 @@ medium component is therefore conserved, and the next iteration starts from the 
 The radiation field stored for the parent is divided among the children in proportion to their
 volume, so that each child starts with its parent's mean intensity.
 
-> Inheriting the state means that the refinement does not resolve any density structure within
-> the parent cell. Re-sampling the input model for the child cells is a possible alternative (see
-> Open questions).
+Inheriting the state means that the refinement does not resolve any density structure within
+the parent cell. Re-sampling the input model for the child cells is a possible alternative (see
+Open questions).
 
 ## Output and reuse
 
 Each refinement round logs the number of subdivided and added cells and the new total, and warns
 when the cell cap prevents subdivision.
 
-The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option (`Setup` or `Run`), so that it can
+The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option
+(`Setup`, `Primary`, `Secondary`or `Run`), so that it can
 record the topology of the refined grid at the end of the simulation. A subsequent simulation can
 load this topology with the `TopologyTreePolicy`. It then starts from the refined grid, either
 skipping dynamic refinement altogether, for example to calculate other diagnostics for the same
@@ -248,12 +249,8 @@ after an iteration see the refined grid, where the new cells still hold their in
 `SpatialCellPropertiesProbe` gains a column with the tree level of each cell when used with a tree
 grid.
 
-## Limitations
+## Memory use
 
-- Only tree-based spatial grids support dynamic refinement, and cells are never merged.
-- The medium state is replicated on each MPI process, so memory use per process grows with the
-  number of cells. With the `DiffuseIonizedGasMix`, whose state is large, this amounts to about
-  7 GB per million cells per process.
-- Cells created by refinement are appended at the end of the cell list. This preserves all
-  existing cell indices, but spatially adjacent cells no longer have nearby indices, which may
-  reduce memory locality.
+The medium state is replicated on each MPI process, so memory use per process grows with the
+number of cells. With the `DiffuseIonizedGasMix`, whose state is large, this amounts to about
+7 GB per million cells per process.

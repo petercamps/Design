@@ -50,9 +50,10 @@ structure.
   only ever subdivided, never merged.
 - Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
   secondary emission iterations.
-- Refinement can be driven by medium state variables or by the indicative dust temperature. At
-  present, only the `DiffuseIonizedGasMix` offers medium state variables that are useful to drive
-  refinement.
+- The mechanism is generic: refinement can be driven by any changes in the medium state or the
+  radiation field. At present, however, only the `DiffuseIonizedGasMix` offers medium state
+  variables that are useful to drive refinement, and the indicative dust temperature is the
+  only quantity derived from the radiation field that can drive refinement.
 
 ## Overview
 
