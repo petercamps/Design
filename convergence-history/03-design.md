@@ -138,6 +138,28 @@ sum, consistent with inheriting the parent's medium state.
 ## Logging and probing
 
 Because every series carries its key and a description, the history can list its contents. This
-makes it possible to log all convergence quantities in a consistent format, or to write them to a
-text column file with a probe performed after each iteration. Such a probe is a natural extension,
-but is not part of this proposal.
+makes it possible to log all convergence quantities in a consistent format, and to write them to a
+text column file with a probe performed after each iteration. A scalar series can optionally carry
+a physical quantity, as a quantity name known to the `Units` class, so that its values can be
+converted to output units. Most convergence metrics, such as fractions and relative changes, are
+dimensionless and need no quantity.
+
+The proposal includes such a probe, the `HistoryProbe`. It writes one text column file per
+iteration loop, with a row per iteration and a column per scalar series, holding the value set in
+that iteration. This gives a compact, machine-readable record of how each loop converged, which
+serves several purposes:
+
+- finding out which criterion keeps a loop from converging when it reaches its maximum number of
+  iterations;
+- tuning iteration parameters, such as the minimum and maximum number of iterations, convergence
+  fractions, packet ramps, and the parameters of dynamic grid refinement, based on data rather than
+  trial and error;
+- following dynamic grid refinement, with the number of subdivided cells next to the convergence
+  metrics it disturbs;
+- estimating the number of iterations, and thus the cost, for a class of models;
+- plotting convergence behavior directly, rather than parsing the log;
+- comparing convergence behavior between code versions in functional tests, catching changes in
+  the number of iterations that the final output would not reveal.
+
+Cell windows are not written. They hold per-cell partial results, potentially millions of numbers
+per iteration, and the refined grid and its state can be inspected with existing per-cell probes.

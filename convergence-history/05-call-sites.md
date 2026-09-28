@@ -12,6 +12,13 @@ Configuration* _config{new ConfigurationSetup(this)};
 IterationHistory* _history{new IterationHistory(this)};
 ```
 
+**Series ids.** The simulation keys its own series on itself, and distinguishes them by id with a
+private enumeration:
+
+```cpp
+enum HistoryId { DustAbsorbedLuminosity, NumPrimaryPackets, NumSecondaryPackets, LoopConverged };
+```
+
 **Iteration events.** Each of the three iteration functions starts its loop, and each iteration
 starts by advancing the history, replacing the call to `beginDynamicMediumStateIteration()`:
 
@@ -26,16 +33,15 @@ while (true)
 ```
 
 **Dust emission convergence.** The `DustAbsorptionConvergence` helper class and its `_prevLabsseco`
-member are replaced by a private member function of the simulation, which keys its series on the
-simulation itself:
+member are replaced by a private member function of the simulation:
 
 ```cpp
 bool MonteCarloSimulation::isDustEmissionConverged(double fractionOfPrimary, double fractionOfPrevious)
 {
     double Labsprim, Labsseco;
     std::tie(Labsprim, Labsseco) = mediumSystem()->totalDustAbsorbedLuminosity();
-    auto& series = _history->scalarSeries(this, 0, 2, IterationHistory::Lifetime::Loop,
-                                          "dust-absorbed secondary luminosity");
+    auto& series = _history->scalarSeries(this, DustAbsorbedLuminosity, 2, IterationHistory::Lifetime::Loop,
+                                          "dust-absorbed secondary luminosity", "bolluminosity");
     series.set(Labsseco);
     return Labsprim <= 0. || Labsseco <= 0. || Labsseco / Labsprim < fractionOfPrimary
            || (series.has(1) && series.relativeChange() < fractionOfPrevious);
@@ -46,6 +52,21 @@ The loop lifetime reproduces the current behavior, where each loop creates a new
 the first iteration of a loop, there is no previous value, so the relative change criterion does
 not apply. Currently, the previous value is initialized to zero, which yields a relative change of
 100%; the outcome is the same.
+
+**Loop information.** For the benefit of the history probe, each iteration function also records
+the number of photon packets launched in the iteration, which varies with the packet ramp in the
+primary loop, and whether the loop has converged, as 0 or 1. These series have depth 1 and loop
+lifetime:
+
+```cpp
+_history->scalarSeries(this, NumPrimaryPackets, 1, IterationHistory::Lifetime::Loop,
+                       "number of primary photon packets").set(Npp);
+...
+_history->scalarSeries(this, LoopConverged, 1, IterationHistory::Lifetime::Loop,
+                       "loop converged").set(converged ? 1. : 0.);
+```
+
+The convergence flag is set before the probe system is notified, so that the probe sees it.
 
 ## MediumSystem
 
@@ -70,9 +91,15 @@ for (auto medium : _media)
         if (variable.isAggregated())
             _history->aggregateSeries(medium, variable.aggregateSeriesId(),
                                       AggregationRule{medium, variable.customIndex()}, 2,
-                                      variable.description());
+                                      variable.description(), integratedQuantity(variable.quantity()));
 }
 ```
+
+The quantity of the series follows from the quantity of the variable: the volume integral of a
+number density is a pure number, which needs no quantity, and that of a mass density is a mass. The
+helper function `integratedQuantity()` performs this mapping, returning the empty string for
+quantities it does not know. It could be a private function of the medium system, or a function
+of the `Units` class.
 
 **Recording aggregates.** The private function `recordAggregates()` retrieves all aggregate series
 from the history, whoever declared them. For each series, it maps the medium in the aggregation
@@ -193,6 +220,32 @@ bool SomeRecipe::endUpdate(int numCells, int numUpdated, int numNotConverged)
 Recipes are set up before the final setup phase of the medium system, so the aggregates they
 declare are recorded from the initial state onward. This gives recipes access to aggregate
 information, as envisioned by the comment in `MediumSystem::updateDynamicStateRecipes()`.
+
+## HistoryProbe
+
+**Access.** The probe locates the history during setup, like any other client:
+
+```cpp
+_history = find<IterationHistory>();
+```
+
+**Timing.** The probe returns `When::Iterations`, so that it is performed after each iteration of
+each loop, through `ProbeSystem::probePrimary()` in the primary loop and
+`ProbeSystem::probeSecondary()` in the secondary and merged loops. The history's `loop()` and
+`iteration()` tell the probe which loop and iteration it is looking at.
+
+**Output.** At the first iteration of a loop, the probe opens a text column file for that loop,
+named after the simulation prefix, the probe name, and the loop, for example
+`prefix_history_primary.txt`, `prefix_history_secondary.txt`, or `prefix_history_merged.txt`.
+The first column holds the iteration index. The other columns follow the scalar series listed by
+`allScalarSeries()` at that time. Each column header combines the description of the series with a
+description of its item, such as its type and, for a medium component, its index, so that series
+of different items of the same type can be told apart. Values are converted to output units
+according to the quantity of each series. For each iteration, the probe appends a row with the
+current value of each series, or NaN if the value was not set in that iteration, and flushes the
+file, so that the progress of a long run can be followed while it executes, and the output survives
+an aborted run. Only the root process writes the file; the series hold identical values on all
+processes.
 
 ## Possible future dynamic grid refinement
 

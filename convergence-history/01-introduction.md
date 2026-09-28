@@ -24,7 +24,8 @@ chapter. Specifically:
 
 - In scope: the historical values kept by the iteration loops, the aggregate medium states, and
   the history kept by material mixes, as well as the per-cell history needed by the proposed
-  dynamic grid refinement.
+  dynamic grid refinement. The proposal also adds a probe that writes the history to file after
+  each iteration.
 - Out of scope: the per-cell comparisons that material mixes and recipes make between a new value
   and the old value still stored in the medium state. These need no storage of their own and remain
   unchanged.
@@ -34,7 +35,7 @@ chapter. Specifically:
 - **[Current state](convergence-history/02-current-state.md)** catalogs the existing instances of
   historical convergence data and summarizes their shortcomings.
 - **[Design](convergence-history/03-design.md)** introduces the central object and the concepts
-  behind it: series, identification, on-demand creation, lifetime, and parallelization.
+  behind it: series, identification, on-demand creation, lifetime, parallelization, and probing.
 - **[API](convergence-history/04-api.md)** proposes the concrete C++ interface.
 - **[Call sites](convergence-history/05-call-sites.md)** describes, for each client, how it gains
   access to the central object and how it uses it.

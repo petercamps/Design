@@ -11,7 +11,8 @@ and the `fundamentals` module, and all their clients, in the `material`, `medium
 modules, already depend on `tools`, so no new dependencies between modules arise. The aggregation
 rule refers to a `Medium`, which lives in the higher-level `medium` module. Because the history only
 stores and compares this pointer and never dereferences it, a forward declaration suffices, without
-including any header from that module.
+including any header from that module. The history probe lives in the `probe` module, next to the
+other probes; that module already depends on `tools`.
 
 ## Series key
 
@@ -71,6 +72,10 @@ public:
     const SeriesKey& key() const;
     const string& description() const;
     int depth() const;
+
+    /** Returns the physical quantity of the values, as a quantity name known to the Units class,
+        or the empty string if the values are dimensionless. */
+    const string& quantity() const;
 
     /** Returns the aggregation rule if this is an aggregate series, or null otherwise. */
     const AggregationRule* aggregationRule() const;
@@ -148,9 +153,10 @@ public:
     /** Returns the scalar series with the key (item, id), creating it if needed. If the series
         exists with a smaller depth, it grows to the requested depth, preserving its values. Throws
         a fatal error if the series exists with a different lifetime or with an aggregation rule.
-        The returned reference remains valid for the lifetime of the history. */
+        The optional quantity is a quantity name known to the Units class; it is used only for
+        output. The returned reference remains valid for the lifetime of the history. */
     ScalarSeries& scalarSeries(const SimulationItem* item, int id, int depth, Lifetime lifetime,
-                               string description);
+                               string description, string quantity = "");
 
     /** Returns the aggregate series with the key (item, id), creating it if needed with the
         specified aggregation rule and simulation lifetime. The medium system records the value of
@@ -158,7 +164,7 @@ public:
         declared during setup, before the medium system records the initial values. Throws a fatal
         error if the series exists with a different aggregation rule or without one. */
     ScalarSeries& aggregateSeries(const SimulationItem* item, int id, const AggregationRule& rule,
-                                  int depth = 2, string description = "");
+                                  int depth = 2, string description = "", string quantity = "");
 
     /** Returns the cell window with the key (item, id), creating it for the specified number of
         cells if needed. The returned reference remains valid for the lifetime of the history. */
@@ -210,7 +216,7 @@ public:
     /** Returns the scalar series with the key (item, id), as described for
         IterationHistory::scalarSeries(). */
     ScalarSeries& scalarSeries(int id, int depth, IterationHistory::Lifetime lifetime,
-                               string description) const;
+                               string description, string quantity = "") const;
 
     /** Returns the existing scalar series with the key (item, id), as described for
         IterationHistory::series(). A material mix uses this function to retrieve the aggregate
@@ -220,6 +226,27 @@ public:
     /** Returns the current loop and iteration index. */
     IterationHistory::Loop loop() const;
     int iteration() const;
+};
+```
+
+## History probe
+
+```cpp
+/** HistoryProbe writes the current value of all scalar series in the iteration history to a text
+    column file after each iteration of each iteration loop, with a separate file for each loop.
+    Values are converted to output units according to the quantity of each series. */
+class HistoryProbe : public Probe
+{
+    ITEM_CONCRETE(HistoryProbe, Probe, "convergence: iteration history")
+    ITEM_END()
+
+protected:
+    /** Returns When::Iterations. */
+    When when() const override;
+
+    /** Opens the output file at the first iteration of a loop, and appends a row for the current
+        iteration. */
+    void probe() override;
 };
 ```
 
@@ -261,6 +288,14 @@ vector<double> volumeIntegrals(const vector<std::pair<int, int>>& variables) con
 
 **MediumSystem.** `beginDynamicMediumStateIteration()` is removed, and a private function
 `recordAggregates()` records the values of all aggregate series.
+
+**Probe.** The `When` enumeration gains a value for probes performed after each iteration of any
+loop. The `probePrimary()` and `probeSecondary()` functions invoke `probe()` for such probes as
+well:
+
+```cpp
+enum class When { Setup, Run, Primary, Secondary, Iterations };
+```
 
 **DynamicStateRecipe.** No change. A recipe that needs history locates the history itself (see the
 Call sites chapter).

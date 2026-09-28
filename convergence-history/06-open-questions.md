@@ -43,6 +43,9 @@ until measurements show that it matters.
 argument of `endUpdate()` like material mixes do. Passing a scope would make the two kinds of
 clients symmetric, but would change the signature of `endUpdate()` for no current benefit.
 
-**History probe.** A probe that writes all scalar series to a text column file after each
-iteration would make convergence behavior easy to inspect. It is not part of this proposal, but the
-listing functions of the history are designed to support it.
+**Series declared late.** The history probe fixes its columns at the first iteration of a loop.
+Almost all series exist by then: aggregate series are declared during setup, and other series in
+the first iteration in which their client runs, before the probe is performed. A series first
+declared in a later iteration of the loop is left out of that loop's file, and the probe logs a
+warning. Alternatively, the probe could write one row per iteration and series, which accommodates
+any series at any time, but is much less convenient for plotting.
