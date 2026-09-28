@@ -103,6 +103,30 @@ a zero in the subdivision series. Then, after the initial iterations, it proceed
 The function returns true only if a complete window produced no candidates, or if no candidate
 could be subdivided because of the cell cap.
 
+### Series for logging and probing
+
+In addition to the subdivision series, the refinement step records a few scalar series that serve
+only for logging and for the history probe proposed in the Convergence history design note. Like
+the subdivision series, they are declared on demand in `updateDynamicRefinement()`, with loop
+lifetime and depth 1. The global series are keyed on the `DynamicRefinementOptions` item, and the
+per-criterion series on the criterion, like the cell windows.
+
+| Series | Keyed on | Set in | Purpose |
+| --- | --- | --- | --- |
+| number of iterations accumulated in the current window | options | every iteration | shows the schedule: zero during the initial iterations and in the iteration after a refinement round, then counting up to `numAveragedIterations` |
+| total number of cells | options | every iteration | shows the growth of the grid, to be compared with `maxCells` |
+| refinement settled (0 or 1) | options | every iteration | shows whether the refinement or the medium state holds up convergence |
+| number of candidate cells | options | decision iterations | shows how far the refinement is from settling and, compared with the number of subdivided cells, whether the cell cap limits it |
+| number of cells blocked by the level limit | options | decision iterations | shows whether `maxExtraLevels` limits the refinement |
+| number of candidate cells | criterion | decision iterations | shows which criterion drives the refinement |
+| normalization scale | criterion | decision iterations, if normalizing | shows whether the percentile has settled; carries the quantity of the field |
+
+The counts are obtained during the parallel evaluation of the cells, and are identical on all
+processes because the input is. Series that are set only in decision iterations have no value in
+other iterations, so that the decision points stand out in the output of the history probe. If no
+criterion takes part in a loop, the refinement step sets none of these series in that loop. The log
+messages of the refinement step are formed from the same values.
+
 ### Consistency between processes
 
 The refinement decisions are made independently by each MPI process, without communication. This
