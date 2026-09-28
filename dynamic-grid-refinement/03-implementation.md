@@ -33,11 +33,6 @@ converged = mediumSystem()->updatePrimaryDynamicMediumState();
 converged &= mediumSystem()->updateDynamicRefinement();
 ```
 
-The reference implementation calls the refinement step from within
-`updatePrimaryDynamicMediumState()`, which is called from the primary and merged loops. Calling it
-explicitly makes it visible as a separate step in each loop's structure, and makes it available in
-the secondary loop.
-
 The `updateDynamicRefinement()` function returns true if the refinement has settled, as defined in
 the Features chapter. It first determines the criteria that take part in the current loop, by
 passing the history's `loop()` to each criterion. If no criterion takes part, it returns true right
@@ -70,10 +65,7 @@ if (!followsRound) window.accumulate([criterion](int m) { return criterion->valu
 Here `options` is the `DynamicRefinementOptions` item, and `criterion` is one of the participating
 criteria. Because series are keyed on the item pointer, two criteria of the same type have separate
 windows. Two criteria with the same field accumulate it separately, which costs a little time but
-keeps the criteria independent. This replaces the iteration counter and the per-cell
-persistence counters kept by `MediumSystem` in the reference implementation, as well as the
-`mutable` running sums and transient flag of its `NeighborRefinementRecipe`, including the
-`cellsSubdivided()` notification needed to keep them consistent with the grid.
+keeps the criteria independent.
 
 Because all these data have loop lifetime, they are cleared automatically when a loop starts, so
 that the refinement schedule starts afresh in each loop. Each iteration, the function first records
@@ -96,9 +88,7 @@ a zero in the subdivision series. Then, after the initial iterations, it proceed
    history so that they reflect the refined grid, and log the result.
 
 The function returns true only if a complete window produced no candidates, or if no candidate
-could be subdivided because of the cell cap. The reference implementation computes the number of
-cells added per subdivision as seven regardless of the tree type, which is incorrect for binary
-trees.
+could be subdivided because of the cell cap.
 
 ### Consistency between processes
 
@@ -141,9 +131,7 @@ facing side.
 
 **Initial level.** When the flat array is established after construction, the grid records the
 level of each cell in a byte array. Children inherit this value from their parent. The
-`maxExtraLevels` limit compares a cell's current level with this initial level. The reference
-implementation captures these levels in `MediumSystem` on first use, relying on the first use
-happening before the first subdivision.
+`maxExtraLevels` limit compares a cell's current level with this initial level.
 
 **Topology.** The `TreeSpatialGridTopologyProbe` writes the topology through a depth-first
 traversal following the first-child indices, so the order in which nodes were appended does not
@@ -187,12 +175,6 @@ of cells. Forgetting to grow one of the structures is the most likely bug in thi
 check turns it into an immediate fatal error rather than memory corruption. If the number of
 per-cell structures grows in the future, a registration mechanism can replace the explicit list.
 
-With the iteration history in place, the medium state no longer stores aggregate states as
-additional cells at the end of its data array, so appending cells is a plain extension of that
-array. The reference implementation, in contrast, has to insert the new cells before the aggregate
-cells. The aggregate series are recorded again after each refinement round, so that they describe
-the refined grid.
-
 Each growth operation reallocates and copies the affected arrays, so memory use temporarily
 doubles for the largest structures, the medium state and the radiation field tables. With a small
 number of refinement rounds, this seems acceptable. Reserving capacity up front based on the cell
@@ -210,9 +192,7 @@ At setup, the `MediumStateGradientCriterion` resolves its variable name to a med
 a state variable offset, taking the first component whose mix declares a variable with that name.
 During the refinement step, it reads the value directly from the medium state. The loop in which
 the variable changes follows from whether the component's mix has a primary or secondary dynamic
-medium state. The reference implementation's `MaterialMix::dynamicRefinementScalar()` function, the
-`RefinementField` enumeration in the `MaterialMix` base class, and the table translating atomic
-number and ionization stage to the solver's internal ion index are not needed.
+medium state.
 
 The `DustTemperatureGradientCriterion` calls `MediumSystem::indicativeDustTemperature()`, which also
 serves the `TemperatureProbe`. It takes part in all loops.
@@ -240,16 +220,14 @@ proposed until measurements show a need.
 
 ## Testing
 
-The reference implementation includes two test-only items. `UniformTreeSpatialGrid` builds a
-uniform octree and verifies the subdivision of leaves. In SKIRT 10, a tree grid without policies
-and with equal `minLevel` and `maxLevel` builds the same uniform tree, so this class is not needed.
-`RefineStateSelfTestProbe` subdivides a few cells after setup and verifies that the medium state
-grows correctly and that mass is conserved.
+The essential invariants of dynamic refinement are that the children tile the parent, existing cell
+indices do not change, the mass of each medium component is conserved, neighbor links are
+consistent, points are located in the correct cell, and paths traverse the new cells correctly. The
+proposal is to verify them in functional tests in the `Functional9` repository, based on small
+photoionization models with dynamic refinement.
 
-The invariants checked by these items (the children tile the parent, existing cell indices do not
-change, mass is conserved, neighbor links are consistent, points are located in the correct cell,
-and paths traverse the new cells correctly) remain the essential tests. The proposal is to verify
-them in functional tests in the `Functional9` repository, based on small photoionization models
-with dynamic refinement. A test-only criterion that deterministically refines the cells inside a
-given box, in the spirit of the existing `TrivialGasMix`, would allow testing the mechanics
-without Monte Carlo noise affecting the refinement decisions.
+A tree grid without policies and with equal `minLevel` and `maxLevel` builds a uniform tree, which
+is a simple starting point for testing the subdivision of leaves. A test-only criterion that
+deterministically refines the cells inside a given box, in the spirit of the existing
+`TrivialGasMix`, allows testing the mechanics without Monte Carlo noise affecting the refinement
+decisions.

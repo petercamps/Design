@@ -1,21 +1,12 @@
 # Open questions
 
-## Design decisions
-
-The following decisions need input. Each lists the options, followed by the option proposed in
-this note.
-
-**Placement of the configuration.** The refinement options can be a property of the tree grid, or
-remain in `DynamicStateOptions` as in the reference implementation. The grid is proposed, because
-the schema then offers dynamic refinement only where it is supported.
+## Future design considerations
 
 **Absolute level ceiling.** Dynamic refinement can be limited by an absolute ceiling on the cell
 level, in addition to the `maxExtraLevels` limit relative to the initial grid and the `maxCells`
 cap. The existing `maxLevel` property of the grid cannot serve as that ceiling, because
 construction policies often rely on it as a stopping criterion, so a separate property would be
-needed. In the reference galaxy run, the ceiling was equal to the grid's `maxLevel` and the
-relative limit did the real work. The proposal therefore omits the ceiling. It can be added later as
-an optional property if a use case arises.
+needed. It can be added later as an optional property if a use case arises.
 
 **Initial level after reuse.** The `maxExtraLevels` limit is relative to each cell's level in the
 initial grid. When a subsequent simulation loads a refined topology with the `TopologyTreePolicy`,
@@ -27,31 +18,28 @@ these levels to the grid. Documenting the behavior is proposed, because the user
 `maxExtraLevels` for the new simulation anyway.
 
 **Selecting a medium state variable.** A `MediumStateGradientCriterion` can select its variable by
-name, or through an enumeration defined by the material mix as in the reference implementation. Names
+name, or through an enumeration defined by the material mix. Names
 are proposed, because they keep mix-specific knowledge out of the `MaterialMix` base class and make
 any state variable usable. The downside is that neither the schema nor MakeUp can validate the name
-or offer a list of choices; setup must report an error listing the available names. There does not
-seem to be a mechanism in SMILE that combines both advantages.
+or offer a list of choices; setup must report an error listing the available names.
 
-**Media with multiple components.** A medium state variable can be taken from the first medium
-component that offers it, as in the reference implementation, or from a component selected explicitly by index.
-The first component is proposed for simplicity. An explicit index can be added when a use case with
-several photoionized components arises.
+**Media with multiple components.** A medium state variable can be taken from the first
+medium component that offers it, or from a component selected explicitly by index. The
+first component is proposed for simplicity. An explicit index can be added when a use
+case with several medium components arises.
 
-**Measures.** The reference implementation also offers the plain largest difference with the face
-neighbors as a measure. Only the gradient measure was used in production, so the proposal omits
-the other measure, reducing the number of options to document and test. It can be added as a
-property of `GradientCriterion`, or as a separate criterion class, if a use case arises.
+**Measures.** One could offer the plain largest difference with the face neighbors as a
+separate measure. The proposal omits this, reducing the number of options to document and
+test. It can be added as a property of `GradientCriterion`, or as a separate criterion
+class, if a use case arises.
 
-**Normalization.** Only unnormalized fields were used in production. The proposal nevertheless
-offers normalization for all gradient criteria, because the criteria now cover fields with very
-different units, such as ion fractions and dust temperatures, and normalization allows similar
-values of `maxChange` and `minValue` for all of them. Unlike the reference implementation, which
-compares the floor with the raw field, the proposal applies the floor to the normalized field, so
-that both properties have the same meaning. Normalization could also be the default, with a
-percentile of 99, but this would silently produce meaningless results for fields that can be
-negative, such as the logarithmic ionization parameter. The proposal therefore disables
-normalization by default.
+**Normalization.** The proposal offers normalization for all gradient criteria, because
+the criteria cover fields with very different units, such as ion fractions and dust
+temperatures, and normalization allows similar values of `maxChange` and `minValue` for
+all of them. Normalization could be the default, with a percentile of 99, but this would
+silently produce meaningless results for fields that can be negative, such as the
+logarithmic ionization parameter. The proposal therefore disables normalization by
+default.
 
 **Radiation field criteria.** A `RadiationFieldGradientCriterion` could refine on quantities
 derived directly from the radiation field, such as the mean intensity integrated over a wavelength
@@ -59,11 +47,10 @@ range, or a ratio of two such integrals that traces the hardness of the field. T
 select the quantity, and the relation with the wavelength grid on which the radiation field is
 stored, need further thought, so this criterion is not part of the proposal.
 
-**Temporal filtering.** The reference implementation averages over per-cell windows in its main
-comparison, and counts consecutive positive decisions in its other comparisons. The proposal uses
-window averaging, with a single schedule for all cells. This makes the decision
-points, and therefore the convergence rule, well defined, at the cost of delaying some decisions by
-up to one window. The effect on the number of iterations in production runs has not been measured.
+**Temporal filtering.** The proposal uses window averaging with a single schedule for all
+cells. This makes the decision points, and therefore the convergence rule, well defined,
+at the cost of delaying some decisions by up to one window. The effect on the number of
+iterations in production runs has not been measured.
 
 **Initial state of child cells.** Children can inherit their parent's complete state and material
 mix, or the input model can be re-sampled for each child. Inheritance is proposed. It conserves
@@ -71,10 +58,7 @@ mass exactly, keeps the state consistent, and lets the next iteration start from
 solution. Re-sampling would resolve density structure within the parent cell, which is sometimes
 the very reason the refinement is needed, but it changes the total mass and requires deciding
 which state variables to take from the input model and which from the parent. This could be added
-later as an option. The reference implementation takes an intermediate position: it re-evaluates
-the material mix at the child's center, while inheriting the rest of the state from the parent.
-This can make the mix inconsistent with the state variables that were initialized from the input
-model for the parent.
+later as an option.
 
 **Extensive state variables.** Child cells copy their parent's state, which requires all state
 variables other than the volume to be intensive. The proposal states this as a requirement for
@@ -104,13 +88,7 @@ limits, until experience shows otherwise.
 
 **Convergence rule.** The proposal requires a complete window without subdivision requests before
 the loop can converge. The alternative is to accept convergence of the medium state in any
-iteration without subdivision, as the reference implementation does, which risks ending the loop
-while a decision is still pending.
-
-**Cell cap behavior.** When the cap is reached, the proposal considers the refinement settled and
-issues a warning. Alternatively, reaching the cap could be treated as a fatal error, forcing the
-user to raise the cap or relax the criteria. A warning is proposed, matching the reference
-implementation, since the resulting grid is still usable.
+iteration without subdivision, which risks ending the loop while a decision is still pending.
 
 **Memory.** The medium state is replicated on each MPI process, which limits the number of cells a
 refined grid can reach. There does not seem to be a good option within the scope of this note;
@@ -129,11 +107,6 @@ proposed until measurements show a performance impact.
 **Coarsening.** Merging cells whose fields have become smooth is not supported. It would require
 removing cell indices, and therefore renumbering all per-cell data structures. No use case has been
 identified.
-
-**Testing.** Functional tests of dynamic refinement are affected by Monte Carlo noise in the
-refinement decisions. A test-only criterion that refines deterministically can test the mechanics,
-but testing the actual criteria requires tolerances in the comparison with reference output, which
-may or may not be supported well by the current functional test procedure.
 
 ## Departures from the reference implementation
 
@@ -175,6 +148,9 @@ chapter.
     measure, and always compares the floor with the raw field.
 12. Criteria can also be based on a quantity that is not stored in the medium state, such as the
     indicative dust temperature.
+13. The test-only `UniformTreeSpatialGrid` and `RefineStateSelfTestProbe` are not included. A tree
+    grid without policies and with equal `minLevel` and `maxLevel` builds the same uniform tree,
+    and the invariants checked by the probe are verified in functional tests instead.
 
 The configuration properties correspond to those of the reference implementation as follows.
 
