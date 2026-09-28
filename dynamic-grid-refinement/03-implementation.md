@@ -197,10 +197,6 @@ medium state.
 The `DustTemperatureGradientCriterion` calls `MediumSystem::indicativeDustTemperature()`, which also
 serves the `TemperatureProbe`. It takes part in all loops.
 
-The same names could later be used to select custom state variables in the `CustomStateProbe`,
-which currently selects them by index. These indices depend on the mix configuration, for example
-on the abundance mode of the `DiffuseIonizedGasMix`, so names would be more robust.
-
 ## Performance
 
 The decision step is proportional to the number of cells times the average number of face

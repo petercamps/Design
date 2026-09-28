@@ -50,7 +50,7 @@ stored, need further thought, so this criterion is not part of the proposal.
 **Temporal filtering.** The proposal uses window averaging with a single schedule for all
 cells. This makes the decision points, and therefore the convergence rule, well defined,
 at the cost of delaying some decisions by up to one window. The effect on the number of
-iterations in production runs has not been measured.
+iterations has not been measured.
 
 **Initial state of child cells.** Children can inherit their parent's complete state and material
 mix, or the input model can be re-sampled for each child. Inheritance is proposed. It conserves
@@ -67,13 +67,19 @@ declare whether a custom variable is extensive, so that the refinement step divi
 among the children in proportion to their volume, as it does for the radiation field. This adds a
 concept that no current mix needs, so it is not proposed.
 
-**Refinement in later loops.** Refinement can take place in each iteration loop, and its schedule
-starts afresh in each loop. In a simulation with primary and merged iterations, the merged loop
-therefore cannot converge before `numIterationsBeforeRefinement + numAveragedIterations`
-iterations, even if the grid refined in the primary loop needs no further refinement. Merged
-iterations are relatively expensive, so this may matter. Alternatives are a property that selects the loops in which
-refinement takes place, or a shorter schedule in a loop that follows a loop in which the
-refinement settled. The proposal accepts the extra iterations until experience shows otherwise.
+**State variable names.** The short names proposed here for custom state variables could
+later be used to select custom state variables in the `CustomStateProbe`, which currently
+selects them by index. These indices depend on the mix configuration, for example on the
+abundance mode of the `DiffuseIonizedGasMix`, so names would be more robust.
+
+**Refinement in later loops.** Refinement can take place in each iteration loop, and its
+schedule starts afresh in each loop. In a simulation with primary and merged iterations,
+the merged loop therefore cannot converge before `numIterationsBeforeRefinement +
+numAveragedIterations` iterations, even if the grid refined in the primary loop needs no
+further refinement. Merged iterations are relatively expensive, so this may matter.
+Alternatives are a property that selects the loops in which refinement takes place, or a
+shorter schedule in a loop that follows a loop in which the refinement settled. The
+proposal accepts the extra iterations until experience shows otherwise.
 
 **Refinement in the secondary loop.** The secondary loop does not recalculate the primary
 radiation field, and new cells receive a uniform share of their parent's primary field. For a field
@@ -110,9 +116,10 @@ identified.
 
 ## Departures from the reference implementation
 
-The following list summarizes the differences with the reference implementation that affect the
-configuration or the behavior. Implementation differences are discussed in the Implementation
-chapter.
+The following lists summarize the differences with the reference implementation, first those that
+affect the configuration or the behavior, and then those that affect only the implementation.
+
+### Configuration and behavior
 
 1. The configuration moves from `DynamicStateOptions` to the tree grid, and the settings shared by
    all criteria move from the individual recipes to a single options item. In the reference
@@ -120,7 +127,8 @@ chapter.
    them (the smallest cell cap, the longest initial delay), which indicates that they are global in
    nature.
 2. Temporal filtering uses window averaging on a single schedule for all cells. The reference
-   implementation uses per-cell windows for its averaged gradient comparison.
+   implementation uses per-cell windows for its averaged gradient comparison, and counts
+   consecutive positive decisions per cell for its other comparisons.
 3. Cells are prioritized by the ratio of their measure to the criterion's threshold, rather than
    by the raw measure. This keeps priorities comparable between criteria that watch fields with
    different units.
@@ -136,27 +144,65 @@ chapter.
    volume. The reference implementation copies the parent's values to each child, which multiplies
    the mean intensity in the children by the ratio of the parent and child volumes.
 8. Medium state variables are selected by name, rather than through an enumeration in the
-   `MaterialMix` base class.
+   `MaterialMix` base class. Setup verifies that the component providing the variable has a
+   dynamic medium state.
 9. The reference implementation's `RefinedGridDumpProbe`, which combines grid geometry with fields
    specific to the `DiffuseIonizedGasMix`, is not included. Instead, the
    `SpatialCellPropertiesProbe` gains a column with the tree level of each cell.
 10. Only the gradient measure is offered, and there is no absolute ceiling on the level of refined
     cells. The reference implementation also offers the `MaxAbsoluteDifference` comparison, and a
-    `maxLevel` property.
+    `maxLevel` property. In the reference galaxy run, only the gradient measure was used, and the
+    ceiling was equal to the grid's own `maxLevel`, so that `maxLevelsAboveSeed` was the limit that
+    mattered.
 11. Normalization is available for the gradient measure, and applies to the floor as well as to
-    the measure. The reference implementation offers normalization only with its plain difference
-    measure, and always compares the floor with the raw field.
+    the measure. The percentile is taken over all cells in which the field is positive. The
+    reference implementation offers normalization only with its plain difference measure, takes the
+    percentile over the cells above the floor, and always compares the floor with the raw field.
+    Normalization was not used in the reference galaxy run.
 12. Criteria can also be based on a quantity that is not stored in the medium state, such as the
     indicative dust temperature.
-13. The test-only `UniformTreeSpatialGrid` and `RefineStateSelfTestProbe` are not included. A tree
+13. Zero values of `maxExtraLevels` and `maxCells` mean no limit. In the reference implementation, a
+    negative value of `maxLevelsAboveSeed` means no limit, and `maxCellCount` always applies.
+14. The test-only `UniformTreeSpatialGrid` and `RefineStateSelfTestProbe` are not included. A tree
     grid without policies and with equal `minLevel` and `maxLevel` builds the same uniform tree,
     and the invariants checked by the probe are verified in functional tests instead.
+
+### Implementation
+
+1. The refinement step is an explicit step at the end of each iteration in each loop. The
+   reference implementation calls it from within `updatePrimaryDynamicMediumState()`.
+2. All historical data of the refinement step are kept in the iteration history proposed in the
+   Convergence history design note, and the criteria keep no per-cell data. This replaces the
+   iteration counter and the per-cell persistence counters in `MediumSystem`, the `mutable` running
+   sums, normalization scale, and transient flag in `NeighborRefinementRecipe`, and the
+   `cellsSubdivided()` notification that keeps the running sums consistent with the grid.
+3. Subdivision operates on the flat, index-linked node array of the SKIRT 10 tree grids, as a local
+   operation that does not rebuild the neighbor links. The reference implementation subdivides the
+   pointer-based nodes of the current tree grids through `TreeSpatialGrid::subdivideLeaf()` and
+   `TreeNode::subdivide()`.
+4. The grid records the initial level of each cell when the flat node array is established. The
+   reference implementation captures these levels in `MediumSystem` on first use.
+5. The `MediumStateGradientCriterion` resolves its variable to a medium component and a state
+   variable offset at setup, and reads the values directly from the medium state. The reference
+   implementation obtains the values through the virtual function
+   `MaterialMix::dynamicRefinementScalar()`, a `RefinementField` enumeration in the `MaterialMix`
+   base class, and a table in the `DiffuseIonizedGasMix` that translates atomic number and
+   ionization stage into the solver's internal ion index.
+6. Because the medium state has no aggregate cells (see the Convergence history design note),
+   appending cells is a plain extension of its data array, and the aggregate series are recorded
+   again after each refinement round. The reference implementation inserts the new cells before the
+   aggregate cells, and recalculates the aggregate state.
+7. The number of cells added per subdivision, used to apply the cell cap, depends on the tree type.
+   The reference implementation always assumes seven (see below).
+
+### Configuration properties
 
 The configuration properties correspond to those of the reference implementation as follows.
 
 | Proposal | Reference implementation |
 | --- | --- |
 | `MediumStateGradientCriterion` | `NeighborRefinementRecipe` |
+| `DustTemperatureGradientCriterion` | — |
 | — | `maxLevel` |
 | `maxExtraLevels` (zero means no limit) | `maxLevelsAboveSeed` (a negative value means no limit) |
 | `maxCells` (zero means no cap) | `maxCellCount` (smallest over recipes) |
@@ -203,7 +249,8 @@ not been verified by running it:
   the measure used for prioritizing and the required persistence, and the persistence counter per
   cell is shared by all recipes.
 - `MediumSystem::refine()` re-evaluates the material mix at each child's center, while inheriting
-  all state variables from the parent (see above).
+  all state variables from the parent. This can make the mix inconsistent with the state variables
+  that were initialized from the input model for the parent.
 - The seed level of each cell is captured on first use rather than at construction, which is
   correct only as long as no cell is subdivided before the first use.
 - The documentation of `TreeSpatialGrid::subdivideLeaf()` states that the neighbor lists of the

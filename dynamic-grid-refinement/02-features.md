@@ -246,7 +246,7 @@ Each refinement round logs the number of subdivided and added cells and the new 
 when the cell cap prevents subdivision.
 
 The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option
-(`Setup`, `Primary`, `Secondary`or `Run`), so that it can
+(`Setup`, `Primary`, `Secondary`, or `Run`), so that it can
 record the topology of the refined grid at the end of the simulation. A subsequent simulation can
 load this topology with the `TopologyTreePolicy`. It then starts from the refined grid, either
 skipping dynamic refinement altogether, for example to calculate other diagnostics for the same
