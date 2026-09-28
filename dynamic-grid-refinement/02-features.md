@@ -100,7 +100,7 @@ All gradient criteria offer the following properties.
 
 | Property | Description |
 | --- | --- |
-| `maxChange` | the threshold; a cell is subdivided if its measure exceeds this value (see below) |
+| `maxChange` | the maximum change of the field across a cell; a cell is subdivided if its measure exceeds this value (see below) |
 | `minValue` | cells with a field value below this floor are never subdivided |
 | `normalizationPercentile` | the percentile of the field over the grid by which the field is divided (zero means no normalization) |
 
