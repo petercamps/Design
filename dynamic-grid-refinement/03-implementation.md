@@ -21,6 +21,19 @@ system orchestrates the work.
   its own.
 - `MonteCarloSimulation` calls the refinement step from each of the three iteration loops.
 
+## Module
+
+The new classes, `DynamicRefinementOptions` and the criterion hierarchy, live in the `medium`
+module, next to the spatial grids that hold the options and the medium system that performs the
+refinement step. The criteria use the medium system, the material mixes and state variables in the
+`material` module, and the iteration history in the `tools` module, all of which `medium` already
+depends on. The changes to existing classes stay within their own modules or use existing
+dependencies: `material` gains only self-contained additions (appending cells to the medium state,
+short names for state variables), and the `simulation` and `probe` modules, which call the
+refinement step or report the refined grid, already depend on `medium`. No new dependencies between
+modules arise. In particular, the `MaterialMix` base class does not need to know about refinement,
+because the criteria read the medium state from above.
+
 ## Iteration loop
 
 The refinement step becomes an explicit step in `runPrimaryEmissionIterations()`,
