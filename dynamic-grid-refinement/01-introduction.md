@@ -48,6 +48,8 @@ structure.
   Dynamic refinement keeps all of its historical data in that history.
 - Only tree-based spatial grids (octree and binary tree) support dynamic refinement. Cells are
   only ever subdivided, never merged.
+- All medium state variables other than the cell volume must be intensive, so that child cells can
+  simply copy their parent's values. This holds for all current standard and custom variables.
 - Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
   secondary emission iterations.
 - The mechanism is generic: refinement can be driven by any changes in the medium state or the

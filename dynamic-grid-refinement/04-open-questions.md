@@ -76,6 +76,13 @@ the material mix at the child's center, while inheriting the rest of the state f
 This can make the mix inconsistent with the state variables that were initialized from the input
 model for the parent.
 
+**Extensive state variables.** Child cells copy their parent's state, which requires all state
+variables other than the volume to be intensive. The proposal states this as a requirement for
+custom variables, which all current material mixes meet. Alternatively, `StateVariable` could
+declare whether a custom variable is extensive, so that the refinement step divides its value
+among the children in proportion to their volume, as it does for the radiation field. This adds a
+concept that no current mix needs, so it is not proposed.
+
 **Refinement in later loops.** Refinement can take place in each iteration loop, and its schedule
 starts afresh in each loop. In a simulation with primary and merged iterations, the merged loop
 therefore cannot converge before `numIterationsBeforeRefinement + numAveragedIterations`

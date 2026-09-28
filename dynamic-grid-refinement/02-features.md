@@ -227,6 +227,15 @@ medium component is therefore conserved, and the next iteration starts from the 
 The radiation field stored for the parent is divided among the children in proportion to their
 volume, so that each child starts with its parent's mean intensity.
 
+Copying the state is correct only because all state variables other than the volume are intensive:
+their values do not depend on the size of the cell. This holds for the standard variables, such as
+the number density, the metallicity, the temperature, the bulk velocity, and the magnetic field. It
+also holds for the custom variables of all current material mixes, which store quantities such as
+ionization fractions, level populations per unit volume, and mean intensities. Custom state
+variables must therefore be intensive. A quantity that scales with the size of the cell, such as a
+mass, a number of particles, or a luminosity, must be stored per unit volume or per unit mass
+instead.
+
 Inheriting the state means that the refinement does not resolve any density structure within
 the parent cell. Re-sampling the input model for the child cells is a possible alternative (see
 Open questions).

@@ -160,7 +160,7 @@ per-cell structures, based on the current code.
 | --- | --- | --- |
 | tree grid | node array, cell-to-node map, initial levels | new nodes; parent's initial level |
 | `MediumSystem` | cached number of cells | updated |
-| `MediumState` | state variables for each cell | parent's values; volume recalculated from the grid |
+| `MediumState` | state variables for each cell | parent's values, which are intensive; volume recalculated from the grid |
 | `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values times the child's volume fraction |
 | `MediumSystem` | material mixes per cell, if applicable | parent's mixes |
 | `IterationHistory` | cell windows, including those of the refinement criteria | parent's running sums |
@@ -202,7 +202,9 @@ cap would avoid the copies, but would waste memory whenever the cap is not reach
 
 `StateVariable::custom()` gains an optional short name, in addition to its description. The
 `DiffuseIonizedGasMix` assigns the names listed in the Features chapter to the corresponding
-custom variables. The standard variables have fixed names, such as `temperature`.
+custom variables. The standard variables have fixed names, such as `temperature`. The
+documentation of `StateVariable::custom()` also states that custom variables must be intensive, so
+that child cells can copy their parent's values (see the Features chapter).
 
 At setup, the `MediumStateGradientCriterion` resolves its variable name to a medium component and
 a state variable offset, taking the first component whose mix declares a variable with that name.
