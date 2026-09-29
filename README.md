@@ -13,3 +13,4 @@
 - [Convergence history](convergence-history/01-introduction.md)
 - [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
 - [Full HDF5 support](full-hdf5-support/01-introduction.md)
+- [Clumpy torus model](clumpy-torus-model/01-introduction.md)
