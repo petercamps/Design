@@ -48,7 +48,27 @@ would require a name property on every WLG. That property might be made irreleva
 configured outside the pool, which would hide it, provided irrelevant scalar properties are no
 longer written to the ski file.
 
+## Other suggestions
+
+### Omit irrelevant scalar properties, and compensate for editing
+
+A middle road omits irrelevant scalar properties from the ski files written by SKIRT and MakeUp,
+and makes up for the loss of editing convenience in other ways:
+
+- When a hand-edited ski file lacks a property that has become relevant and has no default value,
+  the error message names the missing property and lists the valid property names for the element.
+  A property with a default value is silently assigned that value, as now.
+- A MakeUp preference or a SKIRT command-line option writes complete ski files, including the
+  irrelevant scalar properties, for users who edit ski files by hand frequently.
+- MakeUp keeps the values of irrelevant properties in memory during a session, so that switching
+  a choice back and forth still preserves the values entered by the user.
+
+Before adopting this, two consequences need to be checked. PTS scripts that read attributes of
+irrelevant properties would break, although scripts that set attributes are not affected, because
+setting an attribute creates it. And resaving the ski files of the tutorials and functional tests
+would produce large differences, so that a one-time reformatting of these files is worth planning.
+
 ## Conclusion
 
-Both behaviors have merit. Ideas, and votes on whether to keep including irrelevant scalar
+Ideas, and votes on whether to keep including irrelevant scalar
 properties in ski files, are welcome.

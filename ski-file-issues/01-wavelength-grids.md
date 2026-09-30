@@ -55,6 +55,45 @@ a new SMILE dictionary type to use instead of a list, which would be complex.
 **Scope.** One could propose a pool for the whole simulation, but this causes extra
 complications. For example, the RFWLG does not accept WLGs with overlapping bins.
 
+## Other suggestions
+
+### Name the pool entries through a wrapper
+
+The main obstacle for the pool is identifying a grid by name. Instead of a name property on every
+WLG, the pool can hold small wrapper items that combine a name with a WLG:
+
+```xml
+<wavelengthGrids type="NamedWavelengthGrid">
+    <NamedWavelengthGrid name="broad">
+        <wavelengthGrid type="WavelengthGrid">
+            <LogWavelengthGrid minWavelength="0.1 micron" maxWavelength="1000 micron" numWavelengths="200"/>
+        </wavelengthGrid>
+    </NamedWavelengthGrid>
+</wavelengthGrids>
+```
+
+A `ReferenceWavelengthGrid` with a `name` property, which is a regular WLG subclass, can then be
+configured wherever a WLG is accepted. During setup, it locates the named grid in the pool, and
+reports a fatal error listing the available names if there is no such grid. This combines approach
+(a) with identification by name:
+
+- WLGs outside the pool carry no name, and the pool remains an ordinary item list, so SMILE needs
+  no new property type.
+- When the pool is not empty, it can insert a SMILE condition, so that MakeUp offers the
+  `ReferenceWavelengthGrid` only when there is something to reference.
+- The DIWLG can remain as it is, and the pool is optional, so existing ski files remain valid.
+
+This also removes the dependency of the pool on the treatment of irrelevant options (see the
+[Irrelevant options](ski-file-issues/02-irrelevant-options.md) chapter).
+
+### Instruments with multiple sight lines
+
+The repetition in problem 1 stems from the coupling of the viewing direction and the instrument
+configuration. An instrument that accepts a list of viewing directions, for example several
+inclinations or azimuths, would configure its WLG once and produce separate output for each
+direction. This solves the repetition even without a pool. It would also benefit models that need
+many sight lines with identical instrument settings.
+
 ## Conclusion
 
 None of these options is fully satisfactory. Suggestions for other approaches, and votes for one
