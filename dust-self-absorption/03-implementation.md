@@ -69,7 +69,9 @@ void storeRadiationField(bool primary, const PhotonPacket* pp);
 The absorption tally needs the dust components, their cross sections, the number densities, the
 material mixes of the cells, and the rebalancer, all of which are internal to the medium system.
 Moving the loop avoids exposing these through new public functions. `performLifeCycle()` calls the
-new function where it now calls its own `storeRadiationField()`, which is removed.
+new function where it now calls its own `storeRadiationField()`, which is removed. The loop also
+becomes the natural place for future per-path tallies, for example for photoionization, so the dust
+tallies are written as one optional addition among possibly several.
 
 For each segment, the function calculates the luminosity times path length `Lds` exactly as today,
 from the extinction at the start and end of the segment. It adds `Lds` to the radiation field bin,
@@ -370,6 +372,9 @@ In the merged loop, the primary radiation field and `_labs1` are recalculated at
 iteration. The emitted luminosity is recorded after the primary segment, and `beginRebalance()` is
 called after the primary segment as well, so that the partition and the absorbed primary luminosity
 per region reflect the current primary field. Otherwise, the loop changes like the secondary loop.
+In particular, the dynamic medium state is always updated from the measured radiation field, before
+`endRebalance()` rescales the secondary field, so that the medium state iteration does not depend
+on the dust acceleration (see Open questions).
 
 The merged loop requires one more change, which is needed regardless of this proposal. Today,
 `clearRadiationField(true)` clears both the primary table and the stable secondary table. The merged
