@@ -57,33 +57,86 @@ complications. For example, the RFWLG does not accept WLGs with overlapping bins
 
 ## Other suggestions
 
-### Name the pool entries through a wrapper
+### A named wavelength grid pool
 
-The main obstacle for the pool is identifying a grid by name. Instead of a name property on every
-WLG, the pool can hold small wrapper items that combine a name with a WLG:
+This proposal makes the pool concrete, resolving the questions raised above.
+
+**Pool contents.** A `WavelengthGridPool` item holds a list of named WLGs and the name of the
+default grid. Instead of a name property on every WLG, each list entry is a small wrapper item that
+combines a name with a WLG of any type:
 
 ```xml
-<wavelengthGrids type="NamedWavelengthGrid">
-    <NamedWavelengthGrid name="broad">
-        <wavelengthGrid type="WavelengthGrid">
-            <LogWavelengthGrid minWavelength="0.1 micron" maxWavelength="1000 micron" numWavelengths="200"/>
-        </wavelengthGrid>
-    </NamedWavelengthGrid>
-</wavelengthGrids>
+<wavelengthGridPool type="WavelengthGridPool">
+    <WavelengthGridPool defaultGridName="broad">
+        <wavelengthGrids type="NamedWavelengthGrid">
+            <NamedWavelengthGrid name="broad">
+                <wavelengthGrid type="WavelengthGrid">
+                    <LogWavelengthGrid minWavelength="0.1 micron" maxWavelength="1000 micron" numWavelengths="200"/>
+                </wavelengthGrid>
+            </NamedWavelengthGrid>
+            <NamedWavelengthGrid name="zoom">
+                ...
+            </NamedWavelengthGrid>
+        </wavelengthGrids>
+    </WavelengthGridPool>
+</wavelengthGridPool>
 ```
 
-A `ReferenceWavelengthGrid` with a `name` property, which is a regular WLG subclass, can then be
-configured wherever a WLG is accepted. During setup, it locates the named grid in the pool, and
-reports a fatal error listing the available names if there is no such grid. This combines approach
-(a) with identification by name:
+WLGs outside the pool carry no name, and the list is an ordinary item list, so SMILE needs no new
+property type. The property holding the default name cannot simply be called `default`, because
+the property macros generate a function with the property's name, and `default` is a C++ keyword.
 
-- WLGs outside the pool carry no name, and the pool remains an ordinary item list, so SMILE needs
-  no new property type.
-- When the pool is not empty, it can insert a SMILE condition, so that MakeUp offers the
-  `ReferenceWavelengthGrid` only when there is something to reference.
-- The DIWLG can remain as it is, and the pool is optional, so existing ski files remain valid.
+**Referencing a grid.** A `ReferenceWavelengthGrid` with a `name` property is a regular WLG
+subclass that forwards all requests to the named pool grid. It can be configured wherever an
+instrument or probe accepts a WLG, as in approach (a), so that any WLG can still be configured
+directly instead. The default grid can be referenced by its name like any other pool grid.
 
-This also removes the dependency of the pool on the treatment of irrelevant options (see the
+**Default grid.** The pool replaces the DIWLG of the instrument system. An instrument or probe
+without a WLG of its own uses the pool grid named by `defaultGridName`. If this property is empty,
+there is no default, and each instrument and probe must configure a WLG.
+
+**Scope and placement.** The pool serves instruments and probes only, which are the consumers that
+need several grids and repeat them. The RFWLG, the dust emission WLG, the grid-based wavelength
+distributions, and the `CompositeWavelengthGrid` are each configured once, and require a WLG with
+non-overlapping bins, a constraint that a general reference cannot guarantee. The pool is therefore
+a property of the `MonteCarloSimulation`, placed just before the instrument system:
+
+```
+userLevel, random, units, simulationMode, iteratePrimaryEmission, iterateSecondaryEmission,
+numPackets, cosmology, sourceSystem, mediumSystem, wavelengthGridPool, instrumentSystem,
+probeSystem
+```
+
+Like the DIWLG today, the pool is relevant only in panchromatic simulations.
+
+**SMILE conditions.** A nonempty item list and a nonempty string property each insert a name that
+can be used in SMILE conditions. Using `ATTRIBUTE_INSERT` to make these names global:
+
+- the nonempty `wavelengthGrids` list inserts a condition that allows the
+  `ReferenceWavelengthGrid` type, so that MakeUp offers it only when there is something to
+  reference;
+- the nonempty `defaultGridName` property inserts the existing `DefaultInstrumentWavelengthGrid`
+  condition, so that instruments and probes keep their current rule: a WLG of their own is required
+  only if there is no default.
+
+Because a condition inserted by a property only affects the properties that follow it, the
+`wavelengthGrids` list precedes the `defaultGridName` property within the pool, so that the user
+first names the grids and then selects the default. For the same reason, the condition allowing
+references is not yet in effect while the pool itself is being configured, so that a pool grid
+cannot reference another pool grid, which excludes reference cycles.
+
+**Validation.** Neither MakeUp nor the schema can verify names. During setup, the pool reports a
+fatal error for duplicate names and for a default name that does not occur in the list, and a
+reference reports a fatal error for an unknown name; each of these errors lists the available
+names. During setup, the order of the properties does not matter, because a reference locates the
+pool through `find()`, which sets up the pool when needed.
+
+**Effect on the problems.** The pool solves problem 1: several grids can be defined once and
+referenced from any number of instruments. By itself, it does not change problem 2, because probes
+still fall back on the default grid. Because the DIWLG moves from the instrument system to the
+pool, existing ski files must be upgraded, as described in the SKIRT 10
+[Incompatibilities](skirt-10/04-incompatibilities.md) chapter. The proposal also removes the
+dependency of the pool on the treatment of irrelevant options (see the
 [Irrelevant options](ski-file-issues/02-irrelevant-options.md) chapter).
 
 ### Instruments with multiple sight lines

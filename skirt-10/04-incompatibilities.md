@@ -78,6 +78,16 @@ which affect existing ski files and simulation results as follows:
   simulations, which increases the dust emission of models with substantial
   self-absorption.
 
+### Default instrument wavelength grid
+
+The [Ski file issues](ski-file-issues/01-wavelength-grids.md) design note proposes a pool of
+named wavelength grids that instruments and probes can reference, placed just before the
+instrument system. The pool also designates the default grid, which replaces the
+`defaultWavelengthGrid` property of the `InstrumentSystem`. This invalidates all ski files of
+panchromatic simulations, because these configure a default instrument wavelength grid, but the
+upgrade is mechanical: the grid moves into the pool under a name, and the pool's
+`defaultGridName` property is set to that name.
+
 ## PTS automated ski file upgrade
 
 The PTS function/command that upgrades ski files to the most recent version is extended
@@ -105,3 +115,7 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
+
+- Move the `defaultWavelengthGrid` of the `InstrumentSystem`, if present, into a new
+  `WavelengthGridPool` placed just before the instrument system, as a named grid called
+  `default`, and set the pool's `defaultGridName` property to `default`.
