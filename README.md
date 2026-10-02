@@ -11,6 +11,7 @@
 - [SKIRT 10](skirt-10/01-introduction.md)
 - [Ski file issues](ski-file-issues/01-wavelength-grids.md)
 - [Convergence history](convergence-history/01-introduction.md)
+- [Dust self-absorption](dust-self-absorption/01-introduction.md)
 - [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
 - [Full HDF5 support](full-hdf5-support/01-introduction.md)
 - [Clumpy torus model](clumpy-torus-model/01-introduction.md)

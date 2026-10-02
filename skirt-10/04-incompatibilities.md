@@ -51,6 +51,33 @@ either of the material mixes mentioned above, the upgrade is a trivial rename:
 
 The related configuration setup messages will be adjusted accordingly.
 
+### Dust self-absorption
+
+The [Dust self-absorption](dust-self-absorption/01-introduction.md) design note proposes
+changes to the calculation of dust emission and to the secondary emission iterations,
+which affect existing ski files and simulation results as follows:
+
+- The `maxFractionOfPrevious` property of `DustEmissionOptions` is removed, because it
+  can hide large errors when the absorbed secondary luminosity is much larger than the
+  absorbed primary luminosity. It is replaced by the new convergence criteria
+  `maxLuminosityDeficit` and `maxSecondaryChange`, evaluated over
+  `numConvergenceIterations` iterations. The properties `rebalanceSecondaryEmission`,
+  `numCoreBins`, and `numHeatingBins` configure the new regional rebalance of the
+  secondary radiation field, which is enabled by default.
+- The luminosity absorbed by dust is accumulated from the dust opacity at each photon
+  packet's exact wavelength, rather than calculated from the binned radiation field. This
+  changes the results of all simulations with dust emission: typically by a few tenths of
+  a percent for a radiation field wavelength grid with 50 bins, more for coarser grids,
+  and by up to 10–15% in strongly self-absorbing models.
+- The regional rebalance and the new convergence criteria change the number of
+  iterations, and the results of models that did not converge, for all simulations that
+  iterate over secondary emission.
+- In simulations with merged primary and secondary emission iterations, the secondary
+  radiation field is no longer discarded at the start of each iteration and before the
+  final secondary emission. Dust self-absorption is therefore taken into account in these
+  simulations, which increases the dust emission of models with substantial
+  self-absorption.
+
 ## PTS automated ski file upgrade
 
 The PTS function/command that upgrades ski files to the most recent version is extended
@@ -75,3 +102,6 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
   - `SiteListTreePolicy` retains the same name.
 
 - Rename Lya simulation modes and options as proposed above.
+
+- Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
+  emission convergence and rebalance properties receive their default values.
