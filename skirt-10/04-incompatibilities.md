@@ -17,7 +17,6 @@ with the same line of sight are placed consecutively in the ski file, the same p
 photon packet is sent to all of these instruments, so the extinction along that line of
 sight is calculated only once.
 
-
 ### Tree-based spatial grids
 
 SKIRT 10's tree-based spatial grids are significantly reorganized to support an extended
@@ -25,14 +24,14 @@ feature set and improved performance. Unfortunately, this invalidates all existi
 files that configure an octree or binary tree spatial grid. The [Tree-based spatial
 grids](tree-based-spatial-grids/01-introduction.md) design note describes this in detail.
 
-### Binary column format
+### Default instrument wavelength grid
 
-Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative
-to regular text column files, is deprecated and will be removed in some future minor
-release version. Users should migrate to the HDF5 alternative presented in the [HDF5
-input](hdf5-input/01-introduction.md) design note, which accomplishes the same goals with an
-industry-standard file format. There is, however, no technical reason to remove the
-feature right away.
+The [Wavelength grid pool](wavelength-grid-pool/01-introduction.md) design note proposes a pool of
+named wavelength grids that instruments and probes can reference, placed just before the
+instrument system. The pool also designates the default grid, which replaces the
+`defaultWavelengthGrid` property of the `InstrumentSystem`. This invalidates all ski files
+that configure a default instrument wavelength grid, but the upgrade is mechanical: the grid
+moves into the pool under a name, and the pool's `defaultGridName` property is set to that name.
 
 ### Resonant scattering options
 
@@ -81,14 +80,23 @@ which affect existing ski files and simulation results as follows:
   simulations, which increases the dust emission of models with substantial
   self-absorption.
 
-### Default instrument wavelength grid
+### Binary column format
 
-The [Wavelength grid pool](wavelength-grid-pool/01-introduction.md) design note proposes a pool of
-named wavelength grids that instruments and probes can reference, placed just before the
-instrument system. The pool also designates the default grid, which replaces the
-`defaultWavelengthGrid` property of the `InstrumentSystem`. This invalidates all ski files
-that configure a default instrument wavelength grid, but the upgrade is mechanical: the grid
-moves into the pool under a name, and the pool's `defaultGridName` property is set to that name.
+Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative
+to regular text column files, is deprecated and will be removed in some future minor
+release version. Users should migrate to the HDF5 alternative presented in the [HDF5
+input](hdf5-input/01-introduction.md) design note, which accomplishes the same goals with an
+industry-standard file format. There is, however, no technical reason to remove the
+feature right away.
+
+### Data parallelization
+
+The command line option `-d` is removed, including the related help information and error message,
+as it is no longer relevant. This option was deprecated during the transition to SKIRT 9 because
+photon packets can change wavelength during their lifetime. As a result, packets can cross both the
+spectral and spatial domains almost at random, and it is no longer feasible to split the large data
+structures across processes. For the foreseeable future, SKIRT 10 will continue to always duplicate
+all data to all MPI processes.
 
 ## PTS automated ski file upgrade
 
@@ -113,11 +121,11 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
   - `SiteListTreePolicy` retains the same name.
 
+- Move the `defaultWavelengthGrid` of the `InstrumentSystem`, if present, into a new
+  `WavelengthGridPool` placed just before the instrument system, as a named grid called
+  `default`, and set the pool's `defaultGridName` property to `default`.
+
 - Rename Lya simulation modes and options as proposed above.
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
-
-- Move the `defaultWavelengthGrid` of the `InstrumentSystem`, if present, into a new
-  `WavelengthGridPool` placed just before the instrument system, as a named grid called
-  `default`, and set the pool's `defaultGridName` property to `default`.
