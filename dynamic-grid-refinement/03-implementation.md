@@ -106,7 +106,7 @@ could be subdivided because of the cell cap.
 ### Series for logging and probing
 
 In addition to the subdivision series, the refinement step records a few scalar series that serve
-only for logging and for the history probe proposed in the Convergence history design note. Like
+only for logging and for the history probe proposed in the Iteration history design note. Like
 the subdivision series, they are declared on demand in `updateDynamicRefinement()`, with loop
 lifetime and depth 1. The global series are keyed on the `DynamicRefinementOptions` item, and the
 per-criterion series on the criterion, like the cell windows.

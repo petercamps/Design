@@ -1,6 +1,10 @@
 # Introduction
 
 > Status: draft
+>
+> Depends on: [SKIRT 10](skirt-10/01-introduction.md),
+> [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md),
+> [Iteration history](iteration-history/01-introduction.md)
 
 ## Motivation
 
@@ -26,8 +30,8 @@ consists of two parts:
 
 - **Static refinement** (seeding): before the simulation starts, the tree is refined around a list
   of ionizing sources, so that each source's Strömgren radius is resolved by a given number of
-  cells. This part has already been recast into the new tree policy framework in the SKIRT 10
-  chapter on [Tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md), notably as the
+  cells. This part has already been recast into the new tree policy framework in the
+  [Tree-based spatial grids](tree-based-spatial-grids/02-features.md) design note, notably as the
   `ResolvedSpheresTreePolicy`.
 
 - **Dynamic refinement** (on the fly): during the dynamic medium state iterations, cells across
@@ -40,11 +44,11 @@ structure.
 
 ## Scope and assumptions
 
-- The note assumes that the SKIRT 10 restructuring of the
-  [tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md) has been
+- The note assumes that the restructuring of the
+  [tree-based spatial grids](tree-based-spatial-grids/01-introduction.md) has been
   implemented, including the flat, index-linked node array used for path segment generation.
 - The note also assumes that the central iteration history described in the
-  [Convergence history](convergence-history/01-introduction.md) design note has been implemented.
+  [Iteration history](iteration-history/01-introduction.md) design note has been implemented.
   Dynamic refinement keeps all of its historical data in that history.
 - Only tree-based spatial grids (octree and binary tree) support dynamic refinement. Cells are
   only ever subdivided, never merged.

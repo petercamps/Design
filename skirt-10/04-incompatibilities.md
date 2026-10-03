@@ -1,5 +1,8 @@
 # Incompatibilities
 
+This chapter collects the incompatible changes in SKIRT 10, including those proposed by the other
+SKIRT 10 design notes, which describe the reasons and the details.
+
 ## Affected features
 
 ### Full instrument
@@ -19,15 +22,15 @@ sight is calculated only once.
 
 SKIRT 10's tree-based spatial grids are significantly reorganized to support an extended
 feature set and improved performance. Unfortunately, this invalidates all existing ski
-files that configure an octree or binary tree spatial grid. The chapter [Tree-based
-spatial grids](skirt-10/05-tree-based-spatial-grids.md) describes this in detail.
+files that configure an octree or binary tree spatial grid. The [Tree-based spatial
+grids](tree-based-spatial-grids/01-introduction.md) design note describes this in detail.
 
 ### Binary column format
 
 Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative
 to regular text column files, is deprecated and will be removed in some future minor
-release version. Users should migrate to the HDF5 alternative presented in [HDF5
-input](skirt-10/06-hdf5-input.md), which accomplishes the same goals with an
+release version. Users should migrate to the HDF5 alternative presented in the [HDF5
+input](hdf5-input/01-introduction.md) design note, which accomplishes the same goals with an
 industry-standard file format. There is, however, no technical reason to remove the
 feature right away.
 
@@ -80,13 +83,12 @@ which affect existing ski files and simulation results as follows:
 
 ### Default instrument wavelength grid
 
-The [Ski file issues](ski-file-issues/01-wavelength-grids.md) design note proposes a pool of
+The [Wavelength grid pool](wavelength-grid-pool/01-introduction.md) design note proposes a pool of
 named wavelength grids that instruments and probes can reference, placed just before the
 instrument system. The pool also designates the default grid, which replaces the
-`defaultWavelengthGrid` property of the `InstrumentSystem`. This invalidates all ski files of
-panchromatic simulations, because these configure a default instrument wavelength grid, but the
-upgrade is mechanical: the grid moves into the pool under a name, and the pool's
-`defaultGridName` property is set to that name.
+`defaultWavelengthGrid` property of the `InstrumentSystem`. This invalidates all ski files
+that configure a default instrument wavelength grid, but the upgrade is mechanical: the grid
+moves into the pool under a name, and the pool's `defaultGridName` property is set to that name.
 
 ## PTS automated ski file upgrade
 

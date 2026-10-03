@@ -172,7 +172,7 @@ affect the configuration or the behavior, and then those that affect only the im
 1. The refinement step is an explicit step at the end of each iteration in each loop. The
    reference implementation calls it from within `updatePrimaryDynamicMediumState()`.
 2. All historical data of the refinement step are kept in the iteration history proposed in the
-   Convergence history design note, and the criteria keep no per-cell data. This replaces the
+   Iteration history design note, and the criteria keep no per-cell data. This replaces the
    iteration counter and the per-cell persistence counters in `MediumSystem`, the `mutable` running
    sums, normalization scale, and transient flag in `NeighborRefinementRecipe`, and the
    `cellsSubdivided()` notification that keeps the running sums consistent with the grid.
@@ -188,7 +188,7 @@ affect the configuration or the behavior, and then those that affect only the im
    `MaterialMix::dynamicRefinementScalar()`, a `RefinementField` enumeration in the `MaterialMix`
    base class, and a table in the `DiffuseIonizedGasMix` that translates atomic number and
    ionization stage into the solver's internal ion index.
-6. Because the medium state has no aggregate cells (see the Convergence history design note),
+6. Because the medium state has no aggregate cells (see the Iteration history design note),
    appending cells is a plain extension of its data array, and the aggregate series are recorded
    again after each refinement round. The reference implementation inserts the new cells before the
    aggregate cells, and recalculates the aggregate state.

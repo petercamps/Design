@@ -1,6 +1,9 @@
 # Introduction
 
 > Status: under construction
+>
+> Depends on: [SKIRT 10](skirt-10/01-introduction.md),
+> [Iteration history](iteration-history/01-introduction.md)
 
 ## Motivation
 
@@ -86,7 +89,7 @@ library makes each iteration cheap, and the rebalance reduces the number of iter
   design note have been implemented, including the incompatible ski file changes it allows. The
   proposal makes some incompatible changes of its own, listed in the Features chapter.
 - The note also assumes that the central iteration history described in the
-  [Convergence history](convergence-history/01-introduction.md) design note has been implemented,
+  [Iteration history](iteration-history/01-introduction.md) design note has been implemented,
   including the history probe. All convergence data of the secondary emission loop are kept in that
   history, and the log messages and the history probe are formed from the same series.
 - Exact absorption applies to all simulations with dust emission, iterated or not. The regional

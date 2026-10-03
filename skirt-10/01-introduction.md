@@ -1,6 +1,8 @@
 # Introduction
 
 > Status: draft
+>
+> Depends on: none
 
 ## Motivation
 
@@ -37,7 +39,7 @@ versions in parallel — maintaining SKIRT 9 for existing users while developing
 
 ## Overview
 
-The remaining chapters are organized as follows:
+The remaining chapters of this note are organized as follows:
 
 - **[Organization and workflow](skirt-10/02-organization-and-workflow.md)** describes the
   proposed repository restructuring and the workflow for developing SKIRT 9 and SKIRT 10
@@ -45,9 +47,25 @@ The remaining chapters are organized as follows:
 - **[System requirements](skirt-10/03-system-requirements.md)** lists what is needed to
   build and run SKIRT 10, including the new optional HDF5 dependency.
 - **[Incompatibilities](skirt-10/04-incompatibilities.md)** lists the features dropped
-  and the ski file changes required when upgrading from SKIRT 9.
-- **[Tree-based spatial grids](skirt-10/05-tree-based-spatial-grids.md)** proposes a
-  restructuring of the hierarchical tree classes, described separately because of its
-  scope.
-- **[HDF5 input](skirt-10/06-hdf5-input.md)** proposes optional HDF5 support for
+  and the ski file changes required when upgrading from SKIRT 9, including those proposed by
+  the design notes listed below.
+
+Each of the following design notes describes a facet of SKIRT 10 that will probably be
+implemented. A note may build on earlier ones in this list, as stated at its start.
+
+- **[Wavelength grid pool](wavelength-grid-pool/01-introduction.md)** proposes a pool of named
+  wavelength grids for instruments and probes, replacing the default instrument wavelength grid.
+- **[Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md)** proposes a
+  restructuring of the hierarchical tree classes and their subdivision policies.
+- **[HDF5 input](hdf5-input/01-introduction.md)** proposes optional HDF5 support for
   simulation input.
+- **[Iteration history](iteration-history/01-introduction.md)** proposes a central object that
+  holds the historical data of the iteration loops.
+- **[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)** proposes refining a
+  tree-based spatial grid between iterations, driven by the evolving medium state.
+- **[Dust self-absorption](dust-self-absorption/01-introduction.md)** proposes changes to the
+  calculation of dust emission and to the secondary emission iterations.
+- **[HDF5 output](hdf5-output/01-introduction.md)** proposes optional HDF5 support for
+  simulation output.
+- **[Checkpointing](checkpointing/01-introduction.md)** proposes saving the internal state of a
+  running simulation, so that it can be resumed or reused.

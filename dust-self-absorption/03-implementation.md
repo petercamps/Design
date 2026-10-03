@@ -331,7 +331,7 @@ packets and the absorption tally, which is how the bias of the current calculati
 
 ### Secondary loop
 
-The secondary emission loop proposed in the Convergence history design note changes as follows:
+The secondary emission loop proposed in the Iteration history design note changes as follows:
 
 ```cpp
 _history->beginLoop(IterationHistory::Loop::Secondary);
@@ -389,7 +389,7 @@ any secondary emission, so this change has no effect there.
 
 ### Convergence test
 
-The function `isDustEmissionConverged()` proposed in the Convergence history design note is
+The function `isDustEmissionConverged()` proposed in the Iteration history design note is
 replaced by:
 
 ```cpp
@@ -461,7 +461,7 @@ column per series and one row per iteration.
 | tallied self-absorbed fraction | options | — | rebalanced iterations |
 | smallest tally closure, largest tally closure (two series) | options | — | rebalanced iterations |
 
-The `DustAbsorbedLuminosity` id of the simulation's enumeration in the Convergence history design
+The `DustAbsorbedLuminosity` id of the simulation's enumeration in the Iteration history design
 note is replaced by the ids `DustAbsorbedPrimary`, `DustAbsorbedSecondary`, `DustEmitted`,
 `LuminosityDeficit`, `SelfAbsorbedFraction`, and `SecondaryChange`.
 

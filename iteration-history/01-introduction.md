@@ -1,6 +1,8 @@
 # Introduction
 
 > Status: draft
+>
+> Depends on: [SKIRT 10](skirt-10/01-introduction.md)
 
 ## Motivation
 
@@ -32,12 +34,12 @@ chapter. Specifically:
 
 ## Overview
 
-- **[Current state](convergence-history/02-current-state.md)** catalogs the existing instances of
+- **[Current state](iteration-history/02-current-state.md)** catalogs the existing instances of
   historical convergence data and summarizes their shortcomings.
-- **[Design](convergence-history/03-design.md)** introduces the central object and the concepts
+- **[Design](iteration-history/03-design.md)** introduces the central object and the concepts
   behind it: series, identification, on-demand creation, lifetime, parallelization, and probing.
-- **[API](convergence-history/04-api.md)** proposes the concrete C++ interface.
-- **[Call sites](convergence-history/05-call-sites.md)** describes, for each client, how it gains
+- **[API](iteration-history/04-api.md)** proposes the concrete C++ interface.
+- **[Call sites](iteration-history/05-call-sites.md)** describes, for each client, how it gains
   access to the central object and how it uses it.
-- **[Open questions](convergence-history/06-open-questions.md)** collects the decisions that need
+- **[Open questions](iteration-history/06-open-questions.md)** collects the decisions that need
   input.
