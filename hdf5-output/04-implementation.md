@@ -29,8 +29,6 @@ targets a specific bundle directly, never "a suite" as a whole.
 
 A bundle created for writing attaches the three standard attributes (`producer`, `format`,
 `created`) automatically; one opened for reading exposes whatever attributes it actually has.
-The `hasAttribute()` function on the reading side is needed because in some places attribute
-absence is meaningful and distinct from an empty value.
 
 ## Object lifetime
 
@@ -124,8 +122,22 @@ Call sites that construct a `TextOutFile` for a genuine column output file all m
 - `DustAbsorptionPerCellProbe`, `DustEmissivityProbe` — per-cell dust absorption and
   emissivity data.
 - `IntegratedSecondaryLineLuminosityProbe` — integrated per-line luminosities.
+- `TreeSpatialGridTopologyProbe` — tree topology, as a single column.
 
-Three groups of `TextOutFile` use stay out of scope, for different reasons:
+**Tree topology.** Today, `TreeSpatialGrid::writeTopology()` writes the topology line by line
+through `writeLine()`: after a header comment, the number of children of the root node, followed by
+a subdivision flag (0 or 1) for each node in depth-first order. It instead writes these values
+through a `ColumnOutFile` with a single dimensionless column, in integer format, so that the plain
+file holds the same values as before, preceded by a column information line. Readers skip header
+lines, so the new files can still be read by older SKIRT versions, and the `TopologyTreePolicy`
+reads both old and new files (see the [HDF5 input](hdf5-input/04-implementation.md) note). In an
+HDF5 bundle, the column is a single 1-D dataset. Storing the number of children of the root in the
+same column as the subdivision flags is not ideal, but it keeps the format compatible.
+
+The `HistoryProbe` does not move to `ColumnOutFile`, because it writes its files incrementally;
+it is covered in a separate section below.
+
+Two groups of `TextOutFile` use stay out of scope, for different reasons:
 
 - `ConvergenceInfoProbe` writes free-form, human-readable text (`convergence.dat`), not a
   column table — an Unstructured text file bundle, not covered here.
@@ -133,11 +145,29 @@ Three groups of `TextOutFile` use stay out of scope, for different reasons:
   (`CartesianSpatialGrid`, `StructuredSphereSpatialGrid`, `Cylinder2DSpatialGrid`,
   `Cylinder3DSpatialGrid`, `Sphere2DSpatialGrid`) write raw polyline coordinates, not named
   columns — a Spatial grid plot file bundle, covered in a separate section below.
-- `TreeSpatialGridTopologyProbe` writes a tree topology in its own text format, which is read
-  back by the `TopologyTreePolicy` proposed in the
-  [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md) note. Its relation to
-  the topology stored in a checkpoint is discussed in the
-  [Checkpointing](checkpointing/01-introduction.md) note.
+
+## Incrementally written column output
+
+The `HistoryProbe`, proposed in the [Iteration history](iteration-history/01-introduction.md)
+note, appends a row to a text column file after each iteration of a loop and flushes the file, so
+that the progress of a long run can be followed while it executes. It keeps writing these files
+as plain files through `TextOutFile`, exactly as today's call sites do, regardless of the HDF5
+configuration — like `FileLog`, it uses the plain-file candidate of `output()` unconditionally.
+
+At the end of the run, if `output()`'s HDF5 candidate is non-empty, each finished file is copied
+into a Text column file bundle: the file is reopened, its header is parsed for the column
+descriptions and units, as `TextInFile` does for input files, and the bundle and its datasets are
+created with the complete columns, exactly as `ColumnOutFile` would have created them. The first
+line of the file, the free-form comment, becomes the bundle's `description` attribute. This copy
+step could live in a small helper next to `ColumnOutFile`, similar to the helper shared by the
+unstructured text outputs.
+
+The copy requires that the history probe is also invoked at the end of the run, in addition to
+after each iteration. `Probe`'s dispatch functions, such as `probeRun()`, are not virtual today;
+each checks `when()` against its own point and calls `probe()` if it matches. Making `probeRun()`
+virtual lets the history probe override it to perform the copy. The
+[Checkpointing](checkpointing/01-introduction.md) note proposes the same change for all dispatch
+functions, so that the checkpoint probe can fire at every point.
 
 ## FITS output
 

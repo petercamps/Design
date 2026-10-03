@@ -66,6 +66,9 @@ path, resolves that name relative to the object the method is called on.
   64-bit float), returning the dataset's full contents at whatever shape it was created
   with.
 
+The `hasAttribute()` function is needed because in some places attribute
+absence is meaningful and distinct from an empty value.
+
 ## Object lifetime
 
 Any object this API hands out remains fully valid after the object it came from has been
@@ -185,6 +188,18 @@ Call sites that construct a `TextInFile` for a genuine input file all move to
 - `MeanFileDustMix` — optical dust properties.
 - `NonLTELineGasMix` — initial level populations.
 - `AtPositionsForm` — probe sample positions.
+- `TopologyTreePolicy` — tree topology recorded by the `TreeSpatialGridTopologyProbe`.
+
+**Tree topology.** The topology file written by the `TreeSpatialGridTopologyProbe` is not a table
+in the usual sense. After a header comment, it lists a single integer per line: the number of
+children of the root node, followed by a subdivision flag (0 or 1) for each node in depth-first
+order. The `TopologyTreePolicy` proposed in the
+[Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md) note nevertheless reads it
+through `ColumnInFile`, as a text column file with a single dimensionless column. Existing topology
+files carry no column information in their header, in which case `TextInFile` assumes the column
+declared by the program, so these files continue to work unchanged. In an HDF5 bundle, the column
+is a single 1-D dataset. Storing the number of children of the root in the same column as the
+subdivision flags is not ideal, but it keeps the format compatible.
 
 `AdaptiveMeshSnapshot` does not use this mechanism at all: since its topology and properties
 are read from a single interleaved stream, it needs its own `AdaptiveMeshInFile` for the

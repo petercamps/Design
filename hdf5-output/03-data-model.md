@@ -48,6 +48,13 @@ file, where `N` is the number of rows:
 | `lambda` | (N) | 64-bit float | `column = 0`, `unit = "micron"` |
 | `F_nu` | (N) | 64-bit float | `column = 1`, `unit = "Jy"` |
 
+The iteration history files written by the `HistoryProbe` are a special case, like the log file
+among the unstructured text files. Because a row is appended after each iteration, they continue to
+be written incrementally to a regular file during the simulation (see File types in the Features
+chapter); only the finished, complete table is added to its bundle at the very end of the run —
+the bundle itself is never updated incrementally. The bundle has the same layout as any other text
+column file bundle.
+
 ## FITS file
 
 Wraps SKIRT's existing `FITSInOut::write()` and `FITSInOut::writeMap()` helpers (built on

@@ -5,7 +5,7 @@
 SKIRT currently writes the following kinds of output files:
 
 - **Text column files** — employed for all single-axis tables: SEDs, per-cell and
-  per-position probe output, and instrument statistics tables (`FluxRecorder`).
+  per-position probe output, and instrument statistics tables.
   Uses the same header-comment convention as the input side (`# column N: ... (unit)`).
 - **FITS files** — employed for instrument frames and data cubes,
   and for planar cuts or projections produced by probes.
@@ -21,6 +21,12 @@ SKIRT currently writes the following kinds of output files:
   Because this file grows as the simulation runs, and users should be able to view the
   simulation's progress in real-time, the log file is always written as a regular file
   and then stored in the HDF file after the simulation has ended.
+- **Iteration history files** - the text column files written by the `HistoryProbe` proposed in
+  the [Iteration history](iteration-history/01-introduction.md) note, with a row per iteration of
+  an iteration loop. Like the log file, these files grow as the simulation runs, so that its
+  progress can be followed and the output survives an aborted run. They are therefore always
+  written as regular files and then stored in the HDF file, in the text column format, after the
+  simulation has ended.
 
 The [Data model](hdf5-output/03-data-model.md) chapter explains how each of these maps to bundles
 in HDF5, and how to read them from Python.
@@ -70,7 +76,7 @@ HDF5 does not support safe, uncoordinated writes to the same file from more than
 independent process — only a single writer is allowed at a time. Therefore, simulations that
 run concurrently should each write to their own HDF5 file. SKIRT output files can be combined
 afterward, either by merging them, or by building a small "umbrella" HDF5 file that uses
-[external links](https://support.hdfgroup.org/documentation/hdf5/latest/group___h5_l.html)
+[external links](https://docs.h5py.org/en/stable/high/group.html#external-links)
 to present the separate files as a single navigable hierarchy, without copying any data.
 
 Any number of processes may read the same HDF5 file at the same time, as described in the HDF5
