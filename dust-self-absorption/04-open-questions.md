@@ -69,10 +69,11 @@ number of cells were clearly slower in the experiments than regions with equal l
 library entries are too many (thousands) for a dense solve, and a spatial partition does not follow
 the structure of the problem, so the proposal keeps the luminosity-based coordinates.
 
-**Thread-local tallies.** The tally objects are associated with threads through a `thread_local`
-pointer, because the parallel execution engine does not expose a thread index. Adding a thread
-index to `Parallel` would allow a plain vector of tally objects indexed by thread, which is simpler,
-but changes the interface of a central class for one client.
+**Thread-local tallies.** The tally objects are associated with threads through the existing
+`ThreadLocalMember<T>` template, because the parallel execution engine does not expose a thread
+index. Adding a thread index to `Parallel` would allow a plain vector of tally objects indexed by
+thread, which avoids the lookup in `local()`, but changes the interface of a central class for one
+client.
 
 **The DustAbsorptionPerCellProbe.** This probe writes the spectral absorbed luminosity of each cell
 on the radiation field wavelength grid, calculated from the binned field. Its integral over

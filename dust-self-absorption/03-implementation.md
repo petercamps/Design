@@ -253,17 +253,27 @@ the boundary of the domain, so the sum of the escaped luminosities over all path
 the escaping luminosity.
 
 Updating a shared table with atomic additions would cause heavy contention, since most absorption
-happens in a few regions. Each thread therefore accumulates into its own tally object. The
-rebalancer keeps a pool of tally objects, protected by a mutex, and a generation counter that
-`beginRebalance()` increments. A `thread_local` pointer in the rebalancer's source file caches the
-tally object of the thread, together with the generation for which it was obtained. When the cached
-generation is outdated, the thread claims the next free object from the pool under the mutex,
-allocating a new one if needed, and zeroes it. `DustSecondarySource` already uses `thread_local`
-objects in the same way to cache emission spectra per thread. The memory cost per thread is about
-8 *K*² bytes.
+happens in a few regions. Each thread therefore accumulates into its own tally object, managed by
+the existing `ThreadLocalMember<T>` template, which provides a separate copy of a data member for
+each thread that uses it. `FluxRecorder` already uses this template in the same way, for the
+thread-local contribution lists of its statistics. The rebalancer holds a
+`ThreadLocalMember<RebalanceTallies>` data member, where `RebalanceTallies` holds the three tallies
+and the number of regions *K* for which they are sized:
 
-At the end of the segment, `endRebalance()` sums the claimed tally objects serially, and then sums
-the result over processes with `ProcessManager::sumToAll()`.
+- `beginRebalance()` obtains the copies of all threads that used the member before through its
+  `all()` function, and resizes and zeroes each of them for the new partition.
+- The `RebalanceTally` handle obtains the copy of the current thread through `local()`, once per
+  path, so that the cost of the lookup is negligible compared to the segment loop. A thread that
+  uses the member for the first time after `beginRebalance()` receives a new, empty copy, which the
+  handle sizes and zeroes when it does not match the current *K*.
+- `endRebalance()` sums the copies returned by `all()` serially, and then sums the result over
+  processes with `ProcessManager::sumToAll()`.
+
+Both `beginRebalance()` and `endRebalance()` run between segments, when no worker thread accesses
+the tallies, so that accessing the copies of other threads through `all()` needs no further
+synchronization. The copies remain valid between iterations, because `ParallelFactory` reuses its
+`Parallel` instances, and thus their worker threads, for the duration of the simulation. The memory
+cost per thread is about 8 *K*² bytes.
 
 ### Rebalance system
 
