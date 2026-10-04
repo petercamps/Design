@@ -7,7 +7,7 @@ A checkpoint is an ordinary bundle, so it is read and written through the `H5Bun
 [HDF5 input](hdf5-input/04-implementation.md) and [HDF5 output](hdf5-output/04-implementation.md)
 notes. The checkpoint probe creates a checkpoint with `H5Lib::createBundle()`, sets the checkpoint
 attributes (`when`, `iteration`, the ski parameters from Iterating across simulations,
-`grid_type` and `tree_type`, and `history_loop` and `history_iteration`) with `setAttribute()`,
+`grid_type`, and `history_loop` and `history_iteration`) with `setAttribute()`,
 and creates a dataset for each stored array with `createDataset()`, named with the prefixes
 listed in the Data model chapter. Resuming opens the checkpoint with `H5Lib::openBundle()`, and
 checks which parts are present with `hasDataset()`.
@@ -25,11 +25,6 @@ The only addition is a function for reusing unchanged data:
 To find the checkpoints in a suite, for example to resume from the most recent one, a reader lists
 the bundles with `H5SuiteR::getBundleNames()` and recognizes the checkpoints by their `when`
 attribute. The most recent checkpoint is the one with the latest `created` attribute.
-
-Wherever a command-line option or ski file setting requires HDF5 — `-c` always does, and so does
-a `TopologyTreePolicy::filename` that names a checkpoint — setup-time validation checks
-`H5Lib::available()` first and reports a clear, immediate error if HDF5 support is missing,
-rather than letting execution reach a stub's fatal error later.
 
 ## Name resolution
 
@@ -50,9 +45,6 @@ Assuming `setOutputPrefix("mysim")`, i.e. a ski file `mysim.ski`,
 | `./data.hdf5:run1` | `data.hdf5:run1/mysim_checkpoint_primary_2` |
 | `./data.hdf5:campaign7/run1` | `data.hdf5:campaign7/run1/mysim_checkpoint_primary_2` |
 
-`-c` always requires `<hdf>` (Resuming from a checkpoint in Features), so there is no
-plain-only row here.
-
 ## The checkpoint probe
 
 The Data model chapter already specifies, part by part, exactly what the checkpoint
@@ -66,24 +58,26 @@ Primary, Secondary, Run), not just the one `when()` selects — see The checkpoi
 Features. `Probe`'s own dispatch functions, `probeSetup()`, `probeRun()`, `probePrimary(int
 iter)`, and `probeSecondary(int iter)`, are not virtual today; each simply checks `when()`
 against its own point and calls `probe()` if it matches, doing nothing otherwise, so a
-subclass cannot make itself run at more than one point through the existing mechanism at
-all. These four functions need to become virtual, and the checkpoint probe needs to override
+subclass cannot make itself run at more than one point through the existing mechanism.
+These four functions need to become virtual, and the checkpoint probe needs to override
 all four directly, unconditionally producing its output from each one rather than relying on
-`when()`/`probe()` at all.
+`when()`/`probe()`.
 
 ### Extra public getters needed per part
 
 Each of the five parts of a checkpoint needs data that is not fully accessible through today's
 public API. The gaps differ considerably in size.
 
-**Spatial grid.** `TreeSpatialGrid` exposes nothing about its own node tree publicly — only
-per-*cell* queries (`cellBox()`, `volume()`, ...) exist; `_nodev`, `root()`,
-`nodeForCellIndex()`, and `cellIndexForNode()` are all private. New getters are needed for:
+**Spatial grid.** The tree grids expose only per-*cell* queries (`cellBox()`, `volume()`, ...);
+their flat node array is private. `BinTreeSpatialGrid` and `OctTreeSpatialGrid` need new getters
+for:
 
 - `int numNodes() const` — `Nn`, the total node count (leaves and nonleaves).
-- `vector<bool> nodeIsLeaf() const` — `grid_is_leaf`, one entry per node, in id order.
-- `vector<int> nodeParentIds() const` — `grid_parent_id`, one entry per node, in id order.
-- `string treeType() const` — `"BinTree"` or `"OctTree"`, for the `tree_type` attribute.
+- `vector<int> nodeFirstChildIndices() const` — `grid_first_child`, one entry per node, in id
+  order.
+- `vector<int> nodeCellIndices() const` — `grid_cell_index`, one entry per node, in id order.
+- `vector<int> cellInitialLevels() const` — `grid_initial_level`, one entry per cell, if the grid
+  is configured for dynamic refinement.
 
 The `grid_min`/`grid_max` linear cell list needs no new getter: `cellBox(m)`, already public on every
 cuboidal grid type, gives both corners directly. `VoronoiMeshSpatialGrid` and
@@ -161,24 +155,35 @@ deterministic from the ski file and its own input, identical on every run, resum
 
 `VoronoiMeshSpatialGrid` and `TetraMeshSpatialGrid` need their site- or vertex-placement
 setup to check for a resume first and, if one applies, load positions from the checkpoint's
-`grid_x`/`grid_y`/`grid_z` datasets — the same substitution their `File` policy already performs for the
-separate "reusing grid topology" ski feature (see Features), just triggered automatically by
-`-c` rather than by an explicit policy choice.
+`grid_x`/`grid_y`/`grid_z` datasets instead of sampling them, just as their `File` policy loads
+positions from a file. The tessellation itself runs as before.
 
-Tree grids need the most care. On resume, `grid_is_leaf` and `grid_parent_id` let the tree be
-rebuilt directly, without needing to reproduce any particular construction order — but if a tree
-can be subdivided further during later iterations, as proposed in the
-[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) note, resuming from an
-earlier checkpoint and continuing the run means live construction must still be able to extend
-the tree beyond what was recorded. The reconstruction therefore has to match each live node to its counterpart in
-the recorded topology by following the same parent/child-slot path from the root — not by
-assuming live construction visits nodes in the same order the checkpoint was originally
-written in — so that once a live node falls past what was recorded, it correctly answers no
-(nothing recorded here, fall through to whatever normal construction or refinement would
-otherwise decide) rather than either inventing structure that was never recorded or refusing
-to grow at all. This is the same matching problem the `TopologyTreePolicy`, for the "reusing
-grid topology" feature, already has to solve, and resuming can reuse that same mechanism —
-triggered automatically by `-c` there too.
+Tree grids are restored rather than constructed. Normally, `TreeSpatialGrid` builds the tree level
+by level with pointer-based nodes, evaluating the configured policies, and then converts it to
+the flat node array used for path segment generation (see the
+[Tree-based spatial grids](tree-based-spatial-grids/03-implementation.md) note). On resume, the
+grid skips this construction, so that no policy is evaluated and no density is sampled, and
+establishes the flat array directly from the checkpoint's `grid_first_child` and
+`grid_cell_index` datasets:
+
+- The nodes are created in id order. Because the children of a node always come after it, the
+  extent of each node follows from the extent of its parent and the splitting convention of the
+  tree type, starting from the domain extent for the root.
+- The cell index of each leaf, and thus the cell-to-node map, is taken from the checkpoint rather
+  than recalculated, because after dynamic grid refinement the cell indices no longer follow the
+  node order. This keeps the cell indices consistent with the per-cell data in the other parts.
+- The neighbor links are established in the same single top-down pass that follows regular
+  construction.
+
+If the grid is configured for dynamic refinement, as proposed in the
+[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) note, the initial level of
+each cell is restored from `grid_initial_level`, so that the `maxExtraLevels` limit applies as in
+an uninterrupted run. Further refinement after resuming then appends to the restored array, as it
+would have without the interruption.
+
+This needs a new function on `BinTreeSpatialGrid` and `OctTreeSpatialGrid` that establishes the
+flat node array from these datasets, sharing the top-down pass for the neighbor links with regular
+construction.
 
 ### Medium state
 
@@ -186,8 +191,8 @@ triggered automatically by `-c` there too.
 sampled from the input model. On resume, it needs to call the same functions instead with
 values read back from the checkpoint's per-dataset arrays (`medium_volume`,
 `medium_bulk_velocity`, `medium_magnetic_field`, `medium_number_density_<h>`, and so on) — no new
-public API on `MediumState` itself, since this is `MediumSystem`'s own setup writing into a member it already owns; only
-`MediumSystem`'s internal setup logic needs the resume branch.
+public API on `MediumState` itself, since this is `MediumSystem`'s own setup writing into a member
+it already owns; only `MediumSystem`'s internal setup logic needs the resume branch.
 
 ### Radiation field
 
@@ -247,7 +252,7 @@ It still has work to do there, though: whatever bookkeeping the probe uses, for 
 to decide "store fresh" versus "link to what I already wrote" needs to be
 seeded from the checkpoint being resumed from, rather than starting empty the way it would
 for a fresh run — otherwise the first post-resume checkpoint would have nothing to link to
-and would re-store everything, including data (such as the spatial grid) that never changes.
+and would re-store everything, including data that never changes.
 Seeding is simple, thanks to `hasDataset()` and HDF5's transparent hard-link following:
 for each dataset present in the resumed-from checkpoint, record that checkpoint's own
 name as where the probe should link to next; for any dataset absent there (for example, those

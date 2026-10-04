@@ -68,10 +68,9 @@ iterate over the corresponding emission phase.
 | `max_secondary_iterations` | 32-bit integer | Configured maximum (ski `maxSecondaryIterations`). |
 | `secondary_packets_multiplier` | 64-bit float | Multiplier (ski `secondaryIterationPacketsMultiplier`). |
 | `grid_type` | string | The grid's SKIRT class name, converted to underscore style (see Spatial grid). |
-| `tree_type` | string | `OctTree` or `BinTree`. Tree grids only. |
 
-`grid_type` is present whenever the checkpoint includes the Spatial grid part, and `tree_type`
-only for tree grids.
+`grid_type` is present whenever the checkpoint includes the Spatial grid part. For tree grids, it
+also determines the number of children per node.
 
 ## Spatial grid
 
@@ -85,17 +84,24 @@ list enabling visualization or sampling without reconstructing the grid (tree, A
 Cartesian grids), and Voronoi/Tetra grids get their site or vertex positions; other grid
 types carry no datasets at all.
 
-**`TreeSpatialGrid`.** *Topology*: stored as one row per tree node — row `i` of `grid_is_leaf`
-and `grid_parent_id` describes the node with id `i`, the root always being id `0`. `grid_parent_id`
-gives the id of that node's parent (`-1` for the root), making the hierarchy explicit rather
-than implied by storage order. A node's parent always has a smaller id than the node itself,
-since nothing can be subdivided into children before it exists, so replaying rows `0` to
-`Nn - 1` in order always reaches a parent before its children — regardless of when, during
-the run, any given node was actually subdivided. The format therefore does not depend on the
-tree having been built in a single top-down pass. `tree_type` records whether each nonleaf
-node splits into 2 children (`BinTree`) or 8 (`OctTree`), needed to map a node's children —
-the rows that name it as their `grid_parent_id`, in ascending id order — onto the fixed geometric
-split of its box. *Linear cell list*: yes, as described below.
+**`BinTreeSpatialGrid` and `OctTreeSpatialGrid`.** *Topology*: stored as the flat node array
+that these grids use for path segment generation (see the
+[Tree-based spatial grids](tree-based-spatial-grids/03-implementation.md) note), with one row per
+node; row `i` describes the node with id `i`, the root always being id `0`. The node ids are the
+indices in the array: after construction, nodes are numbered level by level, and dynamic grid
+refinement appends the children of a subdivided node to the end of the array. In both cases the
+children of a node are consecutive, and they always come after their parent. `grid_first_child`
+gives the id of a node's first child, or `-1` for a leaf; the number of children (2 or 8) follows
+from the grid type. `grid_cell_index` gives the cell index of a leaf, or `-1` for a nonleaf node.
+The cell indices are stored explicitly because they cannot be derived from the node order: when
+dynamic grid refinement subdivides a cell, the first child keeps its parent's cell index, and the
+other children receive new indices at the end of the cell list. The node extents and neighbor
+links are not stored, because they follow from the domain extent and the topology.
+
+With dynamic grid refinement, `grid_initial_level` gives, for each cell, the level of the cell
+at the end of the initial construction, or of its ancestor at that time. The `maxExtraLevels`
+limit compares a cell's current level with this initial level. *Linear cell list*: yes, as
+described below.
 
 **`AdaptiveMeshSpatialGrid` and `CartesianSpatialGrid`.** *Topology*: none. An AMR grid's
 structure comes wholesale, and deterministically, from its own text/HDF5 input bundle; a
@@ -121,16 +127,17 @@ checkpoint's `grid_type` attribute.
 
 | Dataset | Dimensions | Type | Attributes |
 | --- | --- | --- | --- |
-| `grid_is_leaf` | (Nn) | boolean | `description = "true for a leaf node"`. Tree grids only. |
-| `grid_parent_id` | (Nn) | 32-bit integer | `description = "id of the parent node; -1 for the root"`. Tree grids only. |
+| `grid_first_child` | (Nn) | 32-bit integer | `description = "id of the first child node; -1 for a leaf"`. Tree grids only. |
+| `grid_cell_index` | (Nn) | 32-bit integer | `description = "cell index of a leaf node; -1 for a nonleaf node"`. Tree grids only. |
+| `grid_initial_level` | (M) | 32-bit integer | `description = "level of the cell after initial construction"`. Tree grids with dynamic refinement only. |
 | `grid_min` | (M, 3) | 64-bit float | `description = "minimum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
 | `grid_max` | (M, 3) | 64-bit float | `description = "maximum corner of the cell's bounding box"`, `quantity = "length"`, `unit = "m"` |
 
-`grid_min` and `grid_max` are present for tree, AMR, and Cartesian grids; `grid_is_leaf` and
-`grid_parent_id` for tree grids only. The row index into `grid_min`/`grid_max` matches the cell
-index `m` used throughout the Medium state and Radiation field parts; for tree grids, `m` is
-assigned by scanning `grid_is_leaf` in row (id) order and numbering the leaves in the order encountered,
-exactly as SKIRT itself does when the grid is freshly constructed.
+`grid_min` and `grid_max` are present for tree, AMR, and Cartesian grids; `grid_first_child` and
+`grid_cell_index` for tree grids only, and `grid_initial_level` only for tree grids configured for
+dynamic refinement. The row index into `grid_min`/`grid_max` and `grid_initial_level` is the cell
+index `m` used throughout the Medium state and Radiation field parts; for tree grids, it matches
+`grid_cell_index`.
 
 ## Medium state
 
@@ -140,9 +147,6 @@ all medium components, and, for each medium component, a set of **specific** var
 some always present, some requested only by certain material mixes. A material mix can
 also request any number of **custom** variables, each with its own human-readable
 description and physical quantity type.
-With the iteration history in place, the medium state no longer holds the "aggregate" cells used
-today to judge convergence across iterations. The aggregates are scalar series in the iteration
-history, stored in the Iteration history part, so this part covers the `M` spatial cells.
 
 Every dataset carries an `M`-length first dimension, one entry per spatial cell. `medium_volume`
 is always present; `medium_bulk_velocity` and `medium_magnetic_field` are present only if requested by at
@@ -229,7 +233,7 @@ corresponding output bundle.
 
 **Naming.** Every dataset name starts with the `flux_` prefix and the owning instrument's
 `instrumentName` (as used for its regular output bundles), followed by the output type (`sed`,
-`ifu`, `lc`, or `stm`) and, for the flux datasets themselves, the flux component. The wavelength
+`ifu`, `lc`, or `stm`) and, for the flux datasets, the flux component. The wavelength
 and time axes are shared by all output types of a given instrument, so they carry only the prefix
 and the instrument name:
 
