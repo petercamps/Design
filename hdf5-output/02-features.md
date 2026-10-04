@@ -22,8 +22,8 @@ SKIRT currently writes the following kinds of output files:
   simulation's progress in real-time, the log file is always written as a regular file
   and then stored in the HDF file after the simulation has ended.
 - **Iteration history files** - the text column files written by the `HistoryProbe` proposed in
-  the [Iteration history](iteration-history/01-introduction.md) note, with a row per iteration of
-  an iteration loop. Like the log file, these files grow as the simulation runs, so that its
+  the [Iteration history](iteration-history/01-introduction.md) note, one for each iteration loop,
+  with a row per iteration. Like the log file, these files grow as the simulation runs, so that its
   progress can be followed and the output survives an aborted run. They are therefore always
   written as regular files and then stored in the HDF file, in the text column format, after the
   simulation has ended.

@@ -52,8 +52,8 @@ The iteration history files written by the `HistoryProbe` are a special case, li
 among the unstructured text files. Because a row is appended after each iteration, they continue to
 be written incrementally to a regular file during the simulation (see File types in the Features
 chapter); only the finished, complete table is added to its bundle at the very end of the run —
-the bundle itself is never updated incrementally. The bundle has the same layout as any other text
-column file bundle.
+the bundle itself is never updated incrementally. Each file, one for each iteration loop, becomes
+its own bundle, with the same layout as any other text column file bundle.
 
 ## FITS file
 

@@ -441,8 +441,8 @@ from the same series, as shown in the Features chapter.
 
 The convergence quantities are keyed on the simulation, and the rebalance quantities on the
 `DustEmissionOptions` item, which configures the rebalancer. All series have loop lifetime, so they
-are cleared at the start of the secondary or merged loop. The history probe writes all of them, one
-column per series and one row per iteration.
+are cleared at the start of the secondary or merged loop. The history probe writes all of them to its
+file for the secondary or merged loop, one column per series and one row per iteration.
 
 | Series | Keyed on | Quantity | Set in |
 | --- | --- | --- | --- |

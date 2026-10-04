@@ -146,7 +146,8 @@ dimensionless and need no quantity.
 
 The proposal includes such a probe, the `HistoryProbe`. It writes one text column file per
 iteration loop, with a row per iteration and a column per scalar series, holding the value set in
-that iteration. This gives a compact, machine-readable record of how each loop converged, which
+that iteration. A simulation that iterates thus produces a file for the primary loop, a file for
+the secondary or merged loop, or both. This gives a compact, machine-readable record of how each loop converged, which
 serves several purposes:
 
 - finding out which criterion keeps a loop from converging when it reaches its maximum number of

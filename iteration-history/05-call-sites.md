@@ -234,18 +234,21 @@ each loop, through `ProbeSystem::probePrimary()` in the primary loop and
 `ProbeSystem::probeSecondary()` in the secondary and merged loops. The history's `loop()` and
 `iteration()` tell the probe which loop and iteration it is looking at.
 
-**Output.** At the first iteration of a loop, the probe opens a text column file for that loop,
-named after the simulation prefix, the probe name, and the loop, for example
-`prefix_history_primary.txt`, `prefix_history_secondary.txt`, or `prefix_history_merged.txt`.
-The first column holds the iteration index. The other columns follow the scalar series listed by
-`allScalarSeries()` at that time. Each column header combines the description of the series with a
-description of its item, such as its type and, for a medium component, its index, so that series
-of different items of the same type can be told apart. Values are converted to output units
-according to the quantity of each series. For each iteration, the probe appends a row with the
-current value of each series, or NaN if the value was not set in that iteration, and flushes the
-file, so that the progress of a long run can be followed while it executes, and the output survives
-an aborted run. Only the root process writes the file; the series hold identical values on all
-processes.
+**Output.** The probe writes a separate text column file for each iteration loop. When it is first
+performed in a loop, it opens the file for that loop, named after the simulation prefix, the probe
+name, and the loop, for example `prefix_history_primary.txt`, `prefix_history_secondary.txt`, or
+`prefix_history_merged.txt`. Each loop runs at most once in a simulation, so a file is never
+reopened. The first column holds the iteration index within the loop. The other columns follow the
+scalar series listed by `allScalarSeries()` at that time, so that each file has its own set of
+columns. A series with simulation lifetime, such as an aggregate, appears in the file of each loop
+in which it exists, so that its evolution across loops can be followed by combining the files. Each
+column header combines the description of the series with a description of its item, such as its
+type and, for a medium component, its index, so that series of different items of the same type can
+be told apart. Values are converted to output units according to the quantity of each series. For
+each iteration, the probe appends a row with the current value of each series, or NaN if the value
+was not set in that iteration, and flushes the file, so that the progress of a long run can be
+followed while it executes, and the output survives an aborted run. Only the root process writes
+the files; the series hold identical values on all processes.
 
 ## Possible future dynamic grid refinement
 

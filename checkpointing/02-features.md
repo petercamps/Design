@@ -96,9 +96,12 @@ medium state properties may be constant and are thus stored only once.
 
 ## Unsupported features
 
-**History probe output.** The `HistoryProbe` proposed in the Iteration history note writes a row
-for each iteration it performs. After resuming, its output therefore starts at the first iteration
-of the resumed run; the rows for earlier iterations are in the output of the original run.
+**History probe output.** The `HistoryProbe` proposed in the Iteration history note writes a
+separate file for each iteration loop, with a row for each iteration it performs. After resuming,
+the file of the loop being resumed into therefore starts at the first iteration of the resumed run,
+and the files of loops that ended before the checkpoint are not written again. The rows for earlier
+iterations are in the output of the original run. If the resumed run writes to the same output
+location, the file of the resumed loop replaces the one written by the original run.
 
 **Spatial grid types.** The linear cell list representation is initially supported only
 for grids with cuboidal, axis-aligned cells. This includes hierarchical octree and

@@ -149,13 +149,14 @@ Two groups of `TextOutFile` use stay out of scope, for different reasons:
 ## Incrementally written column output
 
 The `HistoryProbe`, proposed in the [Iteration history](iteration-history/01-introduction.md)
-note, appends a row to a text column file after each iteration of a loop and flushes the file, so
-that the progress of a long run can be followed while it executes. It keeps writing these files
+note, writes a separate text column file for each iteration loop. After each iteration, it appends
+a row to the file of the current loop and flushes the file, so that the progress of a long run can
+be followed while it executes. It keeps writing these files
 as plain files through `TextOutFile`, exactly as today's call sites do, regardless of the HDF5
 configuration — like `FileLog`, it uses the plain-file candidate of `output()` unconditionally.
 
 At the end of the run, if `output()`'s HDF5 candidate is non-empty, each finished file is copied
-into a Text column file bundle: the file is reopened, its header is parsed for the column
+into its own Text column file bundle: the file is reopened, its header is parsed for the column
 descriptions and units, as `TextInFile` does for input files, and the bundle and its datasets are
 created with the complete columns, exactly as `ColumnOutFile` would have created them. The first
 line of the file, the free-form comment, becomes the bundle's `description` attribute. This copy
