@@ -46,8 +46,7 @@ path, resolves that name relative to the object the method is called on.
 
 **`H5SuiteR`**
 
-- `vector<string> getBundleNames()` — the names of every bundle directly in this suite,
-  excluding checkpoints.
+- `vector<string> getBundleNames()` — the names of every bundle directly in this suite.
 - `H5BundleR openBundle(<name>)` — opens one of this suite's bundles for reading.
 
 **`H5BundleR`**

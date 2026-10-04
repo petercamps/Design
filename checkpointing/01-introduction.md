@@ -2,8 +2,11 @@
 
 > Status: under construction
 >
-> Depends on: [HDF5 output](hdf5-output/01-introduction.md),
-> [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md)
+> Depends on: [SKIRT 10](skirt-10/01-introduction.md),
+> [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md),
+> [HDF5 input](hdf5-input/01-introduction.md),
+> [Iteration history](iteration-history/01-introduction.md),
+> [HDF5 output](hdf5-output/01-introduction.md)
 
 ## Motivation
 
@@ -28,10 +31,6 @@ own right:
   than starting that more expensive run from scratch. This makes it practical to chain
   several SKIRT runs together, with convergence judged externally — from the intermediate
   results — rather than automatically inside SKIRT itself.
-- **Reusing the spatial grid.** A follow-up simulation can load the spatial grid of a previous
-  run instead of rebuilding it, so that several simulations use exactly the same grid.
-- **Refining the spatial grid.** A simulation's spatial grid can likewise be refined based on
-  the results of a previous, coarser run.
 
 ## Impact on PTS
 
@@ -42,7 +41,7 @@ they hold. Working out these changes, however, is out of scope for this note.
 
 - **[Features](checkpointing/02-features.md)** describes the checkpoint probe, resuming from a
   checkpoint, and the other uses of checkpoints. It is aimed at SKIRT users.
-- **[Data model](checkpointing/03-data-model.md)** specifies the checkpoint bundles that capture
+- **[Data model](checkpointing/03-data-model.md)** specifies the checkpoint bundle that captures
   a running simulation's internal state. It is aimed at authors of Python scripts that inspect
   checkpoints.
 - **[Implementation](checkpointing/04-implementation.md)** describes the extensions to the `hdf5`

@@ -29,11 +29,11 @@ from here on — and decides autonomously what to store at each one, as describe
 Consequently, the checkpoint probe exposes no configuration properties beyond the
 `probeName` property every probe inherits from the `Probe` base class.
 
-## Checkpoint bundles
+## Checkpoint contents
 
-In addition to defining its "when" point (including the iteration index), a checkpoint
-may save the following bundles, each capturing one aspect of the simulation's
-runtime state.
+Each checkpoint is stored as a single bundle. In addition to defining its "when" point
+(including the iteration index), a checkpoint may contain the following parts, each capturing
+one aspect of the simulation's runtime state.
 
 **Spatial grid.** Captures the grid's structure. For grid types whose structure is built up
 rather than determined directly by the ski file or an input file — tree grids, whose
@@ -41,7 +41,7 @@ subdivision decisions depend on random sampling of an input density field, forem
 them — reconstruction can be expensive or even impossible. Therefore, a checkpoint stores
 the precise topology of such grids, rather than requiring it to be rebuilt on resume.
 
-This bundle also includes enough information to visualize or sample grid-discretized
+This part also includes enough information to visualize or sample grid-discretized
 quantities without needing to fully reconstruct the grid. Grids with cuboidal, axis-aligned
 cells — tree, AMR, and Cartesian grids — store a linear list of corner coordinates for each
 cell, regardless of the structural relationships between cells.
@@ -67,6 +67,13 @@ or pixel scale (such calibration happens just before the instrument output is wr
 If applicable, the accumulated statistics (higher moments of the detected fluxes)
 are stored as well.
 
+**Iteration history.** Holds the series kept in the central iteration history proposed in the
+[Iteration history](iteration-history/01-introduction.md) note: the values of each scalar series
+over its most recent iterations, including the aggregates of the medium state, and the running sums
+of each cell window. Convergence criteria compare the current iteration with earlier ones, and
+dynamic grid refinement averages per-cell fields over several iterations. Restoring the history
+lets both continue after resuming exactly as they would have in an uninterrupted run.
+
 The [Data model](checkpointing/03-data-model.md) chapter provides details on how these are stored in
 HDF5.
 
@@ -78,33 +85,25 @@ not have a radiation field.
 
 As indicated above, the checkpoint probe is invoked for every "when" point that actually
 occurs in a simulation. This always includes the Setup and Run checkpoints, and may
-include iteration checkpoints. Conceptually, the probe outputs all available bundles at
+include iteration checkpoints. Conceptually, the probe outputs all available parts at
 each checkpoint.
 
-In practice, for portions of the data that remain unchanged, the probe simply links to the
-data stored during a previous checkpoint. This makes every checkpoint's output
-self-consistent while avoiding data duplication. For example, the spatial grid bundle
-never changes during a simulation, so it is stored only once. Similarly, some or all of the
+In practice, for datasets that remain unchanged, the probe simply links to the dataset
+stored during a previous checkpoint. This makes every checkpoint's output
+self-consistent while avoiding data duplication. For example, if the spatial grid
+never changes during a simulation, it is stored only once. Similarly, some or all of the
 medium state properties may be constant and are thus stored only once.
 
 ## Unsupported features
 
-**Iteration history.** Convergence criteria determine when to end iterations over primary
-and/or secondary emission. Some criteria are implemented globally for all medium components
-of a given type (dust self-absorption); others are implemented by individual material mixes
-(e.g. `DiffuseIonizedGasMix`) or dynamic state recipes (e.g. `DustDestructionRecipe`).
-Often such recipes retain some history from one or more earlier iterations to help determine
-whether convergence has been reached. The checkpoint probe does _not_ store this information.
-After resuming a simulation, one or more extra iterations may be required to build up this
-history (again). In practice, this should not be a concern. The
-[Iteration history](iteration-history/01-introduction.md) note collects this history in a single
-object, which would make it possible to store it in a checkpoint in the future.
+**History probe output.** The `HistoryProbe` proposed in the Iteration history note writes a row
+for each iteration it performs. After resuming, its output therefore starts at the first iteration
+of the resumed run; the rows for earlier iterations are in the output of the original run.
 
 **Spatial grid types.** The linear cell list representation is initially supported only
 for grids with cuboidal, axis-aligned cells. This includes hierarchical octree and
 binary-tree grids, AMR-based grids, and Cartesian grids. Consequently, other grid types
-cannot be used as input to a follow-up grid-refinement simulation and lack an easy
-visualization mechanism.
+lack an easy visualization mechanism.
 
 **Geometry decorators.** The `ClumpyGeometryDecorator` with a default `seed` value of
 0 is not supported because it will position the clumps differently when resuming. This is
@@ -119,7 +118,7 @@ without querying the geometry again.
 **Launched packets probe.** The `LaunchedPacketsProbe` keeps track of the number of photon
 packets launched during primary and secondary emission. Because the counters are not
 checkpointed, they will reset to zero when resuming. This could be resolved by adding an
-extra checkpoint bundle, but this is left for future consideration.
+extra datasets to the checkpoint, but this is left for future consideration.
 
 ## Resuming from a checkpoint
 
@@ -130,8 +129,8 @@ A new command-line option, `-c`, specifies the checkpoint data used to resume a 
 ```
 
 This follows the same `<dir>/<hdf>:<suite>` format as `-i` and `-o` (see Command-line syntax in
-the [HDF5 input](hdf5-input/02-features.md) note), except that `<hdf>` is required rather than optional, since a
-checkpoint exists only inside an HDF5 file, never as a collection of plain files.
+the [HDF5 input](hdf5-input/02-features.md) note), except that `<hdf>` is required rather than
+optional, since a checkpoint exists only inside an HDF5 file, never as a collection of plain files.
 
 By default, SKIRT resumes from the most recent checkpoint found under the given suite. To
 resume from an earlier one instead, extend the suite with that checkpoint's own name, i.e.
@@ -152,11 +151,11 @@ Assuming a ski file `mysim.ski` and three HDF5 files `in/data.hdf5`, `out/data.h
   single file: the same file that served as input and output for the previous run, and
   therefore already holds its checkpoints, continues to serve that role for the resumed run.
 
-Either way, resuming loads the spatial grid, medium state, radiation field, and recorded
-fluxes stored in the selected checkpoint, and continues the simulation from the corresponding
-"when" point onward instead of redoing any of the work that checkpoint already reflects.
-For example, resuming from a checkpoint written after a primary-emission iteration continues
-with the next primary-emission iteration.
+Either way, resuming loads the spatial grid, medium state, radiation field, recorded fluxes,
+and iteration history stored in the selected checkpoint, and continues the simulation from the
+corresponding "when" point onward instead of redoing any of the work that checkpoint already
+reflects. For example, resuming from a checkpoint written after a primary-emission iteration
+continues with the next primary-emission iteration.
 
 This has one limitation, following directly from restricting checkpoints to well-defined,
 between-phases points (see The checkpoint probe, above): a single long stretch between two
@@ -254,111 +253,3 @@ loop:
     edit mysim.ski: set numPackets to packets
     skirt -i in.hdf5 -o run.hdf5 -c run.hdf5 mysim.ski
 ```
-
-## Reusing grid topology
-
-There are situations where multiple simulations should use the exact same spatial grid, or
-where the time needed to build a grid should be avoided — for example, an octree whose
-structure is determined by sampling the input density distribution. A typical case is a
-study of several similar input models with variations in material properties, where the
-underlying spatial distribution of the medium, and thus the ideal grid, stays the same
-across runs.
-
-This is not an issue for spatial grid types whose structure is fully determined by the ski
-file: building such a grid is fast, and for a given ski file, always produces the exact same
-result. It is an issue for the SKIRT spatial grid types whose structure instead depends on
-sampling the input density distribution:
-
-- **Tree grids** configured with one or more density-based policies sample density at many
-  randomly selected positions to decide where to subdivide.
-- **`VoronoiMeshSpatialGrid`** and **`TetraMeshSpatialGrid`**, unless configured with their
-  `File`, `ImportedSites`, or `ImportedMesh` policy, place their sites or vertices by random
-  sampling — either from a synthetic distribution (`Uniform`, `CentralPeak`) or, more
-  commonly, importance-sampled from the actual input density (`DustDensity`, the default
-  for both grids, `ElectronDensity`, or `GasDensity`) — before tessellating them.
-
-Not only does the random sampling take time, but the resulting grid will differ subtly
-between SKIRT runs because the employed pseudo-random sequence is unique for each run
-(except in single-threaded execution mode).
-
-Other spatial grid types are unaffected: their structure is either fully parametric (e.g.
-`CartesianSpatialGrid` and the `Cylinder`/`Sphere` grids) or taken wholesale from an
-imported mesh (`AdaptiveMeshSpatialGrid`), with no sampling involved either way.
-
-The spatial grid checkpoint bundle already captures the resolved topology of these
-variable grid types (see Checkpoint bundles, above), so a follow-up simulation can load it
-instead of rebuilding the grid from scratch. Because this is not a resume, the source is not
-given through the `-c` command-line option; instead, each variable grid type gains a ski
-file option to load its topology from a previous checkpoint. The following treats each case
-in turn.
-
-**Tree grids.** The [Tree-based spatial grids](tree-based-spatial-grids/02-features.md) note
-proposes a `TopologyTreePolicy` that loads a topology previously recorded by the
-`TreeSpatialGridTopologyProbe` from a text file. Its `filename` property is extended so that it
-can instead name an HDF5 file — resolved relative to the simulation's input directory, like any
-other input file — followed by a mandatory `:<checkpoint>` component. This component consists of
-an optional suite and a mandatory name identifying which checkpoint to load from. The policy then
-picks out the relevant bundle within that checkpoint on its own. The saved topology remains
-scale-free, so the simulation loading it still specifies the domain extent itself. Because the
-spatial grid checkpoint bundle captures the same topology as a side effect, the
-`TreeSpatialGridTopologyProbe` and its text format could eventually be retired; this is left
-for future consideration.
-
-**`VoronoiMeshSpatialGrid`.** The `File` policy is extended: the
-`filename` property can still name a plain text file of site positions, or now instead an
-HDF5 file, resolved relative to the input directory, with
-the same mandatory `:<checkpoint>` component described above. Either way, `File` loads
-previously recorded site positions rather than sampling new ones; the tessellation itself
-still runs as before.
-
-**`TetraMeshSpatialGrid`.** The same extension applies to the `File` policy: the
-`filename` property can name either a plain text file or an HDF5 file. This loads previously
-recorded vertex positions rather than sampling new ones, while the Delaunay
-tetrahedralization still runs as before.
-
-## Refining the spatial grid
-
-The hierarchical tree subdivision criteria focus mostly on the medium's density distribution.
-Resolving gradients in the radiation field itself is at least as important, and arguably
-more so, since it is the quantity that ultimately determines the accuracy of every
-simulation result, while density is only a proxy for it.
-
-Because the radiation field is one of the bundles captured in a checkpoint (see Checkpoint
-bundles, above), it can be used for exactly this purpose across two simulations. A first,
-deliberately cheap simulation computes an approximate radiation field — with fewer photon
-packets, a coarser spatial grid, or a wavelength grid restricted to the spectral range of
-interest — and writes it to a checkpoint. A follow-up simulation then reads that checkpoint
-back to refine the spatial grid further, wherever the approximate field indicates that it is
-not yet properly resolved.
-
-Because this follow-up run is a fresh simulation rather than a resume, there is no need
-to remap medium state or radiation-field accumulators onto the changed grid — every
-quantity is simply computed fresh on the refined grid, exactly as in any ordinary run.
-The only requirement is that the original simulation's spatial grid checkpoint includes the
-linear cell list representation (see Spatial grid types under Unsupported features,
-above), so that the radiation field can be sampled without fully reconstructing the
-original grid.
-
-This is a direct application of the restructured tree policies proposed in the
-[Tree-based spatial grids](tree-based-spatial-grids/02-features.md) note. The follow-up
-simulation's grid could combine a `TopologyTreePolicy` — which reuses the first simulation's grid
-as a starting point — with a new policy based on the radiation field. One possible such policy is
-sketched below, extending the policy tables of that note; the exact set of properties, and how it
-should relate to primary versus secondary emission, are left for future consideration.
-
-| Policy | Properties |
-| --- | --- |
-| `RadiationFieldTreePolicy` | `maxFieldFraction`, `maxFieldDispersion`, `minWavelength`, `maxWavelength` |
-
-Like the `TopologyTreePolicy`, it takes a `filename` property identifying the source
-checkpoint, using the same HDF5-file-plus-checkpoint syntax. `maxFieldFraction` mirrors the
-`maxFraction` property of the density policies: it limits the fraction of the total radiation
-field energy contained in each cell, forcing subdivision in cells that dominate the energy budget.
-`maxFieldDispersion` mirrors the `maxDispersion` property of the `DustDispersionTreePolicy`: it
-limits how much the field is allowed to vary within a single cell, sampled from the checkpoint
-rather than computed on the fly. `minWavelength` and `maxWavelength` restrict both criteria to a spectral range of
-interest, defaulting to the full range covered by the source checkpoint.
-
-The [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) note proposes a different
-approach, which refines the grid within a single simulation, between iterations, based on
-gradients of the medium state or the dust temperature.
