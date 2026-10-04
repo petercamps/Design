@@ -194,6 +194,18 @@ values read back from the checkpoint's per-dataset arrays (`medium_volume`,
 public API on `MediumState` itself, since this is `MediumSystem`'s own setup writing into a member
 it already owns; only `MediumSystem`'s internal setup logic needs the resume branch.
 
+**Material mix per cell.** When a medium component uses a material mix family, the medium system
+also holds a material mix pointer for each cell. During setup, it selects the mix for each cell
+from the family, based on the imported parameters at the central position of the cell. The
+checkpoint does not store these selections. On resume, the setup repeats the selection, which
+reproduces the original mixes as long as the grid has not been refined, since the selection
+involves no random sampling. Dynamic grid refinement, however, gives new cells their parent's mix,
+whereas a selection at the central position of a new cell may yield a different mix. The resumed
+run would then differ from an uninterrupted run for those cells. This gap still needs to be
+addressed, for example by storing an identification of the selected mix for each cell, or by
+limiting the restored selection to the cells present before refinement and copying the parent's
+mix for the others.
+
 ### Radiation field
 
 Normally, `MediumSystem`'s primary and secondary accumulators start at zero and are built up

@@ -17,8 +17,7 @@ entry, the equilibrium temperature of a grain, or the temperature distribution o
 heated grain is obtained exactly as before.
 
 There is no configuration option. The current calculation is a discretization error rather than a
-modeling choice, so there is no reason to keep it, except for comparing results (see Open
-questions).
+modeling choice, so there is no reason to keep it.
 
 ### Consequences
 
@@ -43,6 +42,13 @@ questions).
 ## Regional rebalance
 
 ### Behavior
+
+The rebalance groups the cells into regions. Unlike the coarse spatial mesh of the classic
+coarse-mesh rebalance in neutron transport, a region is not a contiguous part of the spatial
+domain: it collects cells in similar physical conditions, which may be scattered throughout the
+domain (see below for how the regions are formed). This poses no problem, because the transfer
+fractions between regions are measured from the photon packets, rather than derived from the
+geometry.
 
 During each secondary emission iteration, the simulation records, for a partition of the cells
 into regions, how much of the dust emission launched from each region is absorbed by the dust in
@@ -78,7 +84,7 @@ factor is applied to all cells.
 The rebalance is available only if the simulation iterates over secondary emission, with or without
 including primary emission in these iterations, and if thermal dust emission is the only form of
 secondary emission. With gas emission, the dust absorbs radiation from sources that the rebalance
-does not describe, so the rebalance is disabled with a message in the setup log (see Open questions).
+does not describe, so the rebalance is disabled with a message in the setup log.
 
 ### Cost
 
@@ -128,22 +134,17 @@ COLIBRE galaxies with 31.6 million photon packets.
 The two conditions of the second criterion address different errors. The deficit measures whether
 the escaping luminosity, and hence the dust emission seen by an observer, is right. With the
 rebalance, the deficit drops below 1% within about 10–15 iterations, even for ID39321. The
-secondary change measures whether the distribution of the emission over the cells has settled. With
-the rebalance, it decays more slowly, because the radiation trapped in the core keeps building up
-for some time. This affects the observed spectrum much less than it affects the absorbed secondary
-luminosity: two runs with 100 and 900 regions differed by 2.7% in absorbed secondary luminosity
-after 40 iterations, while their dust emission spectra agreed within 0.2%.
+secondary change measures whether the distribution of the emission over the cells has settled. Even
+with the rebalance, the secondary change drops toward zero more slowly than the deficit, so that
+this condition is usually the last one to be met: the radiation trapped in the self-absorbing core
+keeps building up for some time after the deficit has become small. This remaining build-up in the
+core affects the observed spectrum much less than it affects the absorbed secondary luminosity: two
+runs with 100 and 900 regions differed by 2.7% in absorbed secondary luminosity after 40
+iterations, while their dust emission spectra agreed within 0.2%.
 
 As today, the loop runs for at least `minSecondaryIterations` and at most `maxSecondaryIterations`
 iterations, and a warning is issued if it ends without convergence. Without dust, the dust criteria
 are skipped, and convergence is determined by the dynamic medium state alone, as today.
-
-### Example
-
-Applied to the logs of the ID39321 runs with 100 regions and exact absorption, the default values
-proposed below stop the loop after 24–26 iterations, when the absorbed secondary luminosity is
-within 5% of its value after 40 iterations. For a run with 900 regions (with the current absorption
-calculation and 200 bins), they stop the loop after 20 iterations, within 3%.
 
 ## Configuration
 
@@ -227,7 +228,7 @@ The `SecondaryDustLuminosityProbe` reports the exact absorbed luminosity of each
 the same function that normalizes the dust emission. The `DustAbsorptionPerCellProbe` keeps
 reporting the spectral absorbed luminosity on the radiation field wavelength grid, calculated from
 the binned field. With a coarse grid, its integral over wavelength differs slightly from the exact
-absorbed luminosity, as documented for the probe (see Open questions).
+absorbed luminosity, as documented for the probe.
 
 ## Recommended settings
 

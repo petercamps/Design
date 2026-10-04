@@ -22,9 +22,9 @@ many hundreds of iterations to bring the escaping dust luminosity within 1% of i
 
 Two further problems surfaced while investigating this:
 
-- **The convergence criterion is misleading.** The `maxFractionOfPrevious` criterion compares the
-  change of the dust-absorbed secondary luminosity with the secondary luminosity itself. When the
-  secondary luminosity is many times the primary luminosity, a change of 1% per iteration can hide
+- **The convergence criterion is misleading.** The `maxFractionOfPrevious` criterion monitors the
+  change of the dust-absorbed secondary luminosity between consecutive iterations. When the secondary
+  luminosity is many times the escaping primary luminosity, a change of 1% per iteration can hide
   an error of 15% or more in the escaping luminosity.
 - **The absorbed luminosity is biased by the radiation field wavelength grid.** SKIRT calculates the
   luminosity absorbed by the dust in each cell from the binned radiation field, using the dust
@@ -47,7 +47,7 @@ This design note proposes three changes:
   100 regions, a small region-to-region transfer matrix measured during the iteration is solved for
   the self-consistent luminosity of each region, and the secondary radiation field is rescaled per
   region accordingly. This is coarse-mesh rebalance, a classic accelerator for Monte Carlo neutron
-  transport, adapted to SKIRT. It works on luminosities only, so it is independent of the emission
+  transport (see References), adapted to SKIRT. It works on luminosities only, so it is independent of the emission
   model, including stochastic heating and cell libraries.
 - **New convergence criteria.** The secondary emission loop converges when the escaping dust
   luminosity balances the absorbed primary luminosity, and the absorbed secondary luminosity has
@@ -110,3 +110,29 @@ library makes each iteration cheap, and the rebalance reduces the number of iter
 - **[Open questions](dust-self-absorption/04-open-questions.md)** collects the design decisions that
   need input, an observation on the merged iteration loop, the relation to photoionization, and the
   departures from the experimental implementation.
+
+## References
+
+Coarse-mesh rebalance in neutron transport:
+
+- Asaoka, T., et al. 1976, Nucl. Sci. Eng., 59, 326:
+  [Application of coarse-mesh rebalance acceleration to Monte Carlo eigenvalue
+  problems](https://ui.adsabs.harvard.edu/abs/1976NSE....59..326A/abstract), an early application
+  of the method to Monte Carlo transport.
+- Cefus, G. R., & Larsen, E. W. 1990, Nucl. Sci. Eng., 105, 31:
+  [Stability analysis of coarse-mesh
+  rebalance](https://ui.adsabs.harvard.edu/abs/1990NSE...105...31C/abstract).
+- Yamamoto, A. 2005, Nucl. Sci. Eng., 151, 274:
+  [Generalized coarse-mesh rebalance method for acceleration of neutron transport
+  calculations](https://ui.adsabs.harvard.edu/abs/2005NSE...151..274Y/abstract), which unifies
+  coarse-mesh rebalance and coarse-mesh finite difference acceleration in a single scheme.
+- Lee, M. J., et al. 2014, Ann. Nucl. Energy, 65, 101:
+  [Coarse mesh finite difference formulation for accelerated Monte Carlo eigenvalue
+  calculation](https://ui.adsabs.harvard.edu/abs/2014AnNuE..65..101L/abstract), a more recent
+  variant for Monte Carlo transport, in which the coarse-mesh solution adjusts the source
+  distribution through the weights of the particles.
+- Wolters, E. R., Larsen, E. W., & Martin, W. R. 2013, Nucl. Sci. Eng., 174, 286:
+  [Hybrid Monte Carlo-CMFD methods for accelerating fission source
+  convergence](https://ui.adsabs.harvard.edu/abs/2013NSE...174..286W/abstract), which improves the
+  efficiency of this method by changing how the Monte Carlo tallies enter the coarse-mesh
+  equations.
