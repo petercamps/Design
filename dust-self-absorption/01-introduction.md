@@ -108,8 +108,7 @@ library makes each iteration cheap, and the rebalance reduces the number of iter
 - **[Implementation](dust-self-absorption/03-implementation.md)** describes the absorption tally,
   the rebalance, the convergence test, and the changes to existing classes.
 - **[Open questions](dust-self-absorption/04-open-questions.md)** collects the design decisions that
-  need input, an observation on the merged iteration loop, the relation to photoionization, and the
-  departures from the experimental implementation.
+  need input and the relation to photoionization and to non-LTE line transfer.
 
 ## References
 
