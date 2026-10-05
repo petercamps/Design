@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: under construction
+> Status: draft
 >
 > Depends on: [SKIRT 10](skirt-10/01-introduction.md),
 > [Iteration history](iteration-history/01-introduction.md)

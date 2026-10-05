@@ -48,18 +48,34 @@ in more detail below the table.
 | Policy | Properties |
 | --- | --- |
 | `TreePolicy` | |
-|  &emsp;`DustDensityTreePolicy` | `maxFraction` |
-|  &emsp;`DustOpticalDepthTreePolicy` | `maxOpticalDepth`, `wavelength` |
-|  &emsp;`DustDispersionTreePolicy` | `maxDispersion` |
-|  &emsp;`ElectronDensityTreePolicy` | `maxFraction` |
-|  &emsp;`GasDensityTreePolicy` | `maxFraction` |
+|  &emsp;`DensityTreePolicy` | `materialType`, `maxFraction` |
+|  &emsp;`OpticalDepthTreePolicy` | `materialType`, `maxOpticalDepth`, `wavelength` |
+|  &emsp;`DispersionTreePolicy` | `materialType`, `maxDispersion` |
 |  &emsp;`SiteListTreePolicy` | `filename`, `numExtraLevels` |
 |  &emsp;`BoxTreePolicy` | `minX`, ..., `maxZ`, `policy` |
 |  &emsp;`TopologyTreePolicy` | `filename` |
 
-**Material properties**. There now is a separate policy for each material type and
-property. This clearly separates the various independent criteria, and makes it easy to
-add another criterion (say, electron optical depth) without changing existing policies.
+**Material properties**. There now is a separate policy for each material property: the
+fraction of the total mass contained in a cell, the optical depth across a cell, and the
+dispersion of the density within a cell. This clearly separates the various independent
+criteria, and makes it easy to add another criterion without changing existing policies.
+
+Each of these policies has a `materialType` enumeration property that selects the material
+type to which its criterion applies: `Dust`, `Electrons`, or `Gas`, matching the material types
+that SKIRT distinguishes internally. The `OpticalDepthTreePolicy` also offers `All`, which applies
+the criterion to the combined optical depth of all media. To apply a criterion to more than one
+material type, the user lists a policy for each type. Unlike the dust-only criteria of today, the
+optical depth and dispersion criteria thus become available for electrons and gas as well. For
+these material types, the opacity is evaluated for the default state of the material mix, because
+the medium state is not yet known when the grid is constructed.
+
+The list of enumeration values offered by MakeUp is the same for every simulation, because SMILE
+does not support conditions on individual enumeration values. The default value, however, depends
+on the media in the simulation, through a conditional value expression. For example,
+`DustMix:Dust;GasMix:Gas;Electrons` selects dust if the simulation has dust, and otherwise gas or
+electrons; for the optical depth, `DustMix:Dust;All` selects dust if present, and otherwise all
+media. If a policy selects a material type that is not present in the simulation, setup reports a
+fatal error.
 
 **Site list**. The `SiteListTreePolicy` carries over unchanged. It uses a site list
 given as position coordinates in an input file or, if the filename property is empty,
@@ -116,5 +132,5 @@ whichever adaptive mesh or cell mesh the medium system has already imported, avo
 second copy of the same file that could drift out of sync with the actual medium.
 
 `GasThermalEnergyTreePolicy` refines cells holding more than `maxFraction` of the total
-gas thermal energy, `n T V`, mirroring the density-fraction policies above but for a
+gas thermal energy, `n T V`, mirroring the `DensityTreePolicy` above but for a
 gas-physics quantity instead.

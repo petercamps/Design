@@ -109,6 +109,25 @@ tagged `v9.9.0` — reflecting the substantial development that has accumulated 
 2019 release, even without formal version numbers to mark it — and the `9` branch is cut
 from it before any SKIRT 10 work is merged.
 
+## Impact on users
+
+SKIRT 9 coexists with SKIRT 10, and with any future major versions, in the same repository,
+generically called `SKIRT`. Users select a version in their local clone with a single git command,
+and then build SKIRT as usual:
+
+- Users who wish to preserve compatibility, for example while working on an ongoing study, install
+  SKIRT 9 with `git checkout 9`. A later `git pull` on that branch brings in the bug fixes that are
+  still made for SKIRT 9.
+- Users who wish to use the latest SKIRT version use `git checkout master`, as before. Once SKIRT 10
+  lands on `master`, pulling it brings in the incompatible changes listed in the
+  [Incompatibilities](skirt-10/04-incompatibilities.md) chapter, and existing ski files must be
+  upgraded with PTS.
+
+The same holds for `PTS`: `git checkout 9` selects the toolkit for SKIRT 9, and
+`git checkout master` the latest version. Users should select the same major version in both
+repositories. Existing clones of `SKIRT9` and `PTS9` keep working, because GitHub redirects the old
+repository names (see Repositories, above).
+
 ## Implementation
 
 The following off-the-shelf tooling will help manage the version numbers and the

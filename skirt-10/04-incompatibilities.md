@@ -112,11 +112,13 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 - Replace `PolicyTreeSpatialGrid` by `OctTreeSpatialGrid` or `BinTreeSpatialGrid`
   depending on the configured tree type, and replace the configured policy as follows:
 
-  - `DensityTreePolicy` becomes one or more of `DustDensityTreePolicy`,
-    `DustOpticalDepthTreePolicy`, or `DustDispersionTreePolicy` depending on the
-    configured criteria.
+  - `DensityTreePolicy` becomes one policy for each configured criterion: a
+    `DensityTreePolicy` for each of `maxDustFraction`, `maxElectronFraction`, and
+    `maxGasFraction`, an `OpticalDepthTreePolicy` for `maxDustOpticalDepth`, and a
+    `DispersionTreePolicy` for `maxDustDensityDispersion`, each with the corresponding
+    `materialType`.
 
-  - `NestedDensityTreePolicy` becomes one or more `BoxTreePolicy` plus `DustXxxTreePolicy`,
+  - `NestedDensityTreePolicy` becomes one or more `BoxTreePolicy` plus the same policies,
     again depending on the configured criteria.
 
   - `SiteListTreePolicy` retains the same name.

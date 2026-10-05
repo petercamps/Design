@@ -18,14 +18,15 @@ execution flow was substantially revised, and new spatial grid types — cylindr
 spherical, and tetrahedral — were introduced.
 
 This ongoing evolution, together with a paper in preparation describing SKIRT's current
-capabilities, makes this a natural point to declare a new major version — timing the
-bump to coincide with the paper gives its announcement some extra weight. There are more
-practical reasons too. Users increasingly need a stable, citable label for the code
-version they used in a given study — "SKIRT 9.2.1" rather than a git commit hash — and a
-new major version is a natural point to put that labeling on a proper footing. It is
-also, as with any major version bump, the point at which removing little-used features
-or introducing other incompatible changes is expected, rather than something to keep
-postponing.
+capabilities, makes this a natural point to declare a new major version — timing the bump to
+coincide with the paper gives its announcement some extra weight. There are more practical reasons
+too. Many users are not aware that they need to mention the git commit hash tag in order to
+indicate what version they are using, and believe that they uniquely state the code version by
+citing "SKIRT version 9". Instead, users need a stable, citable label for the code version they
+used in a given study — "SKIRT 9.2.1". A new major version is a natural point to put that labeling
+on a proper footing. It is also, as with any major version bump, the point at which removing
+little-used features or introducing other incompatible changes is expected, rather than something
+to keep postponing.
 
 ## Repositories and versioning
 

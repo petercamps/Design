@@ -2,8 +2,8 @@
 
 ## Construction
 
-`TreeSpatialGrid` builds its tree level by level, the same way `DensityTreePolicy` does
-today: starting from a one-node list holding the root, each pass evaluates every node at
+`TreeSpatialGrid` builds its tree level by level, the same way today's `DensityTreePolicy`
+does: starting from a one-node list holding the root, each pass evaluates every node at
 the current level, subdivides the ones that need it, and appends their children to the
 end of the same list, so the newly appended range becomes the next level. Subdivision
 only ever appends, so a node's position in the list is a stable, level-ordered id — the
@@ -12,7 +12,7 @@ list doubles as the tree's ownership list and its implicit breadth-first queue.
 The two phases per level stay split as today, for the same reason: evaluating whether a
 node needs subdivision is read-only and can be expensive — sampling the density field is
 the typical case — so it runs in parallel across the level's nodes, using SKIRT's
-existing `Parallel` machinery exactly as `DensityTreePolicy::constructTree()` does now.
+existing `Parallel` machinery exactly as today's `DensityTreePolicy::constructTree()` does.
 Subdividing a flagged node mutates the tree (new children, updated neighbor links) and
 stays sequential. The one real change is what gets evaluated per node: instead of a
 single policy's `needsSubdivide()`, it is now the configured list of policies, tested in
