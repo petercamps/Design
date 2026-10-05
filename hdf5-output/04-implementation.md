@@ -190,7 +190,7 @@ Call sites:
 
 **`SpatialGridPlotFile`** stays the same class, with the same public API: every grid type
 (and `VoronoiMeshSnapshot`, which plots its own tessellation directly) writes plot data
-exclusively through its eleven shape-drawing methods — `writeLine`, `writeRectangle`,
+exclusively through its shape-drawing methods — `writeLine`, `writeRectangle`,
 `writeCircle`, `writeArc`, `writeCube`, `writeMeridionalHalfCircle`, `writeSphere`,
 `writePolyhedron` — never by touching a file directly. None of those call sites need to
 change; the whole adaptation is internal to this one class.
@@ -201,7 +201,7 @@ privately inherits from `TextOutFile`, doing its own unit conversion inline —
 `writeLine(string)`/`addColumn()`/`writeRow()` API, just its constructor and protected
 members. This needs to become two private primitives, `moveTo`/`lineTo` — each with a 2D and
 a 3D overload, mirroring `writeLine`'s own two overloads, and matching the "moveto"/"lineto"
-terminology the class's own doc comment already uses — that every one of the eleven public
+terminology the class's own doc comment already uses — that every one of these public
 methods is rewritten to call instead of writing to `_out` directly. `moveTo` starts a new
 polyline and `lineTo` continues the current one, matching the `points`/`moveto` datasets the
 Spatial grid plot file bundle already specifies in the Data model chapter.

@@ -84,7 +84,8 @@ factor is applied to all cells.
 The rebalance is available only if the simulation iterates over secondary emission, with or without
 including primary emission in these iterations, and if thermal dust emission is the only form of
 secondary emission. With gas emission, the dust absorbs radiation from sources that the rebalance
-does not describe, so the rebalance is disabled with a message in the setup log.
+does not describe, so the rebalance and the luminosity deficit criterion are disabled, with a
+message in the setup log.
 
 ### Cost
 

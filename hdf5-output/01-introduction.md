@@ -2,7 +2,7 @@
 
 > Status: draft
 >
-> Depends on:  [SKIRT 10](skirt-10/01-introduction.md), [HDF5 input](hdf5-input/01-introduction.md)
+> Depends on: [SKIRT 10](skirt-10/01-introduction.md), [HDF5 input](hdf5-input/01-introduction.md)
 
 ## Motivation
 

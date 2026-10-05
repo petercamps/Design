@@ -13,19 +13,19 @@ SKIRT currently writes the following kinds of output files:
   each line holds 2 or 3 coordinates meaning "draw a line to this point", and a blank line
   starts a new, disconnected segment. Every spatial grid writes one of these to plot its own
   cell geometry.
-- **Unstructured text files** - the `convergence.dat` plain text file intended for human
+- **Unstructured text files** — the `convergence.dat` plain text file intended for human
   consumption, written by `ConvergenceInfoProbe`.
-- **XML file** - the `parameters.xml` file, a reformatted version of the ski file
+- **XML file** — the `parameters.xml` file, a reformatted version of the ski file
   governing the simulation.
-- **Log file** - The `log.txt` plain text file with progress, warning and error messages.
+- **Log file** — the `log.txt` plain text file with progress, warning and error messages.
   Because this file grows as the simulation runs, and users should be able to view the
-  simulation's progress in real-time, the log file is always written as a regular file
-  and then stored in the HDF file after the simulation has ended.
-- **Iteration history files** - the text column files written by the `HistoryProbe` proposed in
+  simulation's progress in real time, the log file is always written as a regular file
+  and then stored in the HDF5 file after the simulation has ended.
+- **Iteration history files** — the text column files written by the `HistoryProbe` proposed in
   the [Iteration history](iteration-history/01-introduction.md) note, one for each iteration loop,
-  with a row per iteration. Like the log file, these files grow as the simulation runs, so that its
-  progress can be followed and the output survives an aborted run. They are therefore always
-  written as regular files and then stored in the HDF file, in the text column format, after the
+  with a row per iteration. Like the log file, these files grow as the simulation runs, so that the
+  progress of the simulation can be followed and the output survives an aborted run. They are therefore always
+  written as regular files and then stored in the HDF5 file, in the text column format, after the
   simulation has ended.
 
 The [Data model](hdf5-output/03-data-model.md) chapter explains how each of these maps to bundles

@@ -46,7 +46,7 @@ photoionization (see below). The rebalance has not been tested in the merged loo
 reduce their noise, using an exponentially weighted or running average. With 31.6 million packets,
 the remaining noise in the deficit was about ±0.5% per iteration, without any sign of instability,
 so the proposal does not average. Averaging would add memory for an extra transfer matrix and
-complicates the partition, which changes from one iteration to the next.
+would complicate the partition, which changes from one iteration to the next.
 
 **Region coordinates.** The regions are formed from the ratio of secondary to primary absorption
 and the absorption per unit dust mass. Alternatives are the entries of the cell library, which

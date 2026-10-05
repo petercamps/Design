@@ -55,7 +55,7 @@ in more detail below the table.
 |  &emsp;`BoxTreePolicy` | `minX`, ..., `maxZ`, `policy` |
 |  &emsp;`TopologyTreePolicy` | `filename` |
 
-**Material properties**. There now is a separate policy for each material property: the
+**Material properties.** There now is a separate policy for each material property: the
 fraction of the total mass contained in a cell, the optical depth across a cell, and the
 dispersion of the density within a cell. This clearly separates the various independent
 criteria, and makes it easy to add another criterion without changing existing policies.
@@ -77,14 +77,14 @@ electrons; for the optical depth, `DustMix:Dust;All` selects dust if present, an
 media. If a policy selects a material type that is not present in the simulation, setup reports a
 fatal error.
 
-**Site list**. The `SiteListTreePolicy` carries over unchanged. It uses a site list
-given as position coordinates in an input file or, if the filename property is empty,
+**Site list.** The `SiteListTreePolicy` carries over unchanged. It uses a site list
+given as position coordinates in an input file or, if the `filename` property is empty,
 offered by one of the media components in the medium system. In a first step the tree is
 subdivided in such a way that each leaf node contains at most one of the sites in the
 list. Subsequently each of these leaf nodes is further subdivided a fixed number of
 times, as configured by the user.
 
-**Regional refinement**. The previous `NestedDensityTreePolicy` is replaced by the much
+**Regional refinement.** The previous `NestedDensityTreePolicy` is replaced by the much
 more powerful `BoxTreePolicy`. Next to a regular bounding box, this new policy holds an
 arbitrary nested policy to which it defers only for nodes intersecting the box.
 Listed alongside one or more ordinary material property policies covering the full
@@ -93,10 +93,10 @@ typical case where the box-gated policy's criteria are stricter and therefore do
 wherever they overlap. The same mechanism now works for any kind of policy, and for more
 than one nested box, without a dedicated class for each combination.
 
-**Tree topology**. `TopologyTreePolicy` replaces `FileTreeSpatialGrid`. It loads a
+**Tree topology.** `TopologyTreePolicy` replaces `FileTreeSpatialGrid`. It loads a
 topology previously recorded by the `TreeSpatialGridTopologyProbe` from a file, but now
 as one policy among others rather than a separate spatial grid class. When configured as
-the sole policy, it operates as before - assuming that the `minLevel`..`maxLevel` range
+the sole policy, it operates as before — assuming that the `minLevel`..`maxLevel` range
 is sufficiently wide. It is now possible, however, to refine a previously recorded grid
 by configuring other policies alongside it. Note that the `TreeSpatialGridTopologyProbe`
 output remains unchanged; only its implementation is adjusted to the new tree classes.

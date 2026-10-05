@@ -123,7 +123,7 @@ per segment:
 
 ```cpp
 /** Calculates the dust absorption opacity at a given wavelength in a given cell, for the photon
-    packet travelling along the current path. */
+    packet traveling along the current path. */
 class DustAbsorptionOpacity
 {
 public:

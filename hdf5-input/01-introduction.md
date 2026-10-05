@@ -13,7 +13,7 @@ information along as text-based files becomes slow and unwieldy.
 
 The solution proposed here is to adopt HDF5 as an optional input format.
 [HDF5](https://www.hdfgroup.org) is a binary, self-describing, hierarchical format
-designed for large scientific datasets. It is compact and efficient to read and write;
+designed for large scientific datasets. It is compact and efficient to read and write,
 and a single HDF5 file can contain many distinct datasets organized in a nested structure
 similar to a filesystem. Datasets and groups can carry attributes, small pieces of
 metadata such as units or other descriptors, stored directly alongside the data they

@@ -263,7 +263,7 @@ protected:
     enforced. */
 StateVariable aggregated(int seriesId) const;
 
-/** Return true if this state variable is marked for aggregation, and the id of its series. */
+/** Returns true if this state variable is marked for aggregation, and the id of its series. */
 bool isAggregated() const;
 int aggregateSeriesId() const;
 ```

@@ -120,7 +120,7 @@ without querying the geometry again.
 
 **Launched packets probe.** The `LaunchedPacketsProbe` keeps track of the number of photon
 packets launched during primary and secondary emission. Because the counters are not
-checkpointed, they will reset to zero when resuming. This could be resolved by adding an
+checkpointed, they will reset to zero when resuming. This could be resolved by adding
 extra datasets to the checkpoint, but this is left for future consideration.
 
 ## Resuming from a checkpoint
@@ -142,7 +142,7 @@ chapter explains how individual checkpoints are named).
 
 Resuming does not read the ski file from the checkpoint data. The ski file governing the
 resumed run is always given explicitly on the command line, exactly as for a fresh run, and
-it **must** be the exact same file used to produce the checkpoint — SKIRT cannot detect a
+it **must** be the exact same file used to produce the checkpoint — SKIRT cannot reliably detect a
 mismatch, so a different or modified ski file will silently produce incorrect results.
 
 Assuming a ski file `mysim.ski` and three HDF5 files `in/data.hdf5`, `out/data.hdf5`, and
@@ -171,7 +171,7 @@ describes a workaround.
 ## Iterating across simulations
 
 Resuming from a checkpoint, above, requires the resumed run's ski file to be identical to
-the one that produced the checkpoint — but SKIRT never actually verifies this. This section
+the one that produced the checkpoint — but SKIRT does not fully verify this. This section
 deliberately makes constructive use of that gap to let a handful of ski file parameters be
 changed between runs, so that a simulation can be pushed further
 without repeating work already reflected in a checkpoint. Which checkpoint to resume from,

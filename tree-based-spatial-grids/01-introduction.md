@@ -23,7 +23,7 @@ The key objectives are to:
   field (other than density), an imported grid, or a list of regions to be resolved.
 
 - Increase performance of path segment generation by providing a specific implementation
-  for each tree type (octtree or binary tree).
+  for each tree type (octree or binary tree).
 
 ## Overview
 

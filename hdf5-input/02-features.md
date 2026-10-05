@@ -76,6 +76,6 @@ time, with no special mode or coordination needed.
 
 ## PTS
 
-To help migrating existing input files, and to serve as a Python coding example, PTS will
+To help users migrate existing input files, and to serve as a Python coding example, PTS will
 be extended with functions and commands to convert the file types discussed above to
 their corresponding HDF5 bundle form.

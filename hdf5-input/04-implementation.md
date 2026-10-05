@@ -239,7 +239,7 @@ for several reasons:
 
 - The quantity values are ordered differently (interleaved in `.stab`, per dataset in bundle).
 - The bundle datasets may be compressed and/or chunked.
-- (In a possible future) If the same HDF file is used for input and output, memory mapping
+- If the same HDF5 file is used for input and output (see the HDF5 output note), memory mapping
   a portion of the file is unsafe because writing to the file might relocate its contents.
 
 The StoredTable constructor for a bundle must therefore copy the data into newly allocated
@@ -257,10 +257,10 @@ untouched.
 
 ## FITS input
 
-**`FITSInOutFile`** replaces `FITSInOut` wherever a call site reads or writes a genuine FITS
+**`FITSInOutFile`** replaces `FITSInOut` wherever a call site reads a genuine FITS
 file (a FITS bundle, per the Data model chapter, when HDF5 applies), as static functions
 wrapping the existing, cfitsio-backed `FITSInOut` static functions. Unlike
-`ColumnInFile`/`ColumnOutFile`, no deferred-open or buffering is needed: every `FITSInOut`
+`ColumnInFile`, no deferred-open or buffering is needed: every `FITSInOut`
 call already carries, or produces, the complete array in one shot, so the shape an HDF5
 dataset needs at creation is always already known.
 

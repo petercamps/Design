@@ -43,7 +43,8 @@ until measurements show that it matters.
 argument of `endUpdate()` like material mixes do. Passing a scope would make the two kinds of
 clients symmetric, but would change the signature of `endUpdate()` for no current benefit.
 
-**Series declared late.** The history probe fixes its columns at the first iteration of a loop.
+**Series declared late.** The history probe fixes the columns of a loop's file when it is first
+performed in that loop.
 Almost all series exist by then: aggregate series are declared during setup, and other series in
 the first iteration in which their client runs, before the probe is performed. A series first
 declared in a later iteration of the loop is left out of that loop's file, and the probe logs a

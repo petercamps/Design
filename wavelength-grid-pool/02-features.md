@@ -49,13 +49,12 @@ instrument system.
 
 Like the DIWLG today, the pool is relevant only in panchromatic simulations.
 
-
 ## Effect on the problems
 
 The pool solves problem 1: several grids can be defined once and referenced from any number of
 instruments. By itself, it does not change problem 2, because probes still fall back on the default
 grid. However, a user can opt to define and reference pool WLGs without assigning a default WLG,
-avoiding the silent fall-back.
+avoiding the silent fallback.
 
 ## Compatibility
 

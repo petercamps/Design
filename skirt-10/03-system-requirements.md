@@ -78,7 +78,7 @@ the time SKIRT 10 is released.
 
 **Link-time optimization.** SKIRT gains a `BUILD_WITH_LTO` option (proposed default: on),
 letting the compiler optimize across `.cpp` file boundaries at link time. Measured with
-Apple Clang 17, run time is roughly 2-4% lower, and the link step takes about 5 s instead
+Apple Clang 17, run time is roughly 2–4% lower, and the link step takes about 5 s instead
 of 1 s. Not yet tested with other compilers/operating systems. CMake's
 `INTERPROCEDURAL_OPTIMIZATION` target property drives this feature, applied only to
 `Release` builds, and only if the compiler and linker actually support it.
