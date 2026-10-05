@@ -573,7 +573,7 @@ three steps, each verified on the complete functional test suite:
 3. The rebalance and the new criteria. Tests that iterate over secondary emission change in the
    number of iterations and, for tests that did not converge, in their results.
 
-New test cases in `Functional9/NEWTESTS` cover the cases that the experiments did not:
+New functional tests cover the cases that the experiments did not:
 
 - a compact, optically thick dusty sphere with a central source, which exercises the rebalance in
   seconds, once with separate secondary iterations and once with merged iterations;

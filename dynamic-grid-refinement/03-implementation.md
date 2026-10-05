@@ -256,7 +256,7 @@ proposed until measurements show a need.
 The essential invariants of dynamic refinement are that the children tile the parent, existing cell
 indices do not change, the mass of each medium component is conserved, neighbor links are
 consistent, points are located in the correct cell, and paths traverse the new cells correctly. The
-proposal is to verify them in functional tests in the `Functional9` repository, based on small
+proposal is to verify them in functional tests based on small
 photoionization models with dynamic refinement.
 
 A tree grid without policies and with equal `minLevel` and `maxLevel` builds a uniform tree, which
