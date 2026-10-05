@@ -2,20 +2,6 @@
 
 ## Design decisions
 
-**Keeping the current absorption calculation.** Exact absorption could be complemented by an
-expert-level option that restores the current calculation from the binned radiation field. This
-would allow comparing results with SKIRT 9 within SKIRT 10, and would leave an escape route if exact
-absorption turns out to have an unforeseen problem. On the other hand, the current calculation is a
-numerical error rather than a modeling choice, keeping it doubles the code paths to test, and SKIRT 9
-remains available for comparisons. The proposal therefore omits the option. An earlier version of
-this proposal, written before SKIRT 10 was taken into account, recommended keeping it.
-
-**Rebalance by default.** The rebalance is enabled by default, because it does not change the
-converged solution, it costs little, and it brings the largest benefit to users who do not know that
-their model needs it. It has, however, been tested only on two COLIBRE galaxies, and only with
-separate secondary iterations. If the tests on the functional test suite reveal problems for mildly
-self-absorbing models, it can be disabled by default instead.
-
 **Number of regions.** The proposed default of 10 × 10 regions has been tested most extensively,
 including with exact absorption. With 30 × 30 regions, the slow drift of the absorbed secondary
 luminosity that remains after the deficit has converged was smaller, and the proposed criteria would
@@ -90,23 +76,6 @@ recommended settings.
 **Final emission without the library.** An option could calculate the final secondary emission with
 a different library, such as `AllCellsLibrary`, than the iterations. The experiments did not show a
 library effect that would justify it, so the option is not proposed.
-
-## Observation on the merged loop
-
-Reading the code shows that `clearRadiationField(true)` clears both the primary radiation field
-table and the stable secondary table, and that it is called at the start of each merged iteration,
-and in `runPrimaryEmission()` after the merged loop. The dust emission of each merged iteration, and
-of the final secondary emission, is therefore calculated from the primary radiation field alone.
-
-A test with a modified copy of the `ClearDustMergedIteration` functional test, with the optical depth
-of the dust shell raised from 20 to 2000, confirms this. With merged iterations, the dust emits
-about 1.0e8 Lsun in every iteration and in the final emission, equal to its absorbed primary
-luminosity, while the absorbed secondary luminosity remains at 3.6e7 Lsun. The same model with
-separate secondary iterations converges to an emitted luminosity of 1.97e8 Lsun, and its observed
-dust emission is four times brighter. In models with little dust self-absorption, the effect is
-small, which may explain why it went unnoticed. The fix is part of this proposal (see the
-Implementation chapter), but it is independent of the other changes, and it could also be applied
-to SKIRT 9.
 
 ## Relation to photoionization
 
@@ -188,29 +157,3 @@ be measured with the history probe: an error that decays geometrically points to
 acceleration or extrapolation, a front that moves steadily outward points to a better initial state,
 an oscillation points to damping, and a plateau points to Monte Carlo noise, to be addressed with more
 photon packets or criteria averaged over several iterations.
-
-## Departures from the experimental implementation
-
-The experiments used quick and dirty code, controlled by environment variables, with several
-variants that were abandoned along the way. The proposal departs from that code as follows:
-
-1. The options are ski file properties instead of environment variables. The rebalance always starts
-   with the second iteration and never stops, the damping exponent and the option to stop early are
-   dropped, and the clamping range is fixed.
-2. The global rebalance with a single region, which the experiments tried first, is not offered as a
-   separate option. It serves only as the fallback of the regional rebalance.
-3. Regions with an equal number of cells, which converged more slowly, are not offered.
-4. The opacity table per cell and radiation field bin, which the current absorption calculation
-   required for consistent tallies, is not needed with exact absorption.
-5. The rescaling of the transfer matrix columns, so that the absorbed and escaped luminosity add up
-   to the launched luminosity, is dropped. It was essential with the current absorption calculation,
-   but with exact absorption its factors stayed within 0.9998 and 1.0004. The closure is reported as
-   a diagnostic instead.
-6. The experiment did not support the branch with kinematics, MPI, material mix families, or
-   polarized absorption. The proposal supports all of these, but they have not been tested.
-7. The experiment logged its quantities in ad hoc log lines, from which the convergence was analyzed
-   with scripts. The proposal records them in the iteration history, so that they can be probed.
-8. The experiment did not use the merged loop. The correction of the merged loop is new.
-9. The experiment kept the per-path storage loop in `MonteCarloSimulation` and exposed the cross
-   sections through new public functions of the medium system. The proposal moves the loop into the
-   medium system.

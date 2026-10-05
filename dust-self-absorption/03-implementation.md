@@ -384,14 +384,14 @@ called after the primary segment as well, so that the partition and the absorbed
 per region reflect the current primary field. Otherwise, the loop changes like the secondary loop.
 In particular, the dynamic medium state is always updated from the measured radiation field, before
 `endRebalance()` rescales the secondary field, so that the medium state iteration does not depend
-on the dust acceleration (see Open questions).
+on the dust acceleration.
 
 The merged loop requires one more change, which is needed regardless of this proposal. Today,
 `clearRadiationField(true)` clears both the primary table and the stable secondary table. The merged
 loop calls it at the start of each iteration, and `runPrimaryEmission()` calls it after the merged
 loop. As a result, the dust emission of each merged iteration, and of the final secondary emission,
 is calculated from the primary radiation field only, so that dust self-absorption is never iterated
-in a simulation with merged iterations (see Open questions for a test). The proposal is that
+in a simulation with merged iterations. The proposal is that
 `clearRadiationField(true)` clears only `_rf1` and `_labs1`. The stable secondary table is zero
 after allocation and is only replaced by `communicateRadiationField(false)` or rescaled by the
 rebalancer. In a simulation without merged iterations, the primary emission is calculated before
