@@ -82,12 +82,21 @@ which affect existing ski files and simulation results as follows:
 
 ### Binary column format
 
-Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative
-to regular text column files, is deprecated and will be removed in some future minor
-release version. Users should migrate to the HDF5 alternative presented in the [HDF5
-input](hdf5-input/01-introduction.md) design note, which accomplishes the same goals with an
-industry-standard file format. There is, however, no technical reason to remove the
-feature right away.
+Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative to regular
+text column files, is removed. The text column file bundles proposed in the
+[HDF5 input](hdf5-input/01-introduction.md) design note accomplish the same goals, compact storage
+and fast reading, with an industry-standard file format. SKIRT 10 reports a fatal error for an input
+file with the `.scol` extension.
+
+Existing `.scol` files must be converted, either to a text column file or to a text column file
+bundle in an HDF5 file, and the ski file must refer to the converted file. PTS offers a command for
+both conversions, built on its existing functions for reading `.scol` files.
+
+The removal affects:
+
+- SKIRT: the `StoredColumns` class and the `.scol` branch of `TextInFile`;
+- PTS: the `convert_text_to_stored_columns` command, which is removed, while the functions for
+  reading the format are kept for the conversion;
 
 ### Data parallelization
 
@@ -131,3 +140,6 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
+
+- Report each input file name with the `.scol` extension, since these files must be converted
+  separately, as described above.

@@ -78,4 +78,6 @@ time, with no special mode or coordination needed.
 
 To help users migrate existing input files, and to serve as a Python coding example, PTS will
 be extended with functions and commands to convert the file types discussed above to
-their corresponding HDF5 bundle form.
+their corresponding HDF5 bundle form. This includes files in the binary `scol` format, which
+SKIRT 10 no longer supports (see the SKIRT 10 [Incompatibilities](skirt-10/04-incompatibilities.md)
+chapter).

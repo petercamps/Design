@@ -104,7 +104,10 @@ appear to distinguish primary from secondary contributions the way the `rf_prima
   (`meanIntensity()` presumably sums over both) is examined more closely.
 
 The wavelength grid itself (`rf_wavelength`/`rf_width`) does not need a new getter:
-`Configuration::radiationFieldWLG()` is already public and should be sufficient.
+`Configuration::radiationFieldWLG()` is already public and should be sufficient. Nor do the
+dust-absorbed luminosities: the function `MediumSystem::dustAbsorbedLuminosity(bool primary)`,
+proposed in the Dust self-absorption design note for the rebalancer, returns the `_labs1` or
+`_labs2` array.
 
 **Recorded fluxes.** The largest gap of the five. `FluxRecorder`'s public API is entirely
 configuration (`setWavelengthGrid()`, `setUserFlags()`, `includeLightCurve()`, ...) and
@@ -213,8 +216,10 @@ packet by packet over the course of the run. On resume, that same storage needs 
 pre-loaded from the checkpoint's `rf_primary`/`rf_secondary` datasets before the run continues, so
 that further packets accumulate on top of the resumed values rather than starting over — the
 whole reason those datasets are stored raw and undivided (see Radiation field in the Data
-model chapter). Like Medium state, this is internal to `MediumSystem`'s own setup, not a new
-public API.
+model chapter). The dust-absorbed luminosity arrays `_labs1` and `_labs2` are pre-loaded from
+`rf_dust_absorbed_primary`/`rf_dust_absorbed_secondary` in the same way, so that the next secondary
+emission, and the partition of the rebalancer, start from the values of the original run. Like
+Medium state, this is internal to `MediumSystem`'s own setup, not a new public API.
 
 ### Recorded fluxes
 

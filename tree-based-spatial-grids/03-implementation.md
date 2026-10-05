@@ -62,8 +62,8 @@ outright, matching the "more than one site" rule. Exactly one overlap means it n
 subdividing only if its level is still less than that isolation box's own level plus
 `numExtraLevels`. No overlaps means this policy has nothing to say about the node.
 
-`TopologyTreePolicy` parses the recorded topology file — unchanged, still the depth-first
-sequence of subdivision flags written by `TreeSpatialGridTopologyProbe` — at setup into a
+`TopologyTreePolicy` parses the recorded topology file — the depth-first sequence of
+subdivision flags written by `TreeSpatialGridTopologyProbe`, in the same format as today — at setup into a
 small in-memory tree that mirrors it. Given a node's box and level, the per-node test
 descends the parsed tree from its root, `level` times, choosing at each step the child
 whose sub-box contains the query box's center. The domain extent and splitting convention

@@ -190,6 +190,15 @@ the configured radiation-field wavelength grid. This part is present only if the
 simulation has a radiation field; `rf_secondary` is present only if the simulation
 also has a secondary radiation field.
 
+In a simulation with dust emission, the part also holds the luminosity absorbed by the dust in
+each cell, from primary and, if applicable, secondary sources. These are the `_labs1` and `_labs2`
+arrays of the medium system proposed in the
+[Dust self-absorption](dust-self-absorption/01-introduction.md) design note, accumulated from the
+dust absorption opacity at each photon packet's exact wavelength. They cannot be recalculated from
+the binned radiation field, and the dust emission is normalized to them. After a rebalanced
+iteration, `rf_secondary` and `rf_dust_absorbed_secondary` hold the rebalanced values, as the
+medium system does.
+
 The stored values are the raw, unnormalized quantity SKIRT accumulates per photon packet,
 i.e. `L·Δs`, the packet's luminosity times its path length through the cell, summed over
 every packet contributing to the bin. To reproduce the mean intensity `J_λ` reported by
@@ -212,11 +221,14 @@ primary and a secondary radiation field:
 | `rf_width` | (W) | 64-bit float | `description = "effective width of the bin"`, `quantity = "wavelength"`, `unit = "m"` |
 | `rf_primary` | (M, W) | 64-bit float | `description = "radiation field accumulated from primary sources"`, `unit = "W m"` |
 | `rf_secondary` | (M, W) | 64-bit float | `description = "radiation field accumulated from secondary sources"`, `unit = "W m"` |
+| `rf_dust_absorbed_primary` | (M) | 64-bit float | `description = "luminosity absorbed by dust from primary sources"`, `quantity = "bolluminosity"`, `unit = "W"` |
+| `rf_dust_absorbed_secondary` | (M) | 64-bit float | `description = "luminosity absorbed by dust from secondary sources"`, `quantity = "bolluminosity"`, `unit = "W"` |
 
 `rf_primary` and `rf_secondary` carry no `quantity` attribute, since this raw, unnormalized form
 has no established SKIRT quantity-type identifier — it is never otherwise exposed outside
 `MediumSystem`. Their `unit` attribute is set directly to `W m` (power times length), the
-dimension of `L·Δs` in the formula above.
+dimension of `L·Δs` in the formula above. `rf_dust_absorbed_primary` is present if the simulation
+has dust emission, and `rf_dust_absorbed_secondary` if it also has a secondary radiation field.
 
 ## Recorded fluxes
 

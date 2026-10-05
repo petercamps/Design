@@ -99,7 +99,10 @@ as one policy among others rather than a separate spatial grid class. When confi
 the sole policy, it operates as before — assuming that the `minLevel`..`maxLevel` range
 is sufficiently wide. It is now possible, however, to refine a previously recorded grid
 by configuring other policies alongside it. Note that the `TreeSpatialGridTopologyProbe`
-output remains unchanged; only its implementation is adjusted to the new tree classes.
+output keeps its format, the same sequence of values, so that existing topology files remain
+usable; only its implementation is adjusted to the new tree classes. The
+[HDF5 output](hdf5-output/04-implementation.md) design note adds a column information line to
+the header of the file, which readers that skip header lines ignore.
 
 The following new policies are added right away; others can be devised in the future.
 
