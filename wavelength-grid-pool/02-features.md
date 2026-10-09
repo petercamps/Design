@@ -31,13 +31,15 @@ WLG, so that any WLG can still be configured directly instead. The default grid 
 by its name like any other pool grid.
 
 During setup, the pool reports a fatal error for duplicate names and for a default name that does
-not occur in the list, and a reference reports a fatal error for an unknown name.
+not occur in the list, and a reference reports a fatal error for an unknown name and for a location
+inside the pool.
 
 ## Default grid
 
 The pool replaces the DIWLG of the instrument system. An instrument or probe without a WLG of its
 own uses the pool grid named by `defaultGridName`. If this property is empty, there is no default,
-and each instrument and probe must configure a WLG.
+and each instrument and probe must configure a WLG. The property is empty by default, so that a user
+who does not select a default grid gets none.
 
 ## Scope and placement
 
@@ -47,14 +49,17 @@ distributions require a WLG with non-overlapping bins, a constraint that a gener
 guarantee. The pool is therefore a property of the `MonteCarloSimulation`, placed just before the
 instrument system.
 
-Like the DIWLG today, the pool is relevant only in panchromatic simulations.
+Like the DIWLG today, the pool is relevant only in panchromatic simulations. Unlike the DIWLG, the
+pool is offered only from the Regular user level on. At the Basic level, each instrument and probe
+configures a WLG of its own, so that the simplest configurations involve no names and references.
 
 ## Effect on the problems
 
 The pool solves problem 1: several grids can be defined once and referenced from any number of
-instruments. By itself, it does not change problem 2, because probes still fall back on the default
-grid. However, a user can opt to define and reference pool WLGs without assigning a default WLG,
-avoiding the silent fallback.
+instruments. At the Basic level, problem 2 does not occur, because there is no pool and each probe
+requires a WLG of its own. At the higher levels, the pool by itself does not change problem 2,
+because probes still fall back on the default grid. However, a user can opt to define and reference
+pool WLGs without assigning a default WLG, avoiding the silent fallback.
 
 ## Compatibility
 

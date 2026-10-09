@@ -12,10 +12,13 @@ The `FullInstrument` is removed. It can be replaced by an `SEDInstrument` and a
 code because each instrument now has a well-defined aperture (a `FullInstrument`'s
 aperture was ambiguous).
 
-The performance cost of handling two separate instruments is minimal. When instruments
-with the same line of sight are placed consecutively in the ski file, the same peel-off
-photon packet is sent to all of these instruments, so the extinction along that line of
-sight is calculated only once.
+The performance cost of handling two separate instruments is negligeable. SKIRT 10 groups the
+instruments that share a line of sight, regardless of their order in the ski file, and sends
+a single peel-off photon packet to each group, so the extinction along that line of sight is
+calculated only once. For distant instruments, the distance does not matter, and the roll
+angle matters only if one of the instruments records polarization. In a test with three lines
+of sight, after replacing each `FullInstrument` by an `SEDInstrument` and a `FrameInstrument`,
+SKIRT 10 is slightly faster than SKIRT 9, in whatever order the instruments are listed.
 
 ### Tree-based spatial grids
 
@@ -33,6 +36,10 @@ instrument system. The pool also designates the default grid, which replaces the
 that configure a default instrument wavelength grid, but the upgrade is mechanical: the grid
 moves into the pool under a name, and the pool's `defaultGridName` property is set to that name.
 
+The pool is offered only from the Regular user level on. At the Basic level, each instrument
+and probe configures its own wavelength grid. Existing ski files at the Basic level keep
+working after the upgrade, because SKIRT reads the pool from a ski file at any user level.
+
 ### Resonant scattering options
 
 SKIRT offers a simulation mode and some options specifically intended for use by the
@@ -47,11 +54,12 @@ either of the material mixes mentioned above, the upgrade is a trivial rename:
 | --- | --- | --- |
 | Simulation mode | `LyaExtinctionOnly` | `ResonanceExtinction` |
 | Option block | `LyaOptions` | `ResonanceOptions` |
+| Property of `MediumSystem` | `lyaOptions` | `resonanceOptions` |
 | Property | `lyaAccelerationScheme` | `accelerationScheme` |
 | Enumeration | `LyaAccelerationScheme` | `AccelerationScheme` |
 | Property | `lyaAccelerationStrength` | `accelerationStrength` |
 
-The related configuration setup messages will be adjusted accordingly.
+The related configuration setup messages refer to resonant line scattering accordingly.
 
 ### Dust self-absorption
 
@@ -112,7 +120,9 @@ all data to all MPI processes.
 The PTS function/command that upgrades ski files to the most recent version is extended
 to perform the transformations corresponding to the changes in SKIRT 10 described above:
 
-- Replace each `FullInstrument` by consecutive `SED`- and `FrameInstrument`s.
+- Replace each `FullInstrument` by an `SEDInstrument` (without an aperture) followed by a
+  `FrameInstrument`, both with the same name and line of sight, and each with a copy of any
+  instrument-specific wavelength grid.
 
 - Replace `FileTreeSpatialGrid` by `OctTreeSpatialGrid` with the `TopologyTreePolicy`
   policy and a very wide `minLevel`..`maxLevel` range. Because `FileTreeSpatialGrid`
@@ -136,7 +146,8 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
   `WavelengthGridPool` placed just before the instrument system, as a named grid called
   `default`, and set the pool's `defaultGridName` property to `default`.
 
-- Rename Lya simulation modes and options as proposed above.
+- Rename the Lyman-alpha simulation mode, option block, and options as listed above,
+  including the `lyaOptions` property of the `MediumSystem`.
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.

@@ -52,10 +52,9 @@ up at the new, unrelated SKIRT-10-era toolkit, with no automatic way back to `Le
 ## Versioning
 
 `SKIRT` and `PTS` currently have no version-tagging practice at all: no git tags, no
-GitHub releases, and the human-readable version string printed at startup
-(`BuildInfo::projectVersion()`, currently `"v9.0"`) was hand-set once, in January 2019,
-and never touched since, despite hundreds of substantive changes recorded in the Recent
-Changes list. This proposal adopts
+GitHub releases, and the human-readable version string printed at startup was hand-set
+once, in January 2019, and never touched since, despite hundreds of substantive changes
+recorded in the Recent Changes list. This proposal adopts
 [Semantic Versioning 2.0.0](https://semver.org) (`MAJOR.MINOR.PATCH`), the de facto
 standard for citable software version numbers: `MAJOR` increases for incompatible
 changes — a ski file that can no longer be auto-upgraded, or a removed feature — `MINOR`
@@ -64,14 +63,21 @@ This also settles, mechanically, whether a given change belongs in the next mino
 release or has to wait for the next major one.
 
 Each release is marked with a git tag (`v10.0.0`, `v10.1.0`, ...) on the appropriate
-branch (see Workflow, below). The build already computes a git-derived identifier via
-`git describe --dirty --always` (in `SMILE/build/CMakeLists.txt`); with actual tags to
-describe, this starts producing a real version string — `v10.1.0` for an exact release,
-or `v10.1.0-5-gabc1234` a few commits past one — instead of always falling back to a
-bare commit hash. The separate, hand-maintained `PROJECT_VERSION` constant in
-`SMILE/build/Version.cmake` is dropped in favor of deriving `BuildInfo::projectVersion()`
-from this same tag, so the two pieces can no longer drift apart the way they have since
-2019.
+branch (see Workflow, below). The build derives the version information from these tags
+(`SMILE/build/Version.cmake`), considering only release tags — the letter `v` followed by a
+digit — and both annotated and lightweight tags, since GitHub releases create the latter:
+
+- `BuildInfo::projectVersion()` returns the most recent release tag reachable from the
+  commit being built, e.g. `v10.1.0`, or `unversioned` if there is no such tag.
+- `BuildInfo::codeVersion()` returns the output of `git describe`: `v10.1.0` for an exact
+  release, `v10.1.0-5-gabc1234` a few commits past one, or a bare commit hash if there is
+  no release tag, with the suffix `-dirty` if there are uncommitted changes.
+
+The separate, hand-maintained `PROJECT_VERSION` constant that `SMILE/build/Version.cmake`
+used to hold is dropped, so the two pieces can no longer drift apart the way they have since
+2019. Both values are computed at build time, so a new tag shows up at the next build without
+reconfiguring. A pre-release tag such as `v10.0.0-beta` counts as a release tag too, which
+allows labeling a beta before the first release.
 
 `PTS` is versioned in lockstep with `SKIRT` on `MAJOR.MINOR`, but not on `PATCH`. Every
 SKIRT minor or major release aligns PTS to the same `MAJOR.MINOR`, but each repository

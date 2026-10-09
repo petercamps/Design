@@ -37,11 +37,12 @@ available, because the photon packet wavelength changes in Compton scattering.
 
 **Viewing directions.** XARS records escaping photons in sky bins, so that a single simulation
 yields spectra for all directions. SKIRT records the flux for a limited set of instruments through
-peel-off, with a cost per interaction that grows with the number of instruments. The spectra for
-bins of similar line-of-sight column density can be obtained by grouping the spectra of many
-instruments, but the number of directions needed to sample the column density distribution, and
-the resulting cost, must be determined. The line-of-sight column density of each direction can be
-calculated from the geometry.
+peel-off, with a cost per interaction that grows with the number of lines of sight (instruments with
+the same line of sight share a single peel-off photon packet). The spectra for bins of similar
+line-of-sight column density can be obtained by grouping the spectra of many instruments, but the
+number of directions needed to sample the column density distribution, and the resulting cost, must
+be determined. The line-of-sight column density of each direction can be calculated from the
+geometry.
 
 **Energy range and resolution.** A resolution of 0.5 eV over the XRISM/Resolve band, roughly 0.3 to
 12 keV, amounts to more than 20 000 bins. The Compton hump near 20 keV and data from hard X-ray

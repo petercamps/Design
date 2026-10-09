@@ -76,12 +76,18 @@ CMake release cannot silently change build behavior. `3.18` is a reasonably mode
 floor, comfortably available across current package managers and HPC module systems by
 the time SKIRT 10 is released.
 
-**Link-time optimization.** SKIRT gains a `BUILD_WITH_LTO` option (proposed default: on),
-letting the compiler optimize across `.cpp` file boundaries at link time. Measured with
-Apple Clang 17, run time is roughly 2–4% lower, and the link step takes about 5 s instead
-of 1 s. Not yet tested with other compilers/operating systems. CMake's
+**Link-time optimization.** SKIRT gains a `BUILD_WITH_LTO` option (default: on), letting
+the compiler optimize across `.cpp` file boundaries at link time. CMake's
 `INTERPROCEDURAL_OPTIMIZATION` target property drives this feature, applied only to
-`Release` builds, and only if the compiler and linker actually support it.
+`Release` builds, and only if CMake's `check_ipo_supported` probe confirms that the compiler
+and linker support it. This covers GCC and Clang on Linux (Clang needs `llvm-ar`), Apple
+Clang on macOS, and MSVC on Windows. GCC on macOS is excluded: without a linker plugin, it
+applies link-time optimization only to the object files on the link line, and not to the
+members of SKIRT's static libraries. Measured with GCC on Linux, link-time optimization makes
+setup 3–6% faster and the photon packet phases 1–3% faster. The cost is a longer link step,
+which every incremental rebuild repeats: about 7 s with Apple Clang on a Mac and
+10 s with GCC on Linux, against about 1 s without link-time optimization. A build tree
+meant for quick edit-build cycles can therefore turn the option off.
 
 ## HDF5
 

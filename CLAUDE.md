@@ -54,7 +54,7 @@ into Doxygen-format pages for the SKIRT website (Doxygen has native Markdown sup
 ## Local preview
 
 ```bash
-cd /Users/pcamps/SKIRT/HDF5design
+cd /Users/pcamps/SKIRT/Design
 docsify serve .
 ```
 
