@@ -27,6 +27,18 @@ feature set and improved performance. Unfortunately, this invalidates all existi
 files that configure an octree or binary tree spatial grid. The [Tree-based spatial
 grids](tree-based-spatial-grids/01-introduction.md) design note describes this in detail.
 
+The upgraded ski files produce the same grids as before, with three exceptions. Grids loaded
+from a recorded topology or constructed from a site list contain the same cells as before, but
+SKIRT 9 numbered their cells depth-first, while SKIRT 10 numbers the cells of every tree grid
+level by level. Per-cell data written by SKIRT 9 for such a grid thus does not match the cell
+order of the SKIRT 10 grid. Grids with a `NestedDensityTreePolicy` that relies on different
+level ranges in different regions cannot be reproduced, because the new policies have no levels
+of their own (see the upgrade below). And grids for a material type with several medium
+components, some of which offer an exact calculation of the mass in a box while others do not,
+differ slightly: the new policies calculate the amount exactly for each component that offers
+it, while the old policy sampled all components of that material type as soon as one of them
+lacked this capability.
+
 ### Default instrument wavelength grid
 
 The [Wavelength grid pool](wavelength-grid-pool/01-introduction.md) design note proposes a pool of
@@ -125,22 +137,36 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
   instrument-specific wavelength grid.
 
 - Replace `FileTreeSpatialGrid` by `OctTreeSpatialGrid` with the `TopologyTreePolicy`
-  policy and a very wide `minLevel`..`maxLevel` range. Because `FileTreeSpatialGrid`
-  reads the tree type from file, this upgrade will be incorrect for a binary tree.
+  policy and a very wide `minLevel`..`maxLevel` range (0 to 99, the largest allowed value).
+  Because `FileTreeSpatialGrid` reads the tree type from file, this upgrade will be incorrect
+  for a binary tree. In that case, the `TopologyTreePolicy` reports an error during setup
+  asking for a `BinTreeSpatialGrid`, and the user changes the grid type by hand.
 
 - Replace `PolicyTreeSpatialGrid` by `OctTreeSpatialGrid` or `BinTreeSpatialGrid`
-  depending on the configured tree type, and replace the configured policy as follows:
+  depending on the configured tree type, move the `minLevel` and `maxLevel` properties from the
+  policy to the grid, and replace the configured policy (a `DensityTreePolicy` if the grid has
+  no policy element) as follows:
 
   - `DensityTreePolicy` becomes one policy for each configured criterion: a
     `DensityTreePolicy` for each of `maxDustFraction`, `maxElectronFraction`, and
     `maxGasFraction`, an `OpticalDepthTreePolicy` for `maxDustOpticalDepth`, and a
     `DispersionTreePolicy` for `maxDustDensityDispersion`, each with the corresponding
-    `materialType`.
+    `materialType`. Only the criteria that are enabled (nonzero, taking into account the old
+    default values) and that apply to a material type present in the simulation are retained,
+    because the new policies report an error for an absent material type, while the old policy
+    ignored the corresponding criteria. A material type is present if the ski file has a
+    material mix (or mix family) of that type, which is derived from the name of the mix. The
+    new policies are listed in the order in which the old policy evaluated the criteria.
 
-  - `NestedDensityTreePolicy` becomes one or more `BoxTreePolicy` plus the same policies,
-    again depending on the configured criteria.
+  - `NestedDensityTreePolicy` contributes the policies for its own criteria, as for a
+    `DensityTreePolicy`, followed by those for the criteria of its inner policy, each wrapped in
+    a `BoxTreePolicy` for the inner box, recursively for a nested inner policy. The grid gets the
+    `minLevel` of the outer policy and the largest of the `maxLevel` values (taking the default
+    values into account). The other level ranges are lost, and the outer criteria now also apply
+    inside the box, while the old policy used only the inner criteria there.
 
-  - `SiteListTreePolicy` retains the same name.
+  - `SiteListTreePolicy` retains the same name and its `numExtraLevels` property; without a file
+    name, it uses the sites offered by the media as before.
 
 - Move the `defaultWavelengthGrid` of the `InstrumentSystem`, if present, into a new
   `WavelengthGridPool` placed just before the instrument system, as a named grid called

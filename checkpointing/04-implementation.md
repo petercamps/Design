@@ -162,8 +162,8 @@ setup to check for a resume first and, if one applies, load positions from the c
 positions from a file. The tessellation itself runs as before.
 
 Tree grids are restored rather than constructed. Normally, `TreeSpatialGrid` builds the tree level
-by level with pointer-based nodes, evaluating the configured policies, and then converts it to
-the flat node array used for path segment generation (see the
+by level in a list of index-linked nodes, evaluating the configured policies, and then copies it
+into the flat node array used for path segment generation (see the
 [Tree-based spatial grids](tree-based-spatial-grids/03-implementation.md) note). On resume, the
 grid skips this construction, so that no policy is evaluated and no density is sampled, and
 establishes the flat array directly from the checkpoint's `grid_first_child` and
@@ -171,7 +171,7 @@ establishes the flat array directly from the checkpoint's `grid_first_child` and
 
 - The nodes are created in id order. Because the children of a node always come after it, the
   extent of each node follows from the extent of its parent and the splitting convention of the
-  tree type, starting from the domain extent for the root.
+  tree type (the grid's `childExtent()` function), starting from the domain extent for the root.
 - The cell index of each leaf, and thus the cell-to-node map, is taken from the checkpoint rather
   than recalculated, because after dynamic grid refinement the cell indices no longer follow the
   node order. This keeps the cell indices consistent with the per-cell data in the other parts.
