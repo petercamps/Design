@@ -25,9 +25,9 @@ The nodes are small value objects that refer to each other by index from the sta
 no pointer-based nodes. During construction they are appended to a `std::deque`, which never
 moves its existing elements, so that a reference to a parent node remains valid while its
 children are appended. Once construction finishes, the nodes are copied into the flat array
-that `BinTreeSpatialGrid` and `OctTreeSpatialGrid` use for path segment generation (see
-below), and the subclass establishes the neighbor links for every node in a single top-down
-pass over the now-complete tree. The leaf nodes are numbered as cells in array order, i.e. level
+that `TreeSpatialGrid` uses for path segment generation (see below), and the subclass
+(`BinTreeSpatialGrid` or `OctTreeSpatialGrid`) establishes the neighbor links for every node in
+a single top-down pass over the now-complete tree. The leaf nodes are numbered as cells in array order, i.e. level
 by level. Node and cell indices are 32-bit integers; setup reports a fatal error if the tree
 grows beyond that range.
 
@@ -143,30 +143,62 @@ kernel of each particle weighted by its temperature.
 
 ## Path segment generation
 
-`BinTreeSpatialGrid` stores its tree as a flat array of small, fixed-size nodes that
+`TreeSpatialGrid` stores its tree as a flat array of small, fixed-size nodes that
 refer to each other by index rather than by pointer, avoiding pointer chasing and virtual
 function calls. Each node holds its own extent, its cell index, the index of its first
-child (the second child is stored consecutively), and the index of its neighbor across
+child (the other children follow it consecutively), and the index of its neighbor across
 each of its six walls. This data structure is established once, for the whole tree,
 before actual path segment generation begins.
 
 The path segment generator follows the neighbor links directly when a path crosses a
 wall, descending into the neighbor only if it still has children of its own. A top-down
-search from the root is needed only to locate a path's first cell, and as a fallback for
-the rare case where rounding error leaves a neighbor link inconsistent. Per-path
+search from the root is needed only to locate a path's first cell when that cell is not
+known (see below), and as a fallback for the rare case where rounding error leaves a
+neighbor link inconsistent. Per-path
 quantities — the reciprocal of each direction component, and which wall it can cross —
 are computed once rather than for each step, and the handful of nodes a path could move
 to next are prefetched while the current step is still being finished.
 
-A node occupies 88 bytes: the coordinates of its six walls, the index of its neighbor across
+A node stores the coordinates of its six walls, the index of its neighbor across
 each wall, the index of its first child, its cell index, its level, and (for a binary tree) the
 axis perpendicular to its splitting plane, which alternates between x, y, and z with the level.
 The neighbor across a wall is the node at the same level that touches the wall, if there is one,
-and otherwise the leaf node at a lower level that covers the other side of the wall. A position
-on a splitting plane is assigned to the child on the upper side. The prefetch requests use a small
-header-only `Prefetch` namespace in the `utils` target, which wraps the compiler's builtin
+and otherwise the leaf node at a lower level that covers the other side of the wall. The
+prefetch requests use a small header-only `Prefetch` namespace which wraps the compiler's builtin
 prefetch function (available for GCC, Clang, and compatible compilers, and a no-op otherwise).
-This is a deliberate exception to the rule that system-dependent code belongs in the `System`
-class, because the functions must be inlined at the call site to be useful.
 
-`OctTreeSpatialGrid` follows the same approach, adapted to eight children per node.
+The path segment generator, the top-down search, and the search across a wall are the same
+for both tree types, except for the rule that selects the child of a node containing a given
+position: the lower or upper side of the splitting plane for a binary tree, and one of the
+eight octants for an octree. They are therefore written once, in `TreeSpatialGrid`, as
+templates on that rule, and `TreeSpatialGrid` chooses the instantiation from the number of
+children per node. Selecting a child thus remains inlined in the inner loop of the generator,
+while `BinTreeSpatialGrid` and `OctTreeSpatialGrid` keep only the subdivision rule and the
+neighbor links.
+
+## Known initial cell
+
+Most paths start at a position whose cell is already known. After an interaction, the photon
+packet's next path and the peel-off paths for the scattering event start at the interaction
+point, which lies in the cell of the path segment in which the interaction took place, and a
+secondary source launches its photon packets from a position drawn in a given cell.
+
+A `SpatialGridPath` therefore holds the index of the cell containing its initial position, or
+-1 if this cell is unknown. Any change of the initial position resets it, so that a stale index
+cannot survive. The photon life cycle sets it when it propagates a photon packet to its
+interaction point (`PhotonPacket::propagateToInteractionPoint()`), the peel-off launches copy
+it from the base photon packet, and the secondary sources set it after launching a photon
+packet from a cell. For a path with a known cell, `PathSegmentGenerator::start()` enters the
+new `KnownCell` state rather than the `Unknown` state.
+
+The interaction point is calculated with rounding errors, so it may lie just across a wall of
+the cell in which the interaction took place, or on the boundary of the domain. A generator
+therefore uses the known cell only if the initial position lies inside that cell, farther than
+a small margin from each of its walls, and otherwise searches for the first cell as usual.
+The test itself has no measurable cost.
+
+The known cell is used by the grids whose search for the first cell is costly: the binary tree
+and octree grids, the Voronoi, tetrahedral, and adaptive mesh grids, and the clumpy spherical
+grid for a path that starts in a clump. The other grids (Cartesian, cylindrical, and spherical)
+locate the first cell with a few binary searches, which is cheap compared to the steps of a path,
+and treat a known cell like an unknown one.

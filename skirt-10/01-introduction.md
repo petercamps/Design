@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: draft
+> Status: draft, partially implemented
 >
 > Depends on: none
 

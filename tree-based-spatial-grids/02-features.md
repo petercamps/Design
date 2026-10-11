@@ -10,10 +10,7 @@
 
 - **Probe**: `TreeSpatialGridTopologyProbe`
 
-- **Support**: `MediumSystem` (component lists per material type), `CellGeometry` and
-  `CellMedium` (new `CellMeshInterface`), `CellSnapshot` (cell lookup), `TextInFile` (reading
-  without declared columns), `SpinFlipAbsorptionMix` and `XRayIonicGasMixFamily` (inserting
-  `GasMix`); new helpers `TreeNodeEvaluation` and the `Prefetch` namespace
+- **Support**: various changes to supporting classes and a few new ones
 
 ## Grid classes
 
@@ -48,8 +45,10 @@ created. The cell numbering therefore depends only on the tree structure, not on
 that produced it (see the tree topology policy below).
 
 `BinTreeSpatialGrid` and `OctTreeSpatialGrid` implement the features specific to each
-tree type, including path segment generation. The respective node classes (previously
-`BinTreeNode` and `OctTreeNode`) are inlined in each implementation.
+tree type: how a node is split into children, which child contains a given position, and
+how the neighbor links between the nodes are established. `TreeSpatialGrid` holds the
+nodes, replacing the node classes (previously `BinTreeNode` and `OctTreeNode`), and
+implements the path segment generation for both tree types.
 
 ## Policy classes
 
