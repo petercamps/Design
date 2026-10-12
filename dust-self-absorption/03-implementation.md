@@ -77,8 +77,9 @@ For each segment, the function calculates the luminosity times path length `Lds`
 from the extinction at the start and end of the segment. It adds `Lds` to the radiation field bin,
 if the packet's wavelength lies within the radiation field wavelength grid, and adds `kabs * Lds` to
 the absorbed luminosity of the cell, whether or not it lies within the grid, where `kabs` is the
-dust absorption opacity of the cell at the packet's wavelength. The branch without kinematics
-becomes:
+dust absorption opacity of the cell at the packet's wavelength. If the wavelength lies outside the
+grid, it also adds the absorbed luminosity to a sum for the path (see Absorption outside the grid,
+below). The branch without kinematics becomes:
 
 ```cpp
 double luminosity = pp->luminosity();
@@ -89,6 +90,7 @@ if (ell < 0 && !dust.active()) return;
 if (tally && pp->numScatt() == 0) tally.launch(luminosity);
 double lnExtBeg = 0.;
 double extBeg = 1.;
+double LabsOutside = 0.;
 for (const auto& segment : pp->segments())
 {
     double lnExtEnd = -segment.tauExt();
@@ -102,12 +104,14 @@ for (const auto& segment : pp->segments())
         {
             double Labs = dust.opacity(m) * Lds;
             LockFree::add(primary ? _labs1[m] : _labs2c[m], Labs);
+            if (ell < 0) LabsOutside += Labs;
             if (tally) tally.absorb(m, Labs);
         }
     }
     lnExtBeg = lnExtEnd;
     extBeg = extEnd;
 }
+if (LabsOutside > 0.) LockFree::add(primary ? _labsOutside1 : _labsOutside2c, LabsOutside);
 if (tally) tally.escape(luminosity * extBeg);
 ```
 
@@ -165,6 +169,37 @@ because the wavelength changes from segment to segment.
 - `meanIntensity()`, `dustEmissionSpectrum()`, the indicative temperatures, the cell libraries, the
   dynamic medium state updates, and the probes of the radiation field are not changed. They keep
   using the binned radiation field, for its spectral shape.
+
+### Absorption outside the grid
+
+`MediumSystem` keeps two scalars next to the absorbed luminosity arrays. `_labsOutside1` and
+`_labsOutside2c` hold the part of the luminosity in `_labs1` and `_labs2c` that was absorbed at
+wavelengths outside the radiation field wavelength grid, summed over all cells. They are cleared
+together with the corresponding array, and accumulated once per path, as shown above, so that the
+threads do not contend for them in the loop over the segments. With kinematics, the radiation
+field bin is determined for each segment, so that only part of the segments of a path may
+contribute. The cost is one comparison per segment.
+
+In `communicateRadiationField()`, after summing the scalar over the processes, the medium system
+divides it by the sum of the corresponding array and keeps the resulting fraction. This happens
+before the rebalancer rescales the stable secondary array. A new function returns the fraction:
+
+```cpp
+/** Returns the fraction of the dust-absorbed luminosity of the most recent primary or secondary
+    emission segment that was absorbed at wavelengths outside the radiation field wavelength grid,
+    or zero if no luminosity was absorbed. */
+double dustAbsorbedFractionOutsideGrid(bool primary) const;
+```
+
+`MonteCarloSimulation` reports the fraction after each emission segment of a simulation with dust
+emission, through a private helper function. The function logs the fraction, records it in the
+iteration history if it is called from an iteration loop, and issues the message as a warning if
+the fraction exceeds 1%. In an iteration loop, the warning is issued only if the previous value of
+the history series is missing or did not exceed the threshold, so that it is not repeated in every
+iteration.
+
+The scalars and the fraction serve only until the fraction has been reported at the end of the
+segment, so they are not stored in a checkpoint.
 
 ### Dynamic grid refinement
 
@@ -226,7 +261,7 @@ densities of the dust components times the cell volume.
    smallest and largest coordinate, which costs one pass over the cells, rather than from sorting
    the cells. If all coordinates on an axis are equal, all cells go to the first bin of that axis,
    avoiding a division by a zero range.
-4. The region index is `iu * numHeatingBins + iv`. Regions that hold no cell are dropped, and the
+4. The region index is `iu * numHeatingRateBins + iv`. Regions that hold no cell are dropped, and the
    remaining *K* regions are numbered consecutively. The result is stored in a `vector<int>` with
    one region index per cell.
 
@@ -462,6 +497,8 @@ file for the secondary or merged loop, one column per series and one row per ite
 | luminosity deficit | simulation | — | every iteration, if dust is the only secondary emission |
 | self-absorbed fraction | simulation | — | every iteration |
 | secondary change | simulation | — | from iteration *w* + 1 |
+| fraction of absorbed primary luminosity outside the radiation field grid | simulation | — | iterations that calculate the primary radiation field |
+| fraction of absorbed secondary luminosity outside the radiation field grid | simulation | — | every iteration |
 | number of regions | options | — | rebalanced iterations |
 | number of regions using the global factor | options | — | rebalanced iterations |
 | solve accepted (0 or 1) | options | — | rebalanced iterations |
@@ -473,7 +510,8 @@ file for the secondary or merged loop, one column per series and one row per ite
 
 The `DustAbsorbedLuminosity` id of the simulation's enumeration in the Iteration history design
 note is replaced by the ids `DustAbsorbedPrimary`, `DustAbsorbedSecondary`, `DustEmitted`,
-`LuminosityDeficit`, `SelfAbsorbedFraction`, and `SecondaryChange`.
+`LuminosityDeficit`, `SelfAbsorbedFraction`, `SecondaryChange`, `PrimaryOutsideGrid`, and
+`SecondaryOutsideGrid`.
 
 ## Changes to existing classes
 
@@ -505,14 +543,14 @@ PROPERTY_BOOL(rebalanceSecondaryEmission, "rebalance the secondary radiation fie
 ATTRIBUTE_DEFAULT_VALUE(rebalanceSecondaryEmission, "true")
 ATTRIBUTE_RELEVANT_IF(rebalanceSecondaryEmission, "IterateSecondary")
 
-PROPERTY_INT(numCoreBins, "the number of rebalance bins in the ratio of secondary to primary absorption")
-ATTRIBUTE_MIN_VALUE(numCoreBins, "1")
-ATTRIBUTE_MAX_VALUE(numCoreBins, "100")
-ATTRIBUTE_DEFAULT_VALUE(numCoreBins, "10")
-ATTRIBUTE_RELEVANT_IF(numCoreBins, "IterateSecondary&rebalanceSecondaryEmission")
-ATTRIBUTE_DISPLAYED_IF(numCoreBins, "Level3")
+PROPERTY_INT(numAbsorptionRatioBins, "the number of rebalance bins in the ratio of secondary to primary absorption")
+ATTRIBUTE_MIN_VALUE(numAbsorptionRatioBins, "1")
+ATTRIBUTE_MAX_VALUE(numAbsorptionRatioBins, "100")
+ATTRIBUTE_DEFAULT_VALUE(numAbsorptionRatioBins, "10")
+ATTRIBUTE_RELEVANT_IF(numAbsorptionRatioBins, "IterateSecondary&rebalanceSecondaryEmission")
+ATTRIBUTE_DISPLAYED_IF(numAbsorptionRatioBins, "Level3")
 
-// numHeatingBins: same attributes as numCoreBins
+// numHeatingRateBins: same attributes as numAbsorptionRatioBins
 ```
 
 The maximum of 100 bins per axis limits the transfer matrix to 10000 regions, or 800 MB per
@@ -527,10 +565,12 @@ emission and no gas emission, decides whether the rebalancer is created and the 
 absorbed luminosity arrays are added; `clearRadiationField()`, `communicateRadiationField()`,
 `totalDustAbsorbedLuminosity()`, and `dustLuminosity()` change as described; `clearRadiationField(true)`
 no longer clears the stable secondary table; and the functions `dustAbsorbedLuminosity()`,
-`hasRebalancer()`, `beginRebalance()`, and `endRebalance()` are added.
+`dustAbsorbedFractionOutsideGrid()`, `hasRebalancer()`, `beginRebalance()`, and `endRebalance()`
+are added.
 
 **MonteCarloSimulation.** `storeRadiationField()` is removed. The iteration loops and the
-convergence test change as described.
+convergence test change as described, and each emission segment reports the fraction of the dust
+absorption outside the radiation field wavelength grid.
 
 **PhotonPacket and DustSecondarySource.** The emission cell is added and set, as described.
 
@@ -578,7 +618,8 @@ New functional tests cover the cases that the experiments did not:
 - a compact, optically thick dusty sphere with a central source, which exercises the rebalance in
   seconds, once with separate secondary iterations and once with merged iterations;
 - the same sphere with a radiation field wavelength grid that does not cover the full source
-  spectrum, to verify that absorption outside the grid is counted;
+  spectrum, to verify that absorption outside the grid is counted, and that the reported fraction
+  and the warning are as expected;
 - the same sphere with a moving medium, to exercise the branch with kinematics;
 - a model with a material mix family and a model with aligned spheroidal grains, to exercise the
   variable cross sections;

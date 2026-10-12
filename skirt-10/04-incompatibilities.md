@@ -84,7 +84,7 @@ which affect existing ski files and simulation results as follows:
   absorbed primary luminosity. It is replaced by the new convergence criteria
   `maxLuminosityDeficit` and `maxSecondaryChange`, evaluated over
   `numConvergenceIterations` iterations. The properties `rebalanceSecondaryEmission`,
-  `numCoreBins`, and `numHeatingBins` configure the new regional rebalance of the
+  `numAbsorptionRatioBins`, and `numHeatingRateBins` configure the new regional rebalance of the
   secondary radiation field, which is enabled by default.
 - The luminosity absorbed by dust is accumulated from the dust opacity at each photon
   packet's exact wavelength, rather than calculated from the binned radiation field. This

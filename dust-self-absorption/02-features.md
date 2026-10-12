@@ -29,7 +29,13 @@ modeling choice, so there is no reason to keep it.
   self-absorbing models changes accordingly.
 - **Absorption outside the grid.** Photon packets with a wavelength outside the radiation field
   wavelength grid are not recorded in the radiation field, but their absorption by dust is counted.
-  The emitted energy is therefore correct even if the grid misses part of the heating spectrum.
+  The emitted energy is therefore correct even if the grid misses part of the heating spectrum. The
+  shape of the emission spectrum is not, because it is calculated from the binned radiation field,
+  which lacks that part of the heating. After each emission segment, the simulation therefore logs
+  the fraction of the dust-absorbed luminosity that was absorbed at wavelengths outside the grid,
+  and issues a warning if that fraction exceeds 1%. A typical cause is a grid that covers the
+  primary emission only, in a simulation that iterates over dust emission: nearly all of the
+  absorbed secondary luminosity then lies outside the grid.
 - **Results.** The dust-absorbed luminosity and the dust emission change in every simulation with
   dust emission. For a 50-bin grid like the one above, the absorbed primary luminosity of a galaxy
   decreases by about 0.4%. For coarser grids, the change is larger. In strongly self-absorbing
@@ -114,7 +120,9 @@ in each iteration *n*:
 - the **self-absorbed fraction** *p(n) = Ls(n) / Le(n)*, the fraction of the dust emission that is
   reabsorbed by dust;
 - the **secondary change** *c(n) = |Ls(n) − Ls(n−w)| / (w Ls(n))*, the mean relative change of the
-  absorbed secondary luminosity per iteration over the last *w* iterations.
+  absorbed secondary luminosity per iteration over the last *w* iterations. This is the quantity
+  monitored by the current `maxFractionOfPrevious` criterion, averaged over *w* iterations instead
+  of taken from a single iteration.
 
 ### Criteria
 
@@ -132,12 +140,30 @@ Here *w* is the value of `numConvergenceIterations`. Averaging over several iter
 the Monte Carlo noise in both quantities, which is about 0.5% per iteration for the deficit of the
 COLIBRE galaxies with 31.6 million photon packets.
 
-The two conditions of the second criterion address different errors. The deficit measures whether
-the escaping luminosity, and hence the dust emission seen by an observer, is right. With the
-rebalance, the deficit drops below 1% within about 10–15 iterations, even for ID39321. The
-secondary change measures whether the distribution of the emission over the cells has settled. Even
-with the rebalance, the secondary change drops toward zero more slowly than the deficit, so that
-this condition is usually the last one to be met: the radiation trapped in the self-absorbing core
+Without the rebalance, the two conditions of the second criterion would be redundant. The emitted
+dust luminosity of an iteration is then the absorbed primary luminosity plus the absorbed secondary
+luminosity of the previous iteration, so that the deficit reduces to
+*δ(n) = (Ls(n) − Ls(n−1)) / Lp*, and its mean over the last *w* iterations to
+*(Ls(n) − Ls(n−w)) / (w Lp)*. This is the secondary change with the absorbed primary luminosity in
+the denominator instead of the absorbed secondary luminosity. In a strongly self-absorbing model,
+the absorbed secondary luminosity is many times the absorbed primary luminosity, so that the
+deficit is by far the stricter of the two, which is why the current criterion is misleading (see
+the Introduction).
+
+The rebalance removes this redundancy. It rescales the secondary radiation field after each
+iteration so that the energy budget closes for the transfer fractions measured in that iteration.
+The deficit then no longer measures the change between iterations: it compares the absorbed
+secondary luminosity of an iteration with the rescaled value of the previous one. It becomes small
+as soon as the rebalance predicts the energy budget of the next iteration well, even while the
+distribution of the emission over the cells is still changing. Only the secondary change still
+tells whether the solution has stopped changing.
+
+The two conditions thus address different errors. The deficit measures whether the escaping
+luminosity, and hence the dust emission seen by an observer, is right. With the rebalance, the
+deficit drops below 1% within about 10–15 iterations, even for ID39321. The secondary change
+measures whether the distribution of the emission over the cells has settled. Even with the
+rebalance, the secondary change drops toward zero more slowly than the deficit, so that this
+condition is usually the last one to be met: the radiation trapped in the self-absorbing core
 keeps building up for some time after the deficit has become small. This remaining build-up in the
 core affects the observed spectrum much less than it affects the absorbed secondary luminosity: two
 runs with 100 and 900 regions differed by 2.7% in absorbed secondary luminosity after 40
@@ -162,8 +188,8 @@ that remains. All of them are relevant only if the simulation iterates over seco
 | `maxSecondaryChange` | 0.005 | the maximum mean relative change per iteration of the absorbed secondary luminosity over the last `numConvergenceIterations` iterations |
 | `numConvergenceIterations` | 3 | the number of iterations over which the convergence quantities are averaged |
 | `rebalanceSecondaryEmission` | true | rescale the secondary radiation field per region after each iteration |
-| `numCoreBins` | 10 | the number of bins on the axis of the ratio of absorbed secondary to absorbed primary luminosity |
-| `numHeatingBins` | 10 | the number of bins on the axis of the absorbed luminosity per unit dust mass |
+| `numAbsorptionRatioBins` | 10 | the number of bins on the axis of the ratio of absorbed secondary to absorbed primary luminosity |
+| `numHeatingRateBins` | 10 | the number of bins on the axis of the absorbed luminosity per unit dust mass |
 
 The `rebalanceSecondaryEmission` property is displayed at the regular user level, and the numbers
 of bins are displayed at the expert level only. The numbers of bins are relevant only if the
@@ -175,7 +201,7 @@ rebalance is enabled.
 <DustEmissionOptions dustEmissionType="Stochastic" includeHeatingByCMB="false"
                      maxFractionOfPrimary="0.01" maxLuminosityDeficit="0.01"
                      maxSecondaryChange="0.005" numConvergenceIterations="3"
-                     rebalanceSecondaryEmission="true" numCoreBins="10" numHeatingBins="10"
+                     rebalanceSecondaryEmission="true" numAbsorptionRatioBins="10" numHeatingRateBins="10"
                      sourceWeight="1" wavelengthBias="0.5">
     <cellLibrary type="SpatialCellLibrary">
         <TemperatureWavelengthCellLibrary numTemperatures="100" numWavelengths="50"/>
@@ -188,7 +214,10 @@ rebalance is enabled.
 
 - The `maxFractionOfPrevious` property is removed. The PTS ski file upgrade removes it, and the new
   properties receive their default values. Its documentation already proved misleading: it compares
-  the change with the secondary luminosity, which can be many times the primary luminosity.
+  the change with the secondary luminosity, which can be many times the primary luminosity. The
+  `maxSecondaryChange` criterion monitors the same quantity, averaged over
+  `numConvergenceIterations` iterations, but it no longer suffices by itself: the luminosity
+  deficit criterion must be met as well.
 - Exact absorption changes the results of all simulations with dust emission (see above).
 - The rebalance and the new criteria change the number of iterations and the results of all
   simulations that iterate over secondary emission. For models that were run to convergence, the
@@ -216,6 +245,12 @@ rebalance. If the solve fails, the rebalance line says so and reports the global
 applied instead. As long as fewer than *w + 1* iterations have been performed, the lines with the
 means are replaced by a line stating the number of iterations still needed for the criterion to
 apply.
+
+Each emission segment of a simulation with dust emission, whether or not it is part of an
+iteration, also logs the fraction of the dust-absorbed luminosity that was absorbed at wavelengths
+outside the radiation field wavelength grid. If the fraction exceeds 1%, the message is issued as
+a warning that advises extending the grid. In an iteration loop, the warning is not repeated in
+subsequent iterations.
 
 ## Probing
 

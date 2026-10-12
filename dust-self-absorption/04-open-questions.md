@@ -21,6 +21,13 @@ which is the quantity users care about. This requires peel-off during the iterat
 does not perform, or a bolometric proxy such as the luminosity escaping from each region, which the
 escape tally of the rebalance provides. The proposal keeps the criteria global and simple.
 
+**Absorption outside the grid.** The warning for dust absorption at wavelengths outside the
+radiation field wavelength grid uses a threshold of 1%, which is a first guess: the error it
+signals is in the shape of the emission spectrum, and how that error scales with the fraction has
+not been measured. The report covers dust only, because only the dust absorption is accumulated
+along the paths. A check at setup that compares the wavelength range of the grid with the ranges
+of the sources would be simpler, but it cannot tell how much of the absorption is affected.
+
 **Gas emission.** The rebalance and the deficit criterion are disabled when the simulation also has
 gas emission, because the dust then also absorbs radiation from gas, which the transfer matrix does
 not describe and which the deficit would count as a shortfall. The tallies could be extended by
