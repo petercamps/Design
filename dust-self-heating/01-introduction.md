@@ -5,14 +5,19 @@
 > Depends on: [SKIRT 10](skirt-10/01-introduction.md),
 > [Iteration history](iteration-history/01-introduction.md)
 
+This note speaks of dust self-heating rather than dust self-absorption, the term used so far. The
+photon packets emitted by dust are attenuated by the dust they cross in every simulation, so that
+self-absorption is always taken into account in the observed emission. What the iterations add is
+the heating of the dust by the energy it absorbs from its own emission.
+
 ## Motivation
 
-In a simulation with dust emission, the dust absorbs part of its own emission. SKIRT handles this
-self-absorption by iterating over secondary emission: each iteration launches dust emission based
-on the radiation field of the previous iteration, and records a new secondary radiation field. This
-is a Λ-iteration. Its error shrinks per iteration by a factor close to the fraction of the dust
-emission that is reabsorbed by the dust. For a galaxy that reabsorbs 95% of its dust emission,
-each iteration removes only 5% of the remaining error.
+In a simulation with dust emission, the dust absorbs part of its own emission, and is heated by
+it. SKIRT calculates this self-heating by iterating over secondary emission: each iteration
+launches dust emission based on the radiation field of the previous iteration, and records a new
+secondary radiation field. This is a Λ-iteration. Its error shrinks per iteration by a factor
+close to the fraction of the dust emission that is reabsorbed by the dust. For a galaxy that
+reabsorbs 95% of its dust emission, each iteration removes only 5% of the remaining error.
 
 Such galaxies exist. The compact, dusty galaxies at redshift 4 in the COLIBRE simulations reach
 optical depths above 1000 in the V band. Runs of 158 of these galaxies needed 25 to 60 or more
@@ -103,11 +108,11 @@ library makes each iteration cheap, and the rebalance reduces the number of iter
 
 ## Overview
 
-- **[Features](dust-self-absorption/02-features.md)** describes the configuration, the behavior
+- **[Features](dust-self-heating/02-features.md)** describes the configuration, the behavior
   of the iteration loop, the logging and probing, and the incompatibilities, as seen by the user.
-- **[Implementation](dust-self-absorption/03-implementation.md)** describes the absorption tally,
+- **[Implementation](dust-self-heating/03-implementation.md)** describes the absorption tally,
   the rebalance, the convergence test, and the changes to existing classes.
-- **[Open questions](dust-self-absorption/04-open-questions.md)** collects the design decisions that
+- **[Open questions](dust-self-heating/04-open-questions.md)** collects the design decisions that
   need input and the relation to photoionization and to non-LTE line transfer.
 
 ## References

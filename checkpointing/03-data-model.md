@@ -193,7 +193,7 @@ also has a secondary radiation field.
 In a simulation with dust emission, the part also holds the luminosity absorbed by the dust in
 each cell, from primary and, if applicable, secondary sources. These are the `_labs1` and `_labs2`
 arrays of the medium system proposed in the
-[Dust self-absorption](dust-self-absorption/01-introduction.md) design note, accumulated from the
+[Dust self-heating](dust-self-heating/01-introduction.md) design note, accumulated from the
 dust absorption opacity at each photon packet's exact wavelength. They cannot be recalculated from
 the binned radiation field, and the dust emission is normalized to them. After a rebalanced
 iteration, `rf_secondary` and `rf_dust_absorbed_secondary` hold the rebalanced values, as the

@@ -73,9 +73,9 @@ either of the material mixes mentioned above, the upgrade is a trivial rename:
 
 The related configuration setup messages refer to resonant line scattering accordingly.
 
-### Dust self-absorption
+### Dust self-heating
 
-The [Dust self-absorption](dust-self-absorption/01-introduction.md) design note proposes
+The [Dust self-heating](dust-self-heating/01-introduction.md) design note proposes
 changes to the calculation of dust emission and to the secondary emission iterations,
 which affect existing ski files and simulation results as follows:
 
@@ -96,9 +96,9 @@ which affect existing ski files and simulation results as follows:
   iterate over secondary emission.
 - In simulations with merged primary and secondary emission iterations, the secondary
   radiation field is no longer discarded at the start of each iteration and before the
-  final secondary emission. Dust self-absorption is therefore taken into account in these
-  simulations, which increases the dust emission of models with substantial
-  self-absorption.
+  final secondary emission. Dust self-heating is therefore taken into account in these
+  simulations, which increases the dust emission of models that absorb a substantial part
+  of their own dust emission.
 
 ### Binary column format
 

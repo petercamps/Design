@@ -33,7 +33,7 @@ gas emission, because the dust then also absorbs radiation from gas, which the t
 not describe and which the deficit would count as a shortfall. The tallies could be extended by
 treating the dust absorption of gas emission like primary absorption, using the emission cell to
 tell the two apart, since gas-emitted packets have emission cell -1. Whether this is worth the
-effort depends on whether models with both strong dust self-absorption and gas emission arise.
+effort depends on whether models with both strong dust self-heating and gas emission arise.
 
 **Absorption by other media.** If other media absorb part of the dust emission, the converged
 deficit is not zero but equals the fraction of the dust emission absorbed by those media, relative
@@ -127,14 +127,14 @@ The points of contact, and how the proposal handles them, are:
 
 ### Possible techniques
 
-The regional rebalance works so well for dust because dust self-absorption is linear: the dust
+The regional rebalance works so well for dust because dust self-heating is linear: the dust
 opacity does not depend on the solution, so the transfer fractions measured in one iteration remain
 valid at the fixed point. Photoionization is nonlinear, because the opacity depends on the neutral
 fraction that is being solved for. What helps depends on the cause of the slow convergence:
 
 - **Diffuse ionizing radiation.** If recombination radiation that ionizes nearby gas is iterated
   explicitly, rather than treated with the on-the-spot approximation, that part of the problem is a
-  linear secondary emission loop like dust self-absorption, and the rebalance carries over almost
+  linear secondary emission loop like dust self-heating, and the rebalance carries over almost
   unchanged.
 - **Advancing ionization fronts.** Starting from a mostly neutral state, the radiation of each
   iteration is blocked at the first opaque layer, so a front advances only a limited depth per
@@ -178,7 +178,7 @@ photon packets or criteria averaged over several iterations.
 The `NonLTELineGasMix` calculates the level populations of selected atoms and molecules from the
 radiation field, and iterates over secondary emission to make the populations, the line emission,
 and the radiation field consistent. It is often combined with dust, and the two interact: the dust
-emission, including its self-absorption, sets the infrared and submillimeter radiation field that
+emission, including its self-heating, sets the infrared and submillimeter radiation field that
 excites many of the supported transitions. The dust proposal should not stand in the way of
 accelerating the line iterations later.
 
@@ -196,7 +196,7 @@ history.
 The mix offers no acceleration of the iterations. Its only lever is the initial state:
 `initialLevelPopsCase` selects LTE populations, the collisionally excited solution, or custom
 populations read from a file, for example written by a `CustomStateProbe` in a previous run. Like
-dust self-absorption, the transfer in optically thick lines is a Λ-iteration: a line photon is
+dust self-heating, the transfer in optically thick lines is a Λ-iteration: a line photon is
 reabsorbed close to where it was emitted, so that each iteration propagates the excitation only a
 short distance, and the convergence slows down as the line optical depth increases.
 
@@ -226,7 +226,7 @@ them, are:
   iteration does not depend on the dust acceleration.
 - **The merged loop correction** changes the dust emission of each merged iteration, and thus the
   continuum that excites the lines. It changes the results of non-LTE models with merged iterations
-  and substantial dust self-absorption, including functional tests.
+  and substantial dust self-heating, including functional tests.
 - **Exact absorption** changes only the luminosity absorbed by dust. The mean intensities used for
   the level populations are still obtained from the binned radiation field.
 - **The emission cell.** The tallies recognize dust emission by an emission cell other than -1,

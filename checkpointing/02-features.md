@@ -60,7 +60,7 @@ the exact same result. Furthermore, the checkpoint data can be used for visualiz
 every photon packet traced so far. If applicable, the results accumulated from primary
 and secondary emission are stored separately. In a simulation with dust emission, this part also
 holds the luminosity absorbed by the dust in each cell, accumulated along the photon paths as
-proposed in the [Dust self-absorption](dust-self-absorption/01-introduction.md) design note. The
+proposed in the [Dust self-heating](dust-self-heating/01-introduction.md) design note. The
 dust emission is normalized to these values, so they must be restored for the secondary emission
 of a resumed run to be correct.
 

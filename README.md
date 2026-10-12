@@ -14,7 +14,7 @@
 - [HDF5 input](hdf5-input/01-introduction.md)
 - [Iteration history](iteration-history/01-introduction.md)
 - [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
-- [Dust self-absorption](dust-self-absorption/01-introduction.md)
+- [Dust self-heating](dust-self-heating/01-introduction.md)
 - [HDF5 output](hdf5-output/01-introduction.md)
 - [Checkpointing](checkpointing/01-introduction.md)
 

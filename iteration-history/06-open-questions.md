@@ -26,7 +26,7 @@ exactly, the mix can clear the series itself on convergence, which requires a `c
 scalar series.
 
 **Per-cell iterates.** Accelerators for fixed-point iterations, such as the Anderson and Ng
-acceleration discussed in the Dust self-absorption design note, combine the last few iterates of a
+acceleration discussed in the Dust self-heating design note, combine the last few iterates of a
 state vector in each cell. The history could hold these iterates in a third kind of series, next
 to the scalar series and the cell windows, and a helper next to the history could perform the
 acceleration step, so that a material mix supplies only its per-cell state and residual. Such a

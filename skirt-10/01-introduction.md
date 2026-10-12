@@ -64,7 +64,7 @@ implemented. A note may build on earlier ones in this list, as stated at its sta
   holds the historical data of the iteration loops.
 - **[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)** proposes refining a
   tree-based spatial grid between iterations, driven by the evolving medium state.
-- **[Dust self-absorption](dust-self-absorption/01-introduction.md)** proposes changes to the
+- **[Dust self-heating](dust-self-heating/01-introduction.md)** proposes changes to the
   calculation of dust emission and to the secondary emission iterations.
 - **[HDF5 output](hdf5-output/01-introduction.md)** proposes optional HDF5 support for
   simulation output.

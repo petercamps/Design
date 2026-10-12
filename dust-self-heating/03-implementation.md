@@ -5,7 +5,7 @@
 - `MediumSystem` stores the absorbed dust luminosity per cell next to the radiation field, traces
   the path segments of a photon packet to store both, provides the absorbed luminosity to the dust
   emission and the convergence test, and owns the rebalancer.
-- `SelfAbsorptionRebalancer`, a new helper class, partitions the cells into regions, accumulates the
+- `SelfHeatingRebalancer`, a new helper class, partitions the cells into regions, accumulates the
   transfer tallies, solves the rebalance system, and rescales the secondary radiation field.
 - `PhotonPacket` remembers the spatial cell from which a secondary photon packet was emitted, and
   `DustSecondarySource` sets it.
@@ -425,7 +425,7 @@ The merged loop requires one more change, which is needed regardless of this pro
 `clearRadiationField(true)` clears both the primary table and the stable secondary table. The merged
 loop calls it at the start of each iteration, and `runPrimaryEmission()` calls it after the merged
 loop. As a result, the dust emission of each merged iteration, and of the final secondary emission,
-is calculated from the primary radiation field only, so that dust self-absorption is never iterated
+is calculated from the primary radiation field only, so that dust self-heating is never iterated
 in a simulation with merged iterations. The proposal is that
 `clearRadiationField(true)` clears only `_rf1` and `_labs1`. The stable secondary table is zero
 after allocation and is only replaced by `communicateRadiationField(false)` or rescaled by the
@@ -574,7 +574,7 @@ absorption outside the radiation field wavelength grid.
 
 **PhotonPacket and DustSecondarySource.** The emission cell is added and set, as described.
 
-**SelfAbsorptionRebalancer.** New class in the `medium` module, with its tally objects and summary
+**SelfHeatingRebalancer.** New class in the `medium` module, with its tally objects and summary
 structure.
 
 **PTS.** The ski file upgrade for SKIRT 10 removes `maxFractionOfPrevious` from
@@ -609,7 +609,7 @@ three steps, each verified on the complete functional test suite:
    luminosity: the relative change of the absorbed primary luminosity scales roughly with the square
    of the width of the radiation field bins, and the tally closure is one within noise.
 2. The merged loop correction. Only tests with merged iterations change, and for tests with
-   substantial dust self-absorption, the dust emission increases.
+   substantial dust self-heating, the dust emission increases.
 3. The rebalance and the new criteria. Tests that iterate over secondary emission change in the
    number of iterations and, for tests that did not converge, in their results.
 
@@ -627,5 +627,5 @@ New functional tests cover the cases that the experiments did not:
   not evaluated.
 
 For the sphere, a converged reference follows from a long run with plain iteration, since its
-self-absorption can be kept moderate. The rebalanced run must reproduce it within the noise, and
+self-heating can be kept moderate. The rebalanced run must reproduce it within the noise, and
 its tally closure must be one within noise.

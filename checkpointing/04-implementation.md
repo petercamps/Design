@@ -106,7 +106,7 @@ appear to distinguish primary from secondary contributions the way the `rf_prima
 The wavelength grid itself (`rf_wavelength`/`rf_width`) does not need a new getter:
 `Configuration::radiationFieldWLG()` is already public and should be sufficient. Nor do the
 dust-absorbed luminosities: the function `MediumSystem::dustAbsorbedLuminosity(bool primary)`,
-proposed in the Dust self-absorption design note for the rebalancer, returns the `_labs1` or
+proposed in the Dust self-heating design note for the rebalancer, returns the `_labs1` or
 `_labs2` array.
 
 **Recorded fluxes.** The largest gap of the five. `FluxRecorder`'s public API is entirely
