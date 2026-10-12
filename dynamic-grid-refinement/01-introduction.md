@@ -71,5 +71,4 @@ structure.
   step and its use of the iteration history, the grid operations, and the growth of the per-cell
   data structures.
 - **[Open questions](dynamic-grid-refinement/04-open-questions.md)** collects the design
-  decisions that need input, the departures from the reference implementation, and observations
-  on that implementation.
+  decisions that may need further consideration in the future.

@@ -11,10 +11,12 @@ A simulation with dynamic refinement proceeds as follows:
    end of each iteration, the refinement step records, for each configured refinement criterion,
    the value of its field in each cell.
 3. At the end of each averaging window of a few iterations, each refinement criterion evaluates
-   the window-averaged fields, and the cells across which a field changes too steeply are
-   subdivided. The child cells inherit their parent's state.
+   the window-averaged fields. The cells that a criterion flags as too coarse, and that have not
+   yet reached the limits of that criterion, are subdivided. The child cells inherit their
+   parent's state.
 4. The iterations continue on the refined grid. The loop terminates once the medium state has
-   converged and a complete averaging window has passed without any cell asking for subdivision.
+   converged and the refinement has settled, meaning that an averaging window has passed without
+   leading to further subdivision.
 
 ## Configuration
 
@@ -42,20 +44,44 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
         <ResolvedSpheresTreePolicy filename="sources.txt" numBins="2" reach="2"/>
     </policies>
     <dynamicRefinementOptions type="DynamicRefinementOptions">
-        <DynamicRefinementOptions maxExtraLevels="4" maxCells="9000000"
-                                  numIterationsBeforeRefinement="3" numAveragedIterations="4">
+        <DynamicRefinementOptions maxCells="64000000"
+                                  numIterationsBeforeRefinement="6" numAveragedIterations="4">
             <criteria type="RefinementCriterion">
-                <MediumStateGradientCriterion variable="x_NII" maxChange="0.3" minValue="5e-3"/>
-                <MediumStateGradientCriterion variable="x_OIII" maxChange="0.3" minValue="5e-3"/>
+                <MediumStateValueCriterion variable="x_NII" minValue="0.01"
+                                           minColumnDensity="1.6e20 1/cm2">
+                    <conditions type="RefinementCondition">
+                        <MediumStateCondition variable="x_HI" minValue="0.01" maxValue="0.99"/>
+                        <MediumStateCondition variable="logU" minValue="-6.5"/>
+                    </conditions>
+                </MediumStateValueCriterion>
+                <MediumStateGradientCriterion variable="x_NII" maxChange="0.3"
+                                              minColumnDensity="1.6e20 1/cm2">
+                    <conditions type="RefinementCondition">
+                        <MediumStateCondition variable="x_HI" minValue="0.01" maxValue="0.99"/>
+                        <MediumStateCondition variable="logU" minValue="-6.5"/>
+                    </conditions>
+                </MediumStateGradientCriterion>
+                <MediumStateValueCriterion variable="x_OIII" minValue="0.1" maxExtraLevels="2"
+                                           minColumnDensity="1.6e20 1/cm2">
+                    <conditions type="RefinementCondition">
+                        <MediumStateCondition variable="logU" minValue="-6.5"/>
+                    </conditions>
+                </MediumStateValueCriterion>
             </criteria>
         </DynamicRefinementOptions>
     </dynamicRefinementOptions>
 </OctTreeSpatialGrid>
 ```
 
-In this example, a cell can gain at most four levels beyond its level in the initial grid. A cell at
-level 10 in the initial grid can thus reach level 14, and a cell at the grid's maximum level 12 can
-reach level 16.
+This example is modeled on the production runs of the reference implementation (see the
+Introduction). The first criterion flags all cells that hold singly ionized nitrogen in partly
+ionized gas, and the second flags the cells in such gas with an N+ fraction that differs by more
+than 0.3 from that of a neighboring cell. Both keep subdividing a cell until its column density is
+below their column density limit, however many levels that takes. The third criterion flags the
+cells that hold doubly ionized oxygen. It has the same column density limit, and in addition
+subdivides a cell at most two levels beyond its level in the initial grid. A cell at level 10 in
+the initial grid can thus reach level 12 through the third criterion, and any level through the
+first two. The total number of cells never exceeds 64 million.
 
 ### Refinement options
 
@@ -63,20 +89,20 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 
 | Property | Description |
 | --- | --- |
-| `maxExtraLevels` | maximum number of levels a cell may gain beyond its level in the initial grid (zero means no limit) |
 | `maxCells` | hard cap on the total number of cells (zero means no cap) |
 | `numIterationsBeforeRefinement` | number of initial iterations of each iteration loop during which refinement is not considered |
 | `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision |
+| `numIterationsAfterRefinement` | number of iterations after each refinement round that are left out of the averaging (the default is one) |
+| `maxRounds` | maximum number of refinement rounds in each iteration loop (zero means no maximum) |
 | `criteria` | the list of refinement criteria |
 
-The `maxLevel` property of the grid itself limits the initial construction only.
-The `maxExtraLevels` limit is expressed relative to each cell's level in the initial grid. If it is
-zero, only the `maxCells` cap limits the refinement, and if both are zero, refinement continues as
-long as the criteria ask for it. For a binary tree, which splits a cell along one axis per level,
-three levels correspond to one octree level.
+The `maxLevel` property of the grid itself limits the initial construction only. During dynamic
+refinement, the limits of each criterion tell how far that criterion may subdivide a cell (see
+Limits below). If no limit applies to a criterion, only the `maxCells` cap and the `maxRounds`
+maximum end the refinement of the cells it keeps flagging.
 
-When the `maxCells` cap prevents subdividing all cells that ask for it, the cells with the largest
-excess over their threshold are subdivided first, and a warning reports how many cells were left
+When the `maxCells` cap prevents subdividing all cells that ask for it, the cells with the highest
+priority are subdivided first (see Priority below), and a warning reports how many cells were left
 unsplit.
 
 ### Refinement criteria
@@ -85,55 +111,159 @@ unsplit.
 at once, for example one per ion; a cell is subdivided if any of them asks for it. Like the
 subclasses of `DynamicStateRecipe`, the subclasses omit part of the base class name from their own names.
 
-`GradientCriterion` is an abstract subclass for criteria that compare a per-cell quantity, called
-the field of the criterion, between a cell and its face neighbors. Its concrete subclasses define
-the field:
+A criterion consists of three parts:
 
-| Criterion | Field |
-| --- | --- |
-| `MediumStateGradientCriterion` | a medium state variable |
-| `DustTemperatureGradientCriterion` | the indicative dust temperature |
+- a **test** on a per-cell quantity, called the field of the criterion, which flags the cells that
+  are too coarse;
+- optional **conditions**, which restrict the criterion to the cells whose state lies in given
+  ranges;
+- **limits**, which tell how far the criterion may subdivide a cell.
 
-### Gradient criteria
+A cell asks for subdivision, and is then called a candidate, if at least one criterion flags it
+while all conditions of that criterion hold and the cell has not reached a limit of that
+criterion.
 
-All gradient criteria offer the following properties.
+The concrete criteria combine a test with a field:
+
+| Criterion | Test | Field |
+| --- | --- | --- |
+| `MediumStateGradientCriterion` | the field differs strongly between the cell and a neighboring cell | a medium state variable |
+| `MediumStateValueCriterion` | the field lies in a given range | a medium state variable |
+| `DustTemperatureGradientCriterion` | the field differs strongly between the cell and a neighboring cell | the indicative dust temperature |
+
+The tests are implemented by the abstract subclasses `GradientCriterion` and `ValueCriterion`. All
+criteria offer the following properties.
 
 | Property | Description |
 | --- | --- |
-| `maxChange` | the maximum change of the field across a cell; a cell is subdivided if its measure exceeds this value (see below) |
-| `minValue` | cells with a field value below this floor are never subdivided |
-| `normalizationPercentile` | the percentile of the field over the grid by which the field is divided (zero means no normalization) |
+| `conditions` | the list of conditions that restrict the criterion (the list may be empty) |
+| `maxExtraLevels` | the level limit of this criterion: cells that have gained this number of levels beyond their level in the initial grid are not subdivided by the criterion (zero means no limit) |
+| `minColumnDensity` | the column density limit of this criterion: cells with a column density below this value are not subdivided by the criterion (zero means no limit) |
 
-The measure is the larger of two quantities, both expressed as a change in the field across the
-cell:
+### Gradient criteria
 
-- the magnitude of the gradient, with along each axis the difference between the values on the two
-  opposite walls divided by the distance between them, multiplied by the cell size, which captures
-  a front spread over several cells regardless of its orientation relative to the grid;
-- the largest difference between the cell and a single wall, scaled to the cell size, which
-  captures a layer only one cell thick, where the values on opposite walls are similar and the
-  first quantity is therefore close to zero.
+A gradient criterion compares the field between a cell and its face neighbors. All gradient
+criteria offer the following properties.
 
-When a wall has several (smaller) neighbors, their values and center positions are averaged. At the
-edge of the domain, the cell itself takes the place of a missing neighbor.
+| Property | Description |
+| --- | --- |
+| `maxChange` | the maximum difference in field value between a cell and a neighboring cell; a cell is flagged if its measure exceeds this value (see below) |
+| `minValue` | cells with a field value below this floor are never flagged (by default, there is no floor) |
 
-Without normalization, the measure, the threshold, and the floor are expressed in the units of the
-field, so fields with very different peak values, such as N+ (peaking near 0.3), O2+ (peaking near
-1), or a dust temperature of tens of kelvin, need very different values for `maxChange` and
-`minValue`. If `normalizationPercentile` is nonzero, the window-averaged field is divided by that
-percentile of the field over all cells in which it is positive, before the floor and the measure
-are evaluated. The threshold and the floor then become fractions of the field's typical peak
-value, so that similar values can be used for all criteria. A high percentile, such as 99, is used
-rather than the maximum, so that a single Monte Carlo outlier cannot set the scale. Normalization
-makes sense only for fields with positive values, and not, for example, for the logarithmic
-ionization parameter.
+The measure of a cell is the largest absolute difference between the window-averaged field value
+of the cell and that of any of its face neighbors, which are the cells that share a wall, or part
+of a wall, with it. A wall on the edge of the domain has no neighbors.
+
+The measure, the `maxChange` threshold, and the `minValue` floor are expressed in the units of the
+field. Fields with different peak values therefore need different values for `maxChange` and
+`minValue`.
+
+### Value criteria
+
+A value criterion flags each cell in which the window-averaged field lies in a given range. It
+does not look at the neighboring cells.
+
+| Property | Description |
+| --- | --- |
+| `minValue` | the lower bound of the range: a cell is flagged only if its field value is at or above this value (by default, there is no lower bound) |
+| `maxValue` | the upper bound of the range: a cell is flagged only if its field value is at or below this value (by default, there is no upper bound) |
+
+Both bounds are inclusive, and are expressed in the units of the field. Either bound can be
+omitted, which leaves the range open on that side.
+
+A value criterion expresses that a given kind of gas must be resolved down to a given scale,
+wherever it occurs. Because child cells inherit their parent's state, a cell flagged by a value
+criterion remains flagged after it has been subdivided, at least until later iterations change
+its state. The final resolution is therefore determined by the limits of the criterion, and not
+by its test. Setup reports a fatal error if neither a level limit nor a column density limit
+applies to a value criterion.
+
+Value criteria complement gradient criteria in two ways. First, a gradient criterion compares a
+cell with its neighbors, so that it can miss a coarse cell that holds a complete thin layer: the
+state of such a cell is an average over the layer and its surroundings, and may differ little
+from the state of the neighboring cells. Second, for some structures the required resolution
+follows from a physical scale rather than from the smoothness of the field. In an H II region, for
+example, low-ionization lines such as [N II] and [S II] form in a layer at the edge of the
+ionized region that holds a nearly fixed column density of gas, whatever the size of the region.
+The appropriate target is then a column density per cell, which a value criterion with a column
+density limit expresses directly.
+
+### Conditions
+
+A condition restricts a criterion to part of the medium, for example to partly ionized gas.
+`RefinementCondition` is the abstract base class for conditions, and `MediumStateCondition` is
+its only subclass for now. It requires a medium state variable to lie in a given range.
+
+| Property | Description |
+| --- | --- |
+| `variable` | the name of the medium state variable |
+| `minValue` | the lower bound of the range: the condition holds only if the value of the variable is at or above this value (by default, there is no lower bound) |
+| `maxValue` | the upper bound of the range: the condition holds only if the value of the variable is at or below this value (by default, there is no upper bound) |
+
+A criterion ignores every cell in which one of its conditions does not hold. As for a value
+criterion, both bounds are inclusive and expressed in the units of the variable, and either can
+be omitted.
+
+Conditions are evaluated on window-averaged values, like the field of the criterion itself, so
+that all quantities entering a decision are averaged over the same iterations. A value criterion
+thus treats its own range exactly like a condition. The distinction serves to express intent: the
+field of the criterion names the structure to be resolved, and the conditions delimit the gas in
+which the criterion applies.
+
+### Limits
+
+Each criterion has two limits, which tell how far it may subdivide a cell: a level limit, set by
+its `maxExtraLevels` property, and a column density limit, set by its `minColumnDensity`
+property. The limits are set on each criterion separately, and for both properties a value of
+zero means that there is no limit. A criterion never flags a cell that has reached one of its
+limits. Another criterion with wider limits can still flag that cell.
+
+With a `maxExtraLevels` value of N, the criterion does not flag a cell that has gained N or more
+levels beyond its level in the initial grid, whichever criteria caused the earlier subdivisions.
+For a binary tree, which splits a cell along one axis per level, three levels correspond to one
+octree level.
+
+With a nonzero `minColumnDensity` value, the criterion does not flag a cell with a column density
+below that value. The column density of a cell is its number density multiplied by its size,
+defined as follows:
+
+- The number density is the one stored in the medium state for the medium component that provides
+  the variable of the criterion or, for the dust temperature criterion, the sum over the dust
+  components. Its meaning depends on the material mix. For the `DiffuseIonizedGasMix`, it counts
+  hydrogen plus helium nuclei, so that a limit intended as a hydrogen column density must be
+  multiplied by one plus the helium abundance.
+- The size is the largest extent of the cell along the coordinate axes.
+
+Because child cells inherit their parent's number density, each octree subdivision halves the
+column density of a cell. A `minColumnDensity` value therefore produces cells with a size
+inversely proportional to the local density, rather than cells at a given level.
+
+In the example above, all three criteria specify the same `minColumnDensity` value, and only the
+third criterion specifies a `maxExtraLevels` value.
+
+### Priority
+
+When the `maxCells` cap does not leave room to subdivide all candidates, the candidates are ranked
+by priority. For each criterion that flags a candidate, the priority is the product of two
+factors:
+
+- the excess, which is the ratio of the measure to the `maxChange` threshold for a gradient
+  criterion, and one for a value criterion;
+- the ratio of the cell's column density to the column density limit of the criterion, or one if
+  the criterion has no such limit.
+
+The priority of a candidate is the largest of these values over the criteria that flag it. The
+candidates with the highest priority are subdivided first. Among candidates with equal priority,
+the larger cells go first, and among those the cells with the lower cell index. As a result,
+among the cells flagged by a value criterion, the cells that are coarsest for their density are
+subdivided first.
 
 ### Medium state variables
 
-The `MediumStateGradientCriterion` adds a `variable` property that names a medium state variable.
-Any state variable of any material mix can drive refinement, provided the mix gives it a short
-name. The standard `temperature` variable is available for all mixes that store a temperature. The
-`DiffuseIonizedGasMix` names the following custom variables:
+The medium state criteria and the `MediumStateCondition` have a `variable` property that names a
+medium state variable. Any state variable of any material mix can be used, provided the mix gives
+it a short name. The standard `temperature` variable is available for all mixes that store a
+temperature. The `DiffuseIonizedGasMix` names the following custom variables:
 
 | Variable | Meaning |
 | --- | --- |
@@ -144,8 +274,9 @@ name. The standard `temperature` variable is available for all mixes that store 
 
 The variable is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component
-offers the requested one, and also if that component has no dynamic medium state, primary or
-secondary, because the variable then does not change between iterations.
+offers the requested one. For the variable of a criterion, setup also reports a fatal error if
+that component has no dynamic medium state, primary or secondary, because the variable then does
+not change between iterations. The variable of a condition may be static.
 
 > Selecting a variable by name keeps the `MaterialMix` base class free of mix-specific enumerations
 > and ion index tables, and makes new fields available simply by naming a state variable. The
@@ -163,9 +294,13 @@ has no dust or does not store the radiation field.
 
 ### Other criteria
 
+A value criterion and a condition based on the indicative dust temperature would follow the same
+pattern as their medium state counterparts. They are not part of this proposal, because no use
+case has been identified.
+
 Other quantities derived from the radiation field, such as the mean intensity integrated over a
 given wavelength range, or the ratio of two such integrals, could drive refinement through a
-`RadiationFieldGradientCriterion`. Such a criterion is not part of this proposal, because the
+radiation field criterion. Such a criterion is not part of this proposal, because the
 properties that select the quantity need further thought.
 
 ## Iteration and convergence
@@ -175,18 +310,22 @@ secondary emission iterations, and merged primary and secondary emission iterati
 loop, only the criteria whose field changes in that loop take part. A variable of a mix with a
 primary dynamic medium state changes in the primary and merged loops, and a variable of a mix with
 a secondary dynamic medium state in the secondary and merged loops. The dust temperature changes in
-all loops, because each loop recalculates at least part of the radiation field. If no criterion
-takes part, the refinement step does nothing in that loop.
+all loops, because each loop recalculates at least part of the radiation field. The conditions of
+a criterion do not influence whether it takes part. If no criterion takes part, the refinement
+step does nothing in that loop.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
 - During the first `numIterationsBeforeRefinement` iterations, refinement is not considered at
   all, so that the first decision is based on a settled radiation field.
 - The refinement fields are then accumulated for `numAveragedIterations` iterations, after which
-  each criterion evaluates the window-averaged values. Averaging over several iterations reduces the
-  Monte Carlo noise that reaches the decision.
-- If cells are subdivided, the next iteration is left out of the averaging, because the field is
-  still adjusting to the changed grid. A new window starts after that.
+  the criteria evaluate the window-averaged values, and the refinement step decides which cells
+  to subdivide. Averaging over several iterations reduces the Monte Carlo noise that reaches the
+  decision.
+- If cells are subdivided, which is called a refinement round, the next
+  `numIterationsAfterRefinement` iterations are left out of the averaging, because the field is
+  still adjusting to the changed grid. A new window starts after that. If no cells are
+  subdivided, a new window starts right away.
 
 The initial iterations and the window address different problems. The window reduces Monte Carlo
 noise, which scatters around the current solution. At the start of a loop, however, the medium
@@ -196,16 +335,34 @@ drifting field yields a value between the initial guess and the solution rather 
 itself. Because cells are never merged, a subdivision based on such transient structure is
 permanent, whereas a missed subdivision is simply caught by a later window. A longer window could
 also absorb the transient, but it would lengthen every refinement round, whereas the initial
-iterations delay only the first decision in each loop. Skipping the iteration after a refinement
-round follows the same reasoning.
+iterations delay only the first decision in each loop. Leaving out the iterations after a
+refinement round follows the same reasoning: the state of the new cells drifts from the inherited
+values toward the solution on the finer grid, which can take more than one iteration.
+
+A decision does not lead to a refinement round, even though cells ask for subdivision, in the
+following cases:
+
+- The loop has already performed `maxRounds` refinement rounds.
+- The `maxCells` cap leaves no room for subdividing even a single cell.
+- Fewer than `numIterationsAfterRefinement + numAveragedIterations` iterations remain before the
+  loop reaches its maximum number of iterations. The loop would then end before the new cells
+  have been evaluated, and possibly before their state has adjusted to the changed grid.
+
+In each of these cases, a warning reports the number of candidates that were left unsplit.
 
 The iteration loop is considered converged only if the medium state has converged and the
-refinement has settled, meaning that a complete window after the initial iterations produced no
-subdivision requests, or that no further subdivision is possible because of the cell cap or the
-level limit. During the initial iterations and while a window is open, the refinement is not
-settled. As a result, each refinement round costs at least `numAveragedIterations + 1` extra
-iterations. If the loop ends because it reaches the maximum number of iterations while the
-refinement has not settled, a warning is issued.
+refinement has settled. The refinement has settled in an iteration if a decision was taken in
+that iteration and did not lead to a refinement round. During the initial iterations and while a
+window is open, the refinement is not settled. As a result, each refinement round costs at least
+`numIterationsAfterRefinement + numAveragedIterations` extra iterations. If the loop ends because
+it reaches the maximum number of iterations while the refinement has not settled, a warning is
+issued.
+
+A refinement round changes the set of cells, so that convergence measures that count cells cannot
+be compared across a round. Series in the iteration history that depend on the grid, such as the
+fraction of converged cells used by the plateau criterion of the `DiffuseIonizedGasMix`, are
+therefore cleared after each round (see the
+[Iteration history](iteration-history/03-design.md) design note).
 
 In a simulation with primary and merged iterations, refinement thus continues in the merged loop,
 where the secondary radiation field may change the fields further. In a simulation with separate
@@ -215,8 +372,8 @@ emission. A cell created in the secondary loop receives its share of the parent'
 field, which is uniform over the parent, so that refinement in this loop resolves only structure
 caused by the secondary radiation field. For a field that depends mostly on the primary radiation
 field, the jump in value at the boundary of a subdivided cell does not diminish with further
-subdivision, so that cells along that boundary may keep asking for subdivision until the level
-limit or the cell cap stops them (see Open questions).
+subdivision, so that cells along that boundary may keep asking for subdivision until a limit or
+the cell cap stops them.
 
 ## Initial state of child cells
 
@@ -237,13 +394,33 @@ mass, a number of particles, or a luminosity, must be stored per unit volume or 
 instead.
 
 Inheriting the state means that the refinement does not resolve any density structure within
-the parent cell. Re-sampling the input model for the child cells is a possible alternative (see
-Open questions).
+the parent cell.
 
 ## Output and reuse
 
-Each refinement round logs the number of subdivided and added cells and the new total, and warns
-when the cell cap prevents subdivision.
+Each decision logs the number of candidates and, for a refinement round, the number of subdivided
+and added cells and the new total number of cells, together with the number of photon packets per
+cell launched in the iteration. Warnings report the candidates that were left unsplit, as
+described above.
+
+The number of photon packets per cell decreases as the grid grows. This increases the Monte Carlo
+noise in the medium state, and thereby in the refinement fields and in the convergence measures.
+At setup, the number of packets per cell is therefore also calculated for a grid with `maxCells`
+cells, for each iteration loop in which refinement takes place, and a warning is issued if it is
+below 100.
+
+The refinement step records its progress in the iteration history, so that the `HistoryProbe`
+proposed in the Iteration history design note lists it for each iteration: the number of cells,
+candidates, and subdivided cells, the cells blocked by each limit, the number of photon packets
+per cell, and the memory held by the per-cell data.
+
+The new `RefinementCandidatesProbe` writes the cells that asked for subdivision at the most
+recent decision but were left unsplit, with for each cell its index and its priority for each
+criterion. It shows where the cell cap, or any other reason for not subdividing a candidate,
+keeps the grid coarser than the criteria ask for. The probe can be performed at the end of the
+run, or after each iteration of a loop. The cell indices match those of the other per-cell
+probes, such as the `SpatialCellPropertiesProbe`, which provides the position and size of each
+cell.
 
 The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option (`Setup`, `Primary`, `Secondary`, or
 `Run`), so that it can record the topology of the refined grid at the end of the simulation. A
@@ -259,6 +436,15 @@ grid.
 
 ## Memory use
 
-The medium state is replicated on each MPI process, so memory use per process grows with the
-number of cells. With the `DiffuseIonizedGasMix`, whose state is large, this amounts to about
-7 GB per million cells per process.
+The per-cell data are replicated on each MPI process, so memory use per process grows with the
+number of cells. The amount per cell depends on the material mixes, which determine the number of
+state variables, and on the number of bins of the radiation field wavelength grid. In the
+reference production runs, with the `DiffuseIonizedGasMix` and a radiation field wavelength grid
+of 75 bins, each process used about 4.4 GB per million cells, in addition to about 30 GB that
+does not depend on the number of cells.
+
+If a cell cap is configured, the memory for `maxCells` cells is reserved at setup, so that the
+memory need of the run is fixed from the start, and refinement rounds do not need additional
+memory while they grow the per-cell data. Setup logs the amount of memory reserved for each
+process, and issues a warning if the memory of the process then exceeds the physical memory of
+the host.
