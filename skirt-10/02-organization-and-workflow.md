@@ -92,15 +92,28 @@ patch of both `SKIRT` and `PTS`.
 Both repositories already follow a fork-and-pull-request model. Contributors work from
 their own fork and open a pull request against the shared repository, reviewed and
 squash-merged by a core team member. This matches "trunk-based development": a single
-active branch (`master`) with no long-lived feature branches and with changes landing
-through short-lived pull requests. This proposal keeps that unchanged; only what a pull
-request targets, and when a new branch gets created, changes.
+active branch (currently `master`) with no long-lived feature branches and with changes
+landing through short-lived pull requests. This proposal keeps that unchanged; only the
+name of the active branch, what a pull request targets, and when a new branch gets
+created, change.
 
-`master` remains the only branch that accepts new features. What's added is a
+The active branch is renamed from `master` to `main` in the `SKIRT`, `PTS`, and `Web`
+repositories. `main` has become the customary name for the default branch of a
+repository, and the switch to SKIRT 10 is a natural moment for the change, because users
+select a branch at that point anyway (see Impact on users, below). Nothing in the code,
+the build scripts, or the automated checks refers to the branch by name. The
+installation, developer, and administrator guides on the web site show the branch name in
+their command examples; they are updated along with the other changes for SKIRT 10.
+GitHub retargets open pull requests and redirects web links that contain the old branch
+name. Unlike for a renamed repository, however, it does not redirect `git` operations, so
+that an existing clone must switch to the new branch once. Forks keep their own branch
+names, which does not affect pull requests.
+
+`main` remains the only branch that accepts new features. What's added is a
 *maintenance branch* per major version that still needs support after the next one takes
-over `master`. When SKIRT 10 is ready to become the actively developed line, a branch
+over `main`. When SKIRT 10 is ready to become the actively developed line, a branch
 named `9` is cut from the current tip of `master` before any SKIRT 10 work lands, so `9`
-and `master` diverge at that exact point. This is the same pattern [CPython
+and `main` diverge at that exact point. This is the same pattern [CPython
 uses](https://devguide.python.org/versions/) to keep several release lines alive at once,
 scaled down. Rather than CPython's five release phases and roughly five-year support
 window, SKIRT keeps to a single phase — bug fixes only — for as long as the core team
@@ -113,7 +126,8 @@ two pull requests, one against each branch; there is no tooling in place to back
 this automatically. To establish a clean starting point, the current tip of `master` is
 tagged `v9.9.0` — reflecting the substantial development that has accumulated since the
 2019 release, even without formal version numbers to mark it — and the `9` branch is cut
-from it before any SKIRT 10 work is merged.
+from it. Then `master` is renamed to `main`, and only after that the SKIRT 10 work is
+merged.
 
 ## Impact on users
 
@@ -124,15 +138,21 @@ and then build SKIRT as usual:
 - Users who wish to preserve compatibility, for example while working on an ongoing study, install
   SKIRT 9 with `git checkout 9`. A later `git pull` on that branch brings in the bug fixes that are
   still made for SKIRT 9.
-- Users who wish to use the latest SKIRT version use `git checkout master`, as before. Once SKIRT 10
-  lands on `master`, pulling it brings in the incompatible changes listed in the
+- Users who wish to use the latest SKIRT version use `git checkout main`. Once SKIRT 10 lands on
+  `main`, pulling it brings in the incompatible changes listed in the
   [Incompatibilities](skirt-10/04-incompatibilities.md) chapter, and existing ski files must be
   upgraded with PTS.
 
 The same holds for `PTS`: `git checkout 9` selects the toolkit for SKIRT 9, and
-`git checkout master` the latest version. Users should select the same major version in both
-repositories. Existing clones of `SKIRT9` and `PTS9` keep working, because GitHub redirects the old
-repository names (see Repositories, above).
+`git checkout main` the latest version. Users should select the same major version in both
+repositories.
+
+Existing clones of `SKIRT9` and `PTS9` keep working after the repositories have been renamed,
+because GitHub redirects the old repository names (see Repositories, above). The renamed branch is
+not redirected, however. Once `master` has been renamed, a `git pull` on the `master` branch of an
+existing clone reports an error. The user then runs `git fetch`, followed by `git checkout 9` or
+`git checkout main`, and continues from there. As a welcome side effect, no existing installation
+moves to SKIRT 10 through a routine `git pull`: each user selects a version explicitly.
 
 ## Implementation
 
@@ -143,7 +163,7 @@ SKIRT/PTS coordination.
 [Conventional Commits](https://www.conventionalcommits.org) format — `fix: ...` for a
 PATCH, `feat: ...` for a MINOR addition, `feat!: ...` for
 a MAJOR one. Because both repositories already squash-merge, the PR title becomes the
-commit message on `master`, so this is the only thing a contributor — including the
+commit message on `main`, so this is the only thing a contributor — including the
 maintainer — has to get right by hand: picking one of three prefixes when opening the
 PR, not computing a version number. A PR-title-linting GitHub Action (e.g.
 `amannn/action-semantic-pull-request`) fails the check immediately if the prefix is
@@ -163,7 +183,7 @@ check outright, mechanically enforcing "backward-compatible fixes only."
 Versioning, above), the two repositories do not need a single, unified release pipeline —
 each runs its own release-please setup, independently producing its own patch releases.
 What is added is a narrow trigger: the last step of SKIRT's release workflow — whether
-that release happened on `master` or on a maintenance branch — checks whether the
+that release happened on `main` or on a maintenance branch — checks whether the
 `MAJOR.MINOR` of the tag it just created differs from the previous one, and only then
 fires a `repository_dispatch` event at the `PTS` repository, carrying the new
 `MAJOR.MINOR`. A small workflow there tags the current tip of the matching `PTS` branch
@@ -188,6 +208,6 @@ the features that depend on them are actually used.
 
 Resource packs are versioned, and the SKIRT code includes a list of the specific versions
 expected for that commit. This scheme is agnostic to the SKIRT versioning proposed here,
-and can therefore be used unchanged. Checking out another commit, whether on the `master`
+and can therefore be used unchanged. Checking out another commit, whether on the `main`
 or `9` branch, will automatically update the expected resource pack versions.
 
