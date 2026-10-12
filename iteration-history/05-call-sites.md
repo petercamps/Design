@@ -1,7 +1,11 @@
 # Call sites
 
 For each client, this chapter describes how it gains access to the history and how it uses it.
-The code fragments are illustrative; they omit logging and other details that do not change.
+The code fragments are illustrative; they omit logging and other details that do not change. The
+proposed dynamic grid refinement would be a further client, and the only one that uses cell
+windows; the Implementation chapter of the
+[Dynamic grid refinement](dynamic-grid-refinement/03-implementation.md) design note describes how
+it uses the history.
 
 ## MonteCarloSimulation
 
@@ -143,14 +147,14 @@ result.push_back(StateVariable::custom(index++, "ionized hydrogen number density
 
 The ion fraction aggregates are marked with the ids `FirstIonFraction + i`.
 
-**Convergence.** The plateau criterion uses a series with loop lifetime, and the global criterion
+**Convergence.** The plateau criterion uses a series with grid lifetime, and the global criterion
 uses the aggregate series:
 
 ```cpp
 constexpr int plateauLength = 3;
 
 auto& fractions = history.scalarSeries(ConvergedFraction, plateauLength,
-                                       IterationHistory::Lifetime::Loop, "fraction of converged cells");
+                                       IterationHistory::Lifetime::Grid, "fraction of converged cells");
 fractions.set(convergedFraction);
 bool stabilityConverged = fractions.isStable(plateauLength, stabilityConvergenceThreshold());
 
@@ -163,10 +167,13 @@ In the first primary iteration, the previous value of each aggregate is the init
 at setup, as today.
 
 **Behavioral change.** Currently, the plateau history is cleared when the mix reports convergence,
-and otherwise never. With loop lifetime, it is cleared at the start of each loop instead. As a
+and otherwise never. With grid lifetime, it is cleared at the start of each loop instead. As a
 result, the history no longer carries over from the primary loop into a subsequent merged loop.
 Conversely, when the loop continues after convergence because the minimum number of iterations
 has not been reached, the plateau is no longer restarted. Both changes seem to be improvements.
+With dynamic grid refinement, the history is also cleared after each refinement round, because
+the fraction of converged cells before the round and the fraction after it count different
+cells. The plateau criterion then needs three iterations on the refined grid.
 
 ## NonLTELineGasMix
 
@@ -249,51 +256,6 @@ each iteration, the probe appends a row with the current value of each series, o
 was not set in that iteration, and flushes the file, so that the progress of a long run can be
 followed while it executes, and the output survives an aborted run. Only the root process writes
 the files; the series hold identical values on all processes.
-
-## Possible future dynamic grid refinement
-
-The [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) design note proposes
-subdividing cells between iterations, based on per-cell fields, such as medium state variables or
-the indicative dust temperature, averaged over several iterations. If that proposal is implemented,
-its refinement step would use the history as follows.
-
-**Access.** The refinement step is performed by the medium system, which locates the history
-during setup. It keys the scalar series with the number of subdivided cells on the
-`DynamicRefinementOptions` item that configures the refinement, and the cell window of each
-refinement criterion on that criterion. The criteria themselves keep no history.
-
-**Accumulating and deciding.** At the end of each iteration, in any iteration loop, the refinement
-step records the number of subdivided cells, accumulates the current field values unless the
-iteration directly follows a refinement round, and evaluates the criteria once the windows are
-complete:
-
-```cpp
-auto& subdivided = _history->scalarSeries(options, 0, 2, IterationHistory::Lifetime::Loop,
-                                          "number of subdivided cells");
-subdivided.set(0);
-bool followsRound = subdivided.has(1) && subdivided.value(1) > 0;
-
-auto& window = _history->cellWindow(criterion, 0, _numCells, IterationHistory::Lifetime::Loop,
-                                    "window-averaged " + criterion->fieldDescription());
-if (!followsRound) window.accumulate([criterion](int m) { return criterion->value(m); });
-if (window.numIterations() >= options->numAveragedIterations())
-{
-    // evaluate the criteria on the window means of each cell and its face neighbors,
-    // subdivide the selected cells, reset the windows, and record the number of subdivided cells
-}
-```
-
-Because the series have loop lifetime, the refinement schedule starts afresh in each loop. The
-history's `iteration()` tells the refinement step when the initial iterations without refinement
-have passed.
-
-**Growing the grid.** When cells are subdivided, the medium system calls
-`_history->appendCells(parentCells)` along with growing its other per-cell data structures, so that
-the cell windows of all clients remain consistent with the grid without any client being notified.
-The medium system also records the aggregate series again, so that they describe the refined grid.
-
-**Convergence.** The refinement has settled when a complete window produced no subdivision
-requests. The subdivision series also serves to log the progress of the refinement.
 
 ## Removed code
 

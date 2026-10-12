@@ -96,7 +96,9 @@ the two problems barely interact:
   photoionization criteria by the material mix. The loop combines them, as today, and the iteration
   history keeps their series apart through their keys.
 - **Weak physical coupling.** Dust emission does not ionize gas, and the ionization state does not
-  change the dust opacity.
+  change the dust opacity. In the photoionization runs that serve as the reference for the
+  [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) design note, the dust
+  emission converged in two secondary iterations.
 
 The points of contact, and how the proposal handles them, are:
 
@@ -146,7 +148,13 @@ fraction that is being solved for. What helps depends on the cause of the slow c
   least-squares solve, and a restart when the residual grows. Its weakness is Monte Carlo noise,
   because the differences between iterates become dominated by noise near convergence. It works
   best when the error decays geometrically with a single dominant factor, and much less well for a
-  moving front. For dust, it is not needed on top of the rebalance.
+  moving front. For dust, it is not needed on top of the rebalance. The acceleration step itself
+  would best live in the framework, as a helper next to the iteration history that keeps the
+  iterates and performs the extrapolation with its safeguards, so that a material mix supplies only
+  its per-cell state and residual. The same helper would then serve the Ng acceleration of the
+  `NonLTELineGasMix` (see below). With dynamic grid refinement, the iterates must be cleared after
+  each refinement round, because iterates obtained on different grids do not belong to the same
+  sequence; the grid lifetime of the iteration history provides this.
 - **Binning bias.** The photoionization rates are calculated from the binned radiation field, like
   the dust absorption today, so they may carry a similar discretization error, in particular near
   ionization edges. If so, an exact per-path tally of the photoionization rates, analogous to exact

@@ -95,10 +95,11 @@ same thing for every series. The iteration loops of `MonteCarloSimulation` drive
 calls to the history:
 
 - At the start of each loop (primary, secondary, or merged), `beginLoop()` clears the series with
-  loop lifetime.
+  loop or grid lifetime (see below).
 - At the start of each iteration, `beginIteration()` advances all scalar series by one slot. It
   replaces the current `MediumSystem::beginDynamicMediumStateIteration()`, which shifts the
-  aggregate states.
+  aggregate states. If the grid has changed since the previous iteration began, it first clears
+  the series with grid lifetime.
 
 During an iteration, a client sets the value for the current slot. It may set it more than once;
 the last value counts. This matches the current aggregate behavior, which recalculates the current
@@ -106,11 +107,15 @@ aggregate after the recipe update and again after the material mix update in the
 slot that is not set in a given iteration remains empty, and the helper functions report missing
 values rather than silently using stale ones.
 
-Each series has one of two lifetimes:
+Each series has one of three lifetimes:
 
 - **Loop** lifetime: the series is cleared at the start of each iteration loop. This is the
-  natural choice for most client series, such as the dust absorption and the fraction of converged
-  cells.
+  natural choice for most client series, such as the dust absorption.
+- **Grid** lifetime: the series is cleared at the start of each iteration loop, and also at the
+  start of the first iteration after the spatial grid has changed. This is the choice for series
+  whose values cannot be compared between different grids, such as the fraction of converged
+  cells. Without dynamic grid refinement, the grid never changes, and this lifetime is equivalent
+  to loop lifetime.
 - **Simulation** lifetime: the series persists for the complete simulation. This is the choice for
   aggregates, so that the first iteration of the primary loop compares with the initial state
   recorded at setup, and the first iteration of a merged loop compares with the last iteration of
@@ -134,6 +139,15 @@ the cells, which is cheap compared to an iteration.
 When dynamic grid refinement subdivides cells, the medium system asks the history to grow all cell
 windows along with the other per-cell data structures. A new cell starts with its parent's running
 sum, consistent with inheriting the parent's medium state.
+
+The same call tells the history that the grid has changed. The history then clears the series
+with grid lifetime when the next iteration begins, and not right away, so that the values recorded
+in the refining iteration remain available to probes performed after that iteration. This is
+analogous to series with loop lifetime, which are cleared when the next loop begins. A client that
+compares values between iterations thus starts afresh on the refined grid, without being notified
+of the refinement. For example, a refinement round changes the number of cells, so that the
+fraction of converged cells before the round and the fraction after it count different cells, and
+a plateau spanning the round would be meaningless.
 
 ## Logging and probing
 

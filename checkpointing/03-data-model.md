@@ -99,8 +99,8 @@ other children receive new indices at the end of the cell list. The node extents
 links are not stored, because they follow from the domain extent and the topology.
 
 With dynamic grid refinement, `grid_initial_level` gives, for each cell, the level of the cell
-at the end of the initial construction, or of its ancestor at that time. The `maxExtraLevels`
-limit compares a cell's current level with this initial level. *Linear cell list*: yes, as
+at the end of the initial construction, or of its ancestor at that time. The level limits of the
+refinement criteria compare a cell's current level with this initial level. *Linear cell list*: yes, as
 described below.
 
 **`AdaptiveMeshSpatialGrid` and `CartesianSpatialGrid`.** *Topology*: none. An AMR grid's
@@ -335,7 +335,7 @@ everything needed to recreate the series:
 | `id` | 32-bit integer | The id chosen by the client. |
 | `description` | string | The description of the series. |
 | `quantity` | string | The quantity of the values, or empty if dimensionless. |
-| `lifetime` | string | `Loop` or `Simulation`. |
+| `lifetime` | string | `Loop`, `Grid`, or `Simulation`. |
 | `aggregate_medium` | 32-bit integer | Index of the medium component of the aggregation rule. Aggregates only. |
 | `aggregate_custom` | 32-bit integer | Index of the custom state variable of the aggregation rule. Aggregates only. |
 
@@ -346,16 +346,18 @@ length `M` as the Medium state datasets, also after dynamic grid refinement has 
 attributes are `item_path`, `item_type`, `id`, `description`, and `lifetime`, as for a scalar
 series, plus `num_iterations`, the number of iterations accumulated since the last reset.
 
-**Loop state.** Two further attributes on the checkpoint bundle record the state of the history
+**Loop state.** Three further attributes on the checkpoint bundle record the state of the history
 itself:
 
 | Attribute | Type | Description |
 | --- | --- | --- |
 | `history_loop` | string | The current loop: `None`, `Primary`, `Secondary`, or `Merged`. |
 | `history_iteration` | 32-bit integer | The one-based index of the current iteration within that loop. |
+| `history_grid_changed` | 32-bit integer | 1 if dynamic grid refinement subdivided cells in the current iteration, and 0 otherwise. |
 
 `history_loop` distinguishes a merged loop from a secondary loop, which the `when` attribute does
-not.
+not. `history_grid_changed` tells the history to clear the series with grid lifetime when the next
+iteration begins, as it would in an uninterrupted run.
 
 **Datasets** — shown here for a history with two scalar series of depth 2 and one cell window
 over `M` cells:

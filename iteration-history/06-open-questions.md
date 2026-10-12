@@ -20,10 +20,18 @@ value, which matches the dust emission and the `DiffuseIonizedGasMix` criteria. 
 Unifying the conventions would change the behavior of that criterion slightly, which is outside the
 scope of a refactoring.
 
-**Plateau reset.** The loop lifetime of the plateau series in the `DiffuseIonizedGasMix` changes
+**Plateau reset.** The lifetime of the plateau series in the `DiffuseIonizedGasMix` changes
 when its history is cleared (see the Call sites chapter). If the current behavior must be preserved
 exactly, the mix can clear the series itself on convergence, which requires a `clear()` function on
 scalar series.
+
+**Per-cell iterates.** Accelerators for fixed-point iterations, such as the Anderson and Ng
+acceleration discussed in the Dust self-absorption design note, combine the last few iterates of a
+state vector in each cell. The history could hold these iterates in a third kind of series, next
+to the scalar series and the cell windows, and a helper next to the history could perform the
+acceleration step, so that a material mix supplies only its per-cell state and residual. Such a
+series would have grid lifetime, because iterates obtained on different grids do not belong to
+the same sequence. It is not part of this proposal.
 
 **Aggregates of standard variables.** Only custom variables can be marked for aggregation. The
 current mechanism also aggregates the total volume and the number density of each component, but

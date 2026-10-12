@@ -133,6 +133,8 @@ number of cells, and number of accumulated iterations. New getters are needed fo
 - `Lifetime lifetime() const`, on both `ScalarSeries` and `CellWindow`.
 - `double sum(int m) const` on `CellWindow` — the raw running sum, since `mean()` divides by the
   number of accumulated iterations and returns NaN if there are none.
+- `bool gridChanged() const` on `IterationHistory` — true if cells were appended in the current
+  iteration, so that the series with grid lifetime will be cleared when the next iteration begins.
 
 In addition, a small helper translates between an item pointer and its path in the simulation item
 hierarchy (see Iteration history in the Data model chapter), by walking the `children()` of each
@@ -180,7 +182,7 @@ establishes the flat array directly from the checkpoint's `grid_first_child` and
 
 If the grid is configured for dynamic refinement, as proposed in the
 [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) note, the initial level of
-each cell is restored from `grid_initial_level`, so that the `maxExtraLevels` limit applies as in
+each cell is restored from `grid_initial_level`, so that the level limits apply as in
 an uninterrupted run. Further refinement after resuming then appends to the restored array, as it
 would have without the interruption.
 
@@ -235,10 +237,11 @@ before the run resumes accumulating on top of it.
 Series are created on demand, so the history of a resumed run starts empty, apart from the
 aggregate series that clients declare during setup. Resuming recreates every stored series, with
 its key, depth, lifetime, description, quantity, aggregation rule, and values, and every stored
-cell window, with its running sums and number of accumulated iterations, and sets the current loop
-and iteration index. This needs a new function on `IterationHistory`, taking the opened checkpoint
-bundle, that translates each stored item path back to the live item and reports a fatal error if
-the path does not lead to an item of the stored type.
+cell window, with its running sums and number of accumulated iterations, and sets the current loop,
+the iteration index, and the flag that tells whether the grid changed in that iteration. This
+needs a new function on `IterationHistory`, taking the opened checkpoint bundle, that translates
+each stored item path back to the live item and reports a fatal error if the path does not lead to
+an item of the stored type.
 
 Because declaring a series is idempotent, the clients need no changes: when a client declares a
 series in the next iteration, it receives the restored series, with the same lifetime and
@@ -249,7 +252,8 @@ the stored values.
 The restore must happen after the steps that would otherwise disturb the restored state:
 
 - after the medium system records the initial values of the aggregates at the end of setup;
-- after `beginLoop()` for the loop being resumed into, which clears the series with loop lifetime.
+- after `beginLoop()` for the loop being resumed into, which clears the series with loop or grid
+  lifetime.
 
 `MonteCarloSimulation` therefore restores the history right after calling `beginLoop()` for the
 loop it resumes into, or at the end of setup when resuming from a `Setup` or `Run` checkpoint. The

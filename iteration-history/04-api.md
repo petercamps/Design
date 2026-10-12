@@ -126,21 +126,23 @@ public:
     /** The iteration loops. */
     enum class Loop { None, Primary, Secondary, Merged };
 
-    /** The lifetime of a series: cleared at the start of each iteration loop, or kept for the
-        complete simulation. */
-    enum class Lifetime { Loop, Simulation };
+    /** The lifetime of a series: cleared at the start of each iteration loop; cleared at the start
+        of each iteration loop and at the start of the first iteration after the spatial grid has
+        changed; or kept for the complete simulation. */
+    enum class Lifetime { Loop, Grid, Simulation };
 
     /** Creates an empty history hooked up as a child to the specified parent. */
     explicit IterationHistory(SimulationItem* parent);
 
     //======== Iteration events, called by MonteCarloSimulation ========
 
-    /** Starts a new iteration loop: clears all series with loop lifetime, and resets the iteration
-        index to zero. */
+    /** Starts a new iteration loop: clears all series with loop or grid lifetime, and resets the
+        iteration index to zero. */
     void beginLoop(Loop loop);
 
     /** Starts a new iteration: increments the iteration index and advances all scalar series by
-        one slot, leaving the new current slot empty. */
+        one slot, leaving the new current slot empty. If cells were appended since the previous
+        call, the function first clears all series with grid lifetime. */
     void beginIteration();
 
     /** Returns the current loop, and the one-based index of the current iteration within that loop
@@ -184,7 +186,8 @@ public:
 
     /** Grows all cell windows by one cell for each element of \em parentCells. The new cells
         receive consecutive indices following the existing cells, and start with the running sum of
-        the indicated parent cell. */
+        the indicated parent cell. The function also marks the grid as changed, so that the next
+        call to beginIteration() clears all series with grid lifetime. */
     void appendCells(const vector<int>& parentCells);
 
     //======== Listing ========
@@ -196,6 +199,7 @@ public:
 private:
     Loop _loop{Loop::None};
     int _iteration{0};
+    bool _gridChanged{false};                    // true if cells were appended in this iteration
     std::map<SeriesKey, ScalarSeries> _scalars;  // node-based, so references remain valid
     std::map<SeriesKey, CellWindow> _windows;
 };
