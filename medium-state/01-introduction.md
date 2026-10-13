@@ -19,6 +19,8 @@ were adequate for dust now get in the way:
   treatment exists because a dust medium can be derived from the gas in a hydrodynamical snapshot
   through the metallicity and the temperature. For a gas mix, the two are quantities like any
   other, and the user must remember which combination of import options a given mix expects.
+- **A family of mixes needs its own option.** An imported medium has one property for a material
+  mix, another for a material mix family, and an option that tells which of the two applies.
 - **Overlapping entities are combined in a fixed way.** Where smoothed particles overlap, the
   density is summed, the temperature and the metallicity are averaged, and all other imported
   quantities are taken from the particle with the largest weight. This is right for an index, but
@@ -36,14 +38,6 @@ were adequate for dust now get in the way:
 - **Array-valued state is accessed one value at a time.** A mix that stores an opacity table per
   cell copies it into a temporary array for every use.
 
-## Background
-
-The proposal answers suggestions made in response to the SKIRT 10 design notes. Andrea Gebek
-suggested dropping the separate treatment of temperature and metallicity. Arno Lauwers suggested
-the other changes, from his experience with adding X-ray gas mixes to SKIRT, and pointed out that
-the first suggestion requires the second: once temperature and metallicity are ordinary imported
-quantities, they must still be averaged over overlapping particles.
-
 ## Proposal
 
 This design note proposes five changes. The first two change what users see; the others are
@@ -52,13 +46,15 @@ internal.
 - **Uniform import.** A material mix requests all the quantities it needs from the snapshot,
   including the temperature and the metallicity, through a single list. The import options for
   temperature and metallicity disappear, and so does the built-in recipe that derives the dust
-  mass from them.
+  mass from them. A single property of an imported medium accepts a material mix or a material
+  mix family, so that the option to switch between the two disappears as well.
 - **Richer descriptors.** The descriptor of an imported quantity or a state variable states its
   kind: intensive, extensive, or categorical. The kind determines how overlapping entities are
   combined, and how a variable is passed on when a spatial cell is subdivided. The descriptor of
   a state variable also carries a short name, and can describe an array of values.
-- **Capabilities descriptor.** A material mix and a material mix family describe their
-  capabilities in a small data structure, which a family provides without constructing a mix.
+- **Capabilities descriptor.** A material mix and a material mix family share a base class,
+  through which they describe their capabilities in a small data structure. A family provides it
+  without constructing a mix.
 - **Staged updates.** A material mix can split a state update into a preparation pass over all
   cells, a serial step that sees the complete state, and the actual update of each cell.
 - **Array access.** A material mix reads and writes a block of state variables through a view,

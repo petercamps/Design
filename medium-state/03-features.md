@@ -31,6 +31,39 @@ For a geometric medium nothing is imported, and a material mix uses its default 
 its own properties, as today. These defaults no longer apply to an imported medium: every
 requested quantity must be present in the import file.
 
+### Material mix families
+
+An imported medium has a single `materialMix` property, which accepts a material mix or a
+material mix family. The `importVariableMixParams` option and the separate `materialMixFamily`
+property are removed: configuring a family is what makes the material mix vary with position. For
+example, a medium that was configured as
+
+```xml
+<ParticleMedium filename="dust.txt" importVariableMixParams="true" ...>
+    <materialMixFamily type="MaterialMixFamily">
+        <SelectDustMixFamily>
+            ...
+        </SelectDustMixFamily>
+    </materialMixFamily>
+</ParticleMedium>
+```
+
+becomes
+
+```xml
+<ParticleMedium filename="dust.txt" ...>
+    <materialMix type="MaterialMixProvider">
+        <SelectDustMixFamily>
+            ...
+        </SelectDustMixFamily>
+    </materialMix>
+</ParticleMedium>
+```
+
+The import file does not change. The list of choices for the material mix of an imported medium
+includes the families, under the conditions that applied to the option. A geometric medium
+accepts a material mix only, as today.
+
 ### Quantities requested by each material mix
 
 The following table lists the proposed requests. The metallicity and the temperature come first,
@@ -111,8 +144,13 @@ The kind determines how values are combined when an imported medium is evaluated
 | --- | --- | --- |
 | intensive | average, weighted by the kernel weight times the mass of each entity | average, weighted by density |
 | categorical | value of the entity with the largest kernel weight | value of the sample with the highest density |
-| extensive | not supported for imported quantities | not supported for imported quantities |
+| extensive | not supported for quantities requested by a mix | not supported for quantities requested by a mix |
 
+The kinds apply to the quantities that a material mix requests. A material mix that needs an
+extensive quantity requests the corresponding intensive quantity instead, such as an abundance
+ratio or a number density.
+
+Importing the mass or density of a medium keeps its own treatment, as today. 
 The velocity and the magnetic field are combined as today, and so are the temperature and the
 metallicity of a material mix. The other quantities requested by a material mix were all treated
 as categorical; they are now intensive, with two exceptions. The dust mix index of the
@@ -137,8 +175,8 @@ that the rest of the code can find these quantities in any mix that stores them:
 
 | Name | Quantity |
 | --- | --- |
-| `temperature` | the temperature of the material, in kelvin |
-| `metallicity` | the metallicity of the material, as a mass fraction |
+| `T` | the temperature of the material, in kelvin |
+| `Z` | the metallicity of the material, as a mass fraction |
 
 Other names are chosen by the mix. The `DiffuseIonizedGasMix`, for example, names its ionization
 parameter `logU` and its neutral hydrogen fraction `x_HI`.
@@ -172,6 +210,9 @@ become custom state variables of the mixes that store them.
 
 - The properties `importMetallicity`, `importTemperature`, and `maxTemperature` are removed from
   all imported media and imported geometries.
+- The properties `importVariableMixParams` and `materialMixFamily` are removed from all imported
+  media. A material mix family is configured through the `materialMix` property, of which the
+  base type changes for all imported media.
 - The dust mass is no longer derived from an imported metallicity and temperature. The import
   files of dust media and imported geometries that used these options must be converted.
 - For gas and electron media, the metallicity and temperature columns move behind the velocity
@@ -192,6 +233,8 @@ become custom state variables of the mixes that store them.
   interfaces, listed in the Implementation chapter.
 
 The PTS ski file upgrade removes the three properties from all imported media and geometries, and
-renames the property of the `CustomStateProbe`. It cannot convert import files. It reports each
-medium and geometry that had `importMetallicity` or `importTemperature` enabled, so that the user
-can convert or remap the corresponding file.
+renames the property of the `CustomStateProbe`. For each imported medium, it removes the
+`importVariableMixParams` property, renames a `materialMixFamily` element to `materialMix`, and
+adjusts the base type of the `materialMix` element. It cannot convert import files. It reports
+each medium and geometry that had `importMetallicity` or `importTemperature` enabled, so that the
+user can convert or remap the corresponding file.

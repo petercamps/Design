@@ -81,6 +81,9 @@ existing ski files, import files, and simulation results as follows:
 
 - The properties `importMetallicity`, `importTemperature`, and `maxTemperature` are removed from
   all imported media and imported geometries.
+- The properties `importVariableMixParams` and `materialMixFamily` are removed from all imported
+  media. A material mix family is configured through the `materialMix` property, of which the
+  base type changes for all imported media.
 - The mass of a dust medium is no longer multiplied by an imported metallicity, nor discarded
   above a maximum temperature. The import files of dust media and imported geometries that used
   these options must be converted, so that they hold the mass to be used. PTS offers a command
@@ -202,6 +205,10 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
   imported media and imported geometries, and report each medium and geometry for which
   `importMetallicity` or `importTemperature` was enabled, since its import file must be converted
   or remapped separately. Rename the `indices` property of the `CustomStateProbe` to `variables`.
+
+- For each imported medium, remove the `importVariableMixParams` property, rename a
+  `materialMixFamily` element to `materialMix`, and adjust the base type of the `materialMix`
+  element.
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.

@@ -55,6 +55,10 @@ first two are optional.
 | `importVelocity`, `importMagneticField` | import the corresponding three columns |
 | `importVariableMixParams` | select a material mix per position from a family, using imported parameters |
 
+The `importVariableMixParams` option tells which of two further properties applies: `materialMix`,
+which holds a single material mix, or `materialMixFamily`, which holds a family. The classes
+`MaterialMix` and `MaterialMixFamily` have no common base class.
+
 The meaning of the metallicity and temperature columns depends on the material type:
 
 - For **dust**, they define the mass. The mass of an entity is the imported mass times the
