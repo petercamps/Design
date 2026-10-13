@@ -323,7 +323,7 @@ The criteria and conditions rely on the names and kinds of state variables propo
 the names listed in the Features chapter to the corresponding variables.
 
 At setup, each medium state criterion and each `MediumStateCondition` resolves its variable name
-to a medium component and a state variable index, through `MaterialMix::stateVariableIndex()`,
+to a medium component and a state variable index, through the variable list of each material mix,
 taking the first component whose mix declares a variable with that name. During the refinement
 step, it reads the value directly from the medium state. The loop in which the variable of a
 criterion changes follows from whether the component's mix has a primary or secondary dynamic

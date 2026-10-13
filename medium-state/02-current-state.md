@@ -33,7 +33,8 @@ declared as that number of separate custom variables.
 contiguously per cell. Each access calculates the position of the variable from the cell index and
 an offset. A `MaterialState` object bundles a cell index and a component index, and offers
 `numberDensity()`, `metallicity()`, `temperature()`, and `custom(i)` with the corresponding
-setters. A custom variable is read or written one value at a time.
+setters. A custom variable is read or written one value at a time. The mixes with many variables
+define preprocessor macros that make these calls look like named accessor functions.
 
 Two further "fake" cells at the end of the array hold the current and the previous aggregate
 state, used by convergence criteria. The

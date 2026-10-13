@@ -71,7 +71,9 @@ with a material mix family.
 **Iteration history.** That note removes the aggregate states from the medium state, and marks
 state variables for aggregation with `aggregated()`, in the same style as the attributes proposed
 here. The volume integral it calculates sums a variable times the cell volume. It is meaningful
-for an intensive variable; for an extensive variable the aggregate is the plain sum.
+for an intensive variable; for an extensive variable the aggregate is the plain sum. Its examples
+build the variables of a mix as a vector; with this proposal, a mix adds them to its variable list
+instead.
 
 **Dynamic grid refinement.** That note selects state variables by the names proposed here. The
 kinds proposed here replace its requirement that all state variables be intensive: an extensive

@@ -61,35 +61,39 @@ int count() const;
 ```
 
 These functions follow the pattern of the `aggregated()` function proposed in the Iteration
-history design note, so that the attributes can be combined:
+history design note, so that the attributes can be combined. The factory function `custom()` gains
+an overload without an index, for a variable that receives its index when it is added to the
+variable list of a mix (see Declaring and accessing variables below):
 
 ```cpp
-result.push_back(StateVariable::custom(index, "hydrogen neutral fraction", "").named("x_HI"));
-result.push_back(StateVariable::custom(index, "extinction opacity", "").named("kappa_ext").array(n));
+StateVariable::custom("hydrogen neutral fraction", "").named("x_HI")
+StateVariable::custom("extinction opacity", "").named("kappa_ext").array(n)
 ```
 
 Two factory functions create the custom variables with the standard names, so that all mixes
 declare them in the same way:
 
 ```cpp
-/** Return a custom variable with the specified index that holds the temperature or the
-    metallicity of the material, with the standard name (T or Z), description, and quantity. */
-static StateVariable temperature(int customIndex);
-static StateVariable metallicity(int customIndex);
+/** Return a custom variable that holds the temperature or the metallicity of the material,
+    with the standard name (T or Z), description, and quantity. */
+static StateVariable temperature();
+static StateVariable metallicity();
 ```
 
-`MaterialMix` gains a helper that looks up a variable by name:
+The function `specificStateVariableInfo()` of `MaterialMix` returns a reference to a variable
+list, described under Declaring and accessing variables below, instead of a vector that is built
+for each call:
 
 ```cpp
-/** Returns the custom index of the state variable with the specified name, or -1 if this mix
-    has no such variable. */
-int stateVariableIndex(const string& name) const;
+/** Returns the specific state variables of this material mix. The default implementation
+    returns a list that holds just the number density. */
+virtual const StateVariableList& specificStateVariableInfo() const;
 ```
 
-The function `specificStateVariableInfo()` is called several times, by the medium system and by
-probes. A mix should therefore assemble its list of variables once, during setup, record the
-indices at that time, and return the stored list. This also removes the need to cast away the
-constness of the mix, which is how most mixes record the indices today.
+The function is called several times, by the medium system and by probes. Returning a reference
+avoids a copy for each call, and requires the list to outlive the call. A mix therefore assembles
+its list of variables once, during setup, and keeps it. This also removes the need to cast away
+the constness of the mix, which is how most mixes record the indices today.
 
 ## Material mix interface
 
@@ -110,7 +114,8 @@ array is empty for a geometric medium, in which case the mix uses its default va
 The ban on requesting the temperature or the metallicity as a parameter is lifted.
 
 `MaterialState` loses `temperature()`, `metallicity()`, and their setters. A mix reads and writes
-these quantities as custom variables, through the index it recorded.
+these quantities as custom variables, through the handle it recorded (see Declaring and accessing
+variables below).
 
 ## Common base class
 
@@ -288,6 +293,12 @@ The stages communicate through two channels:
   stage 3 only reads the data. The functions remain `const`, like all functions of a mix that are
   called after setup.
 
+The lifetime of such mutable data must be limited to a single update. A mix must not carry them
+over from one iteration to the next. They are not part of the medium state, so they are not
+stored in a checkpoint, for example, and a resumed simulation would start without them. Anything
+that must survive an update belongs in the medium state, or in the iteration history proposed in
+the [Iteration history](iteration-history/01-introduction.md) design note.
+
 Stage 2 may itself start a parallel calculation through the `ParallelFactory`, and communicate the
 results between processes with the `ProcessManager`, like the medium system does.
 
@@ -341,16 +352,109 @@ double k = kappa[j] + (kappa[j + 1] - kappa[j]) * fraction;
 The view offers `begin()` and `end()`, so it also works with the standard algorithms and with a
 range-based loop.
 
+## Declaring and accessing variables
+
+A material mix with many variables, such as the `DiffuseIonizedGasMix` or the `NonLTELineGasMix`,
+records the index of each variable by hand while it builds its list, and defines preprocessor
+macros that make `state->custom(_indexHNeutralFraction)` look like a named accessor function. Three
+small classes in the `material` module replace both.
+
+A handle refers to a custom variable of a mix. The mix stores a handle where it stores an index
+today, and applies it to a state:
+
+```cpp
+/** A StateScalar refers to a scalar custom state variable of a material mix. */
+class StateScalar
+{
+public:
+    /** Returns the value of the variable in the specified state. */
+    double operator()(const MaterialState* state) const;
+
+    /** Returns a reference to the value of the variable in the specified state. */
+    double& operator()(MaterialState* state) const;
+};
+
+/** A StateArray refers to an array-valued custom state variable of a material mix. */
+class StateArray
+{
+public:
+    /** Return a view on the elements of the variable in the specified state. */
+    Span<const double> operator()(const MaterialState* state) const;
+    Span<double> operator()(MaterialState* state) const;
+};
+```
+
+A list assembles the variables of a mix, assigns their indices, hands out the handles, and finds
+a variable by its name:
+
+```cpp
+/** A StateVariableList assembles the specific state variables of a material mix. It starts with
+    the number density, assigns consecutive custom indices to the variables that are added, and
+    returns a handle for each of them. */
+class StateVariableList
+{
+public:
+    /** Adds the specified scalar custom variable, and returns a handle for it. */
+    StateScalar add(const StateVariable& variable);
+
+    /** Adds the specified array-valued custom variable, and returns a handle for it. */
+    StateArray addArray(const StateVariable& variable);
+
+    /** Returns the custom index of the variable with the specified name, or -1 if the list has
+        no such variable. For an array variable, this is the index of its first element. */
+    int index(const string& name) const;
+
+    /** Return the number of variables in the list, and iterators over them. */
+    size_t size() const;
+    vector<StateVariable>::const_iterator begin() const;
+    vector<StateVariable>::const_iterator end() const;
+};
+```
+
+The functions that add a variable report a fatal error if its name is already in use. Other code
+finds a variable through the list of a mix, as in `mix->specificStateVariableInfo().index("T")`,
+and loops over the variables as it does over the vector today.
+
+A mix keeps the list and the handles as data members. It fills them during setup, and returns the
+list from `specificStateVariableInfo()`:
+
+```cpp
+// during setup
+_temperature = _variables.add(StateVariable::temperature());
+_hNeutralFraction = _variables.add(StateVariable::custom("hydrogen neutral fraction", "").named("x_HI"));
+_opacityExt = _variables.addArray(StateVariable::custom("extinction opacity", "").named("kappa_ext").array(n));
+
+// in the functions that use the state
+double h0 = _hNeutralFraction(state);
+_hNeutralFraction(state) = 1.;
+auto kappa = _opacityExt(state);
+double k = kappa[j] + (kappa[j + 1] - kappa[j]) * fraction;
+```
+
+- The accessors are inline, so a handle compiles to the same code as the macro it replaces. For
+  an array, the position of the variable is calculated once instead of once per element.
+- The overloads distinguish a constant state from one that can be modified. A function that
+  receives a constant state, such as an opacity function, reads a value or a read-only view
+  without casting away the constness of the state.
+- The mix no longer keeps track of the indices itself, and no longer modifies its data members
+  from a `const` function.
+- The functions `custom(i)` and `setCustom(i, value)` of `MaterialState` remain, for code that
+  works with an index, such as the probes.
+
+A macro that abbreviates an expression rather than an accessor, such as the fragment weight in the
+`FragmentDustMixDecorator`, becomes a private inline function of the mix.
+
 ## Changes to existing classes
 
 | Class | Change |
 | --- | --- |
 | `SnapshotParameter` | gains a kind |
-| `StateVariable` | loses the metallicity and temperature identifiers; gains name, kind, and number of elements, with factory functions for the standard names |
+| `StateVariable` | loses the metallicity and temperature identifiers; gains name, kind, and number of elements, with factory functions for the standard names and a `custom()` overload without index |
+| `StateScalar`, `StateArray`, `StateVariableList` | new classes: the handles for the custom variables of a mix, and the list that assigns their indices and finds a variable by name |
 | `MaterialState` | loses the metallicity and temperature functions; gains `customs()` |
 | `MediumState` | loses the metallicity and temperature functions and offsets; gains `numCells()` and access to a range of custom variables |
 | `MaterialMixProvider` | new abstract base class of `MaterialMix` and `MaterialMixFamily`; holds the `MaterialType` and `DynamicStateType` enumerations and the `Capabilities` structure |
-| `MaterialMix` | derives from `MaterialMixProvider`; changed `initializeSpecificState()`; gains `capabilities()`, `stateVariableIndex()`, and the staged update functions |
+| `MaterialMix` | derives from `MaterialMixProvider`; changed `initializeSpecificState()`; `specificStateVariableInfo()` returns a `StateVariableList`; gains `capabilities()` and the staged update functions |
 | `MaterialMixFamily` | derives from `MaterialMixProvider`; changed `mix()`; gains `capabilities()` |
 | `Snapshot` and subclasses | lose the metallicity and temperature import functions, the temperature cutoff, and the metallicity multiplier; combine parameters by kind |
 | `Medium`, `GeometricMedium` | lose the four metallicity and temperature functions; gain `capabilities()` and `parameterInfo()` |
@@ -376,10 +480,11 @@ refers to the removed options.
 | `SpinFlipHydrogenGasMix`, `DiffuseIonizedGasMix` | request the metallicity and the temperature as parameters; store them as custom variables with the standard names |
 | `NonLTELineGasMix` | requests the temperature as a parameter; stores the effective temperature as the custom variable named `T`, next to its kinetic temperature |
 | `DiffuseIonizedGasMix` | names the variables listed in the Dynamic grid refinement design note; declares its opacity tables as array variables and reads them through views |
-| `FragmentDustMixDecorator`, `AbsorptionOnlyMaterialMixDecorator` | follow the changed signatures |
+| `DiffuseIonizedGasMix`, `NonLTELineGasMix` | replace their accessor macros by handles |
+| `FragmentDustMixDecorator`, `AbsorptionOnlyMaterialMixDecorator` | follow the changed signatures; the `FragmentDustMixDecorator` replaces its weight macro by a private function |
 | `SelectDustMixFamily` | marks its index as categorical; provides `capabilities()` |
 | `XRayIonicGasMixFamily` | requests the temperature as a parameter; marks all its parameters as categorical; provides `capabilities()` from its properties |
-| all mixes with custom variables | assemble the list of variables during setup |
+| all mixes with custom variables | assemble the list of variables during setup, through a `StateVariableList` |
 
 The `NonLTELineGasMix` stores two temperatures. The effective temperature, which includes the
 unresolved turbulence, takes the standard name, because it is the one that broadens the emitted
@@ -388,7 +493,8 @@ lines and that the `TemperatureProbe` reports today.
 ## Performance
 
 - **Photon life cycle.** The state is stored and accessed as today. A mix that reads an array
-  variable through a view no longer copies its values for every use.
+  variable through a view no longer copies its values for every use, and a handle compiles to the
+  same code as the macro it replaces.
 - **Setup.** Combining the imported quantities by kind still takes a single pass over the
   overlapping entities at a position.
 - **Updates.** A component that does not opt in to the staged protocol sees no change. One that
@@ -410,8 +516,8 @@ lines and that the `TemperatureProbe` reports today.
 - **Staged updates.** A test-only material mix, in the spirit of the `TrivialGasMix`, uses the
   four stages to derive the state of each cell from a table built in stage 2, with one and with
   several processes.
-- **Array access.** Unit-style checks through the test-only mix, and unchanged results for the
-  mixes that adopt the views.
+- **Variable access.** Unit-style checks through the test-only mix, and unchanged results for the
+  mixes that adopt the views, the handles, and the variable list.
 
 ## Order of implementation
 
@@ -423,7 +529,7 @@ The changes can be implemented and verified in five steps:
 3. The uniform import, including the conversion of the temperature and the metallicity to named
    custom state variables, the removal of the import options, the single property for a material
    mix or family, and the PTS commands. This is the incompatible step.
-4. Array variables and views.
+4. Array variables, views, handles, and the variable list.
 5. Staged updates.
 
 Steps 4 and 5 are independent of each other, and each is useful without the others.

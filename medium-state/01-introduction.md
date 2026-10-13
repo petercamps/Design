@@ -27,7 +27,8 @@ were adequate for dust now get in the way:
   wrong for a velocity or an abundance ratio.
 - **State variables are anonymous.** A custom state variable is known by its index, which changes
   with the configuration of the mix. A probe or a refinement criterion cannot ask for "the neutral
-  hydrogen fraction".
+  hydrogen fraction". Inside a mix, the authors resort to preprocessor macros to give the
+  variables readable names.
 - **The capabilities of a medium are asked from a material mix.** For a medium with a family of
   mixes, this means constructing a mix before the simulation has been set up, just to answer a
   few yes-or-no questions, and nothing verifies that all members of the family give the same
@@ -57,8 +58,9 @@ internal.
   without constructing a mix.
 - **Staged updates.** A material mix can split a state update into a preparation pass over all
   cells, a serial step that sees the complete state, and the actual update of each cell.
-- **Array access.** A material mix reads and writes a block of state variables through a view,
-  without copying.
+- **Variable access.** A material mix reads and writes a block of state variables through a view,
+  without copying. It declares its variables through a list that assigns their indices, and
+  accesses them through small handle objects instead of preprocessor macros.
 
 ## Scope and assumptions
 
