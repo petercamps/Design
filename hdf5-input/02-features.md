@@ -81,3 +81,7 @@ be extended with functions and commands to convert the file types discussed abov
 their corresponding HDF5 bundle form. This includes files in the binary `scol` format, which
 SKIRT 10 no longer supports (see the SKIRT 10 [Incompatibilities](skirt-10/04-incompatibilities.md)
 chapter).
+
+PTS also offers the opposite conversion, from bundles in an HDF5 file to the corresponding regular
+files, for example for use with a tool that does not read HDF5. The bundles to convert are specified
+in the `<dir>/<hdf>:<suite>` format of the `-i` option, optionally followed by the name of a bundle.

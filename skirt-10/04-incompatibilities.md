@@ -137,7 +137,8 @@ file with the `.scol` extension.
 Existing `.scol` files must be converted to a text column file bundle in an HDF5 file, and the ski
 file must refer to the resulting bundle. PTS offers a command for this conversion, built on its
 existing functions for reading `.scol` files. By default, the bundle is named for the file with the
-`.scol` extension replaced by `.txt`.
+`.scol` extension replaced by `.txt`. A second PTS command converts a bundle to the corresponding
+regular file, so that the two commands together convert a `.scol` file to a text column file.
 
 The removal affects:
 
