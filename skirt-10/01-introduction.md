@@ -60,6 +60,9 @@ implemented. A note may build on earlier ones in this list, as stated at its sta
   restructuring of the hierarchical tree classes and their subdivision policies.
 - **[HDF5 input](hdf5-input/01-introduction.md)** proposes optional HDF5 support for
   simulation input.
+- **[Medium state](medium-state/01-introduction.md)** proposes a uniform way to import and
+  describe the quantities stored for each spatial cell, and changes to how they are updated
+  and accessed.
 - **[Iteration history](iteration-history/01-introduction.md)** proposes a central object that
   holds the historical data of the iteration loops.
 - **[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)** proposes refining a

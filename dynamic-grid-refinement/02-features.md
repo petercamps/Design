@@ -262,25 +262,21 @@ subdivided first.
 
 The medium state criteria and the `MediumStateCondition` have a `variable` property that names a
 medium state variable. Any state variable of any material mix can be used, provided the mix gives
-it a short name. The standard `temperature` variable is available for all mixes that store a
-temperature. The `DiffuseIonizedGasMix` names the following custom variables:
+it a short name, as proposed in the [Medium state](medium-state/03-features.md) design note. The
+`DiffuseIonizedGasMix` names the following variables:
 
 | Variable | Meaning |
 | --- | --- |
 | `logU` | the ionization parameter (resolves the ionized region) |
 | `x_HI` | the neutral hydrogen fraction (resolves the ionization front) |
 | `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | the fraction of H+, N+, O0, O+, O2+, or S+ (resolves that ion's emitting layer) |
-| `temperature` | the gas temperature (resolves thermal transitions) |
+| `T` | the gas temperature (resolves thermal transitions) |
 
 The variable is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component
 offers the requested one. For the variable of a criterion, setup also reports a fatal error if
 that component has no dynamic medium state, primary or secondary, because the variable then does
 not change between iterations. The variable of a condition may be static.
-
-> Selecting a variable by name keeps the `MaterialMix` base class free of mix-specific enumerations
-> and ion index tables, and makes new fields available simply by naming a state variable. The
-> price is that the schema cannot validate the name, so MakeUp cannot offer a list of choices.
 
 ### Dust temperature
 
@@ -384,14 +380,14 @@ medium component is therefore conserved, and the next iteration starts from the 
 The radiation field stored for the parent is divided among the children in proportion to their
 volume, so that each child starts with its parent's mean intensity.
 
-Copying the state is correct only because all state variables other than the volume are intensive:
-their values do not depend on the size of the cell. This holds for the standard variables, such as
-the number density, the metallicity, the temperature, the bulk velocity, and the magnetic field. It
-also holds for the custom variables of all current material mixes, which store quantities such as
-ionization fractions, level populations per unit volume, and mean intensities. Custom state
-variables must therefore be intensive. A quantity that scales with the size of the cell, such as a
-mass, a number of particles, or a luminosity, must be stored per unit volume or per unit mass
-instead.
+How the value of a state variable is passed on depends on its kind, which the material mix
+declares as proposed in the [Medium state](medium-state/03-features.md) design note. An intensive
+variable does not depend on the size of the cell, and is copied to each child, as is a categorical
+variable. This covers the number density, the bulk velocity, the magnetic field, and the variables
+of all current material mixes, which store quantities such as temperatures, ionization fractions,
+level populations per unit volume, and mean intensities. An extensive variable scales with the
+size of the cell, as a mass, a number of particles, or a luminosity does, and is divided among the
+children in proportion to their volume.
 
 Inheriting the state means that the refinement does not resolve any density structure within
 the parent cell.

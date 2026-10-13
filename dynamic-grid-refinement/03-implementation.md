@@ -33,10 +33,10 @@ the `medium` module, next to the spatial grids that hold the options and the med
 performs the refinement step. The criteria and conditions use the medium system, the material
 mixes and state variables in the `material` module, and the iteration history in the `tools`
 module, all of which `medium` already depends on. The changes to existing classes stay within
-their own modules or use existing dependencies: `material` gains only self-contained additions
-(appending cells to the medium state, short names for state variables), and the `simulation` and
-`probe` modules, which call the refinement step or report the refined grid, already depend on
-`medium`. The `RefinementCandidatesProbe` lives in the `probe` module, next to the other probes.
+their own modules or use existing dependencies: `material` gains only a self-contained addition
+(appending cells to the medium state), and the `simulation` and `probe` modules, which call the
+refinement step or report the refined grid, already depend on `medium`. The
+`RefinementCandidatesProbe` lives in the `probe` module, next to the other probes.
 No new dependencies between modules arise. In particular, the `MaterialMix` base class does not
 need to know about refinement, because the criteria read the medium state from above.
 
@@ -264,7 +264,7 @@ per-cell structures, based on the current code.
 | --- | --- | --- |
 | tree grid | node array, cell-to-node map, initial levels | new nodes; parent's initial level |
 | `MediumSystem` | cached number of cells | updated |
-| `MediumState` | state variables for each cell | parent's values, which are intensive; volume recalculated from the grid |
+| `MediumState` | state variables for each cell | parent's values for intensive and categorical variables, the child's volume fraction of them for extensive variables; volume recalculated from the grid |
 | `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values times the child's volume fraction |
 | `MediumSystem` | material mixes per cell, if applicable | parent's mixes |
 | `IterationHistory` | cell windows, including those of the refinement criteria | parent's running sums |
@@ -318,19 +318,17 @@ a criterion takes part, and issues a warning if that number is below 100.
 
 ## Criterion fields
 
-`StateVariable::custom()` gains an optional short name, in addition to its description. The
-`DiffuseIonizedGasMix` assigns the names listed in the Features chapter to the corresponding
-custom variables. The standard variables have fixed names, such as `temperature`. The
-documentation of `StateVariable::custom()` also states that custom variables must be intensive, so
-that child cells can copy their parent's values (see the Features chapter).
+The criteria and conditions rely on the names and kinds of state variables proposed in the
+[Medium state](medium-state/04-implementation.md) design note. The `DiffuseIonizedGasMix` assigns
+the names listed in the Features chapter to the corresponding variables.
 
 At setup, each medium state criterion and each `MediumStateCondition` resolves its variable name
-to a medium component and a state variable offset, taking the first component whose mix declares a
-variable with that name. During the refinement step, it reads the value directly from the medium
-state. The loop in which the variable of a criterion changes follows from whether the component's
-mix has a primary or secondary dynamic medium state. The number density for the column density
-limit of a medium state criterion is that of the same component, as returned by
-`MediumSystem::numberDensity()`.
+to a medium component and a state variable index, through `MaterialMix::stateVariableIndex()`,
+taking the first component whose mix declares a variable with that name. During the refinement
+step, it reads the value directly from the medium state. The loop in which the variable of a
+criterion changes follows from whether the component's mix has a primary or secondary dynamic
+medium state. The number density for the column density limit of a medium state criterion is that
+of the same component, as returned by `MediumSystem::numberDensity()`.
 
 The `DustTemperatureGradientCriterion` calls `MediumSystem::indicativeDustTemperature()`, which also
 serves the `TemperatureProbe`. It takes part in all loops. The number density for its column

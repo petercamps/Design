@@ -4,6 +4,7 @@
 >
 > Depends on: [SKIRT 10](skirt-10/01-introduction.md),
 > [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md),
+> [Medium state](medium-state/01-introduction.md),
 > [Iteration history](iteration-history/01-introduction.md)
 
 ## Motivation
@@ -54,8 +55,9 @@ structure.
   Dynamic refinement keeps all of its historical data in that history.
 - Only tree-based spatial grids (octree and binary tree) support dynamic refinement. Cells are
   only ever subdivided, never merged.
-- All medium state variables other than the cell volume must be intensive, so that child cells can
-  simply copy their parent's values. This holds for all current standard and custom variables.
+- The note assumes that medium state variables carry a short name and a kind, as proposed in the
+  [Medium state](medium-state/01-introduction.md) design note. The name lets a criterion select a
+  variable, and the kind tells how the value of a variable is passed on to child cells.
 - Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
   secondary emission iterations.
 - The mechanism is generic: refinement can be driven by any changes in the medium state or the

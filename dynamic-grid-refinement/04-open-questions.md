@@ -50,18 +50,6 @@ the very reason the refinement is needed, but it changes the total mass and requ
 which state variables to take from the input model and which from the parent. This could be added
 later as an option.
 
-**Extensive state variables.** Child cells copy their parent's state, which requires all state
-variables other than the volume to be intensive. The proposal states this as a requirement for
-custom variables, which all current material mixes meet. Alternatively, `StateVariable` could
-declare whether a custom variable is extensive, so that the refinement step divides its value
-among the children in proportion to their volume, as it does for the radiation field. This adds a
-concept that no current mix needs, so it is not proposed.
-
-**State variable names.** The short names proposed here for custom state variables could
-later be used to select custom state variables in the `CustomStateProbe`, which currently
-selects them by index. These indices depend on the mix configuration, for example on the
-abundance mode of the `DiffuseIonizedGasMix`, so names would be more robust.
-
 **Refinement in later loops.** Refinement can take place in each iteration loop, and its
 schedule starts afresh in each loop. In a simulation with primary and merged iterations,
 the merged loop therefore cannot converge before `numIterationsBeforeRefinement +

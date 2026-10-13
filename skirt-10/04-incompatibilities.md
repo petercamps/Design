@@ -73,6 +73,29 @@ either of the material mixes mentioned above, the upgrade is a trivial rename:
 
 The related configuration setup messages refer to resonant line scattering accordingly.
 
+### Imported temperature and metallicity
+
+The [Medium state](medium-state/01-introduction.md) design note proposes that a material mix
+requests the temperature and the metallicity like any other imported quantity, which affects
+existing ski files, import files, and simulation results as follows:
+
+- The properties `importMetallicity`, `importTemperature`, and `maxTemperature` are removed from
+  all imported media and imported geometries.
+- The mass of a dust medium is no longer multiplied by an imported metallicity, nor discarded
+  above a maximum temperature. The import files of dust media and imported geometries that used
+  these options must be converted, so that they hold the mass to be used. PTS offers a command
+  for this conversion.
+- For gas and electron media, the metallicity and temperature columns move behind the velocity
+  and magnetic field columns, and every quantity requested by the material mix must be present
+  in the import file. Existing files can often be mapped with the `useColumns` property.
+- Imported quantities other than a dust mix index are averaged over overlapping particles,
+  where some used to be taken from the particle with the largest weight. This changes the
+  results of simulations that import a `NonLTELineGasMix`, `SpinFlipHydrogenGasMix`,
+  `DiffuseIonizedGasMix`, or `FragmentDustMixDecorator` medium from smoothed particles.
+- The `indices` property of the `CustomStateProbe` is renamed to `variables`, and accepts names
+  as well as indices. The indices of the custom state variables shift for the material mixes
+  that store a temperature or a metallicity.
+
 ### Dust self-heating
 
 The [Dust self-heating](dust-self-heating/01-introduction.md) design note proposes
@@ -174,6 +197,11 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Rename the Lyman-alpha simulation mode, option block, and options as listed above,
   including the `lyaOptions` property of the `MediumSystem`.
+
+- Remove the `importMetallicity`, `importTemperature`, and `maxTemperature` properties from all
+  imported media and imported geometries, and report each medium and geometry for which
+  `importMetallicity` or `importTemperature` was enabled, since its import file must be converted
+  or remapped separately. Rename the `indices` property of the `CustomStateProbe` to `variables`.
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
