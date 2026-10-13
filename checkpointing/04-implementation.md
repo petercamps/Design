@@ -3,7 +3,7 @@
 ## Checkpoint API
 
 A checkpoint is an ordinary bundle, so it is read and written through the `H5BundleR` and
-`H5BundleW` classes of the `hdf5` build target described in the
+`H5BundleW` classes of the `h5` build target described in the
 [HDF5 input](hdf5-input/04-implementation.md) and [HDF5 output](hdf5-output/04-implementation.md)
 notes. The checkpoint probe creates a checkpoint with `H5Lib::createBundle()`, sets the checkpoint
 attributes (`when`, `iteration`, the ski parameters from Iterating across simulations,

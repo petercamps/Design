@@ -2,7 +2,7 @@
 
 ## Writing API
 
-The `hdf5` build target described in the [HDF5 input](hdf5-input/04-implementation.md) note is
+The `h5` build target described in the [HDF5 input](hdf5-input/04-implementation.md) note is
 extended with classes for writing. Every concept splits into a read-only class (suffixed `R`) and
 a write-only class (suffixed `W`), except suite, which has no writable form. Writing always
 targets a specific bundle directly, never "a suite" as a whole.
@@ -15,8 +15,8 @@ targets a specific bundle directly, never "a suite" as a whole.
 
 **`H5BundleW`**
 
-- `setAttribute(<name>, value)` — one overload per supported attribute type, as for
-  `H5BundleR::getAttribute()`.
+- `setAttribute(<name>, value)` — one overload per supported attribute type; these are the
+  types of the attribute getters of `H5BundleR`.
 - `H5DatasetW createDataset(<name>)` — creates one of this bundle's datasets for writing,
   with the shape and on-disk type the Data model chapter specifies for it.
 

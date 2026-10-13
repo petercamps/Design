@@ -74,5 +74,5 @@ reference documents all of this in full.
   syntax, and the way input files are located.
 - **[Data model](hdf5-input/03-data-model.md)** specifies the HDF5 bundle that corresponds to each
   input file type.
-- **[Implementation](hdf5-input/04-implementation.md)** describes the `hdf5` build target, its C++
+- **[Implementation](hdf5-input/04-implementation.md)** describes the `h5` build target, its C++
   API, the name resolution, and the changes to the input call sites.

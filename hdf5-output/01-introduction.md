@@ -20,7 +20,7 @@ used in the community for analysis and pipeline scripting — via the mature `h5
 HDF5 files can be inspected without writing any code using
 [HDFView](https://www.hdfgroup.org/download-hdfview/).
 
-The concepts, the command-line syntax, the bundles, and the `hdf5` build target introduced in the
+The concepts, the command-line syntax, the bundles, and the `h5` build target introduced in the
 HDF5 input note are assumed here and extended where needed.
 
 ## Compatibility
