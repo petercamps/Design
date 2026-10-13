@@ -137,6 +137,12 @@ None required.
 
 | Dataset | Dimensions | Type | Description |
 | --- | --- | --- | --- |
-| `image` | (ny, nx) or (nz, ny, nx) | 64-bit float | Pixel or voxel values. |
+| `data` | (ny, nx) or (nz, ny, nx) | 64-bit float | Pixel or voxel values. |
 
-`image` is 2-D for `ReadFitsGeometry` or 3-D for `ReadFits3DGeometry`.
+`data` is 2-D for `ReadFitsGeometry` or 3-D for `ReadFits3DGeometry`.
+
+The dataset has the same name and layout as the `data` dataset of the FITS file bundle that SKIRT
+writes as output (see the [HDF5 output](hdf5-output/03-data-model.md) data model). A frame or data
+cube written by one simulation can therefore serve as input for another, just as a FITS output file
+can. Any other datasets in the bundle, such as the axis coordinates of an output bundle, and all
+attributes are ignored on input.

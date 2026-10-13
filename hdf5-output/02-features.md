@@ -13,8 +13,10 @@ SKIRT currently writes the following kinds of output files:
   each line holds 2 or 3 coordinates meaning "draw a line to this point", and a blank line
   starts a new, disconnected segment. Every spatial grid writes one of these to plot its own
   cell geometry.
-- **Unstructured text files** — the `convergence.dat` plain text file intended for human
-  consumption, written by `ConvergenceInfoProbe`.
+- **Unstructured text files** — plain text files intended for human consumption: the
+  `convergence.dat` file written by `ConvergenceInfoProbe`, and the `grainpops` table written by
+  `DustGrainPopulationsProbe`, which is not a table of numbers because one of its columns holds
+  the name of a grain material.
 - **XML file** — the `parameters.xml` file, a reformatted version of the ski file
   governing the simulation.
 - **Log file** — the `log.txt` plain text file with progress, warning and error messages.

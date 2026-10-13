@@ -134,9 +134,10 @@ text column files, is removed. The text column file bundles proposed in the
 and fast reading, with an industry-standard file format. SKIRT 10 reports a fatal error for an input
 file with the `.scol` extension.
 
-Existing `.scol` files must be converted, either to a text column file or to a text column file
-bundle in an HDF5 file, and the ski file must refer to the converted file. PTS offers a command for
-both conversions, built on its existing functions for reading `.scol` files.
+Existing `.scol` files must be converted to a text column file bundle in an HDF5 file, and the ski
+file must refer to the resulting bundle. PTS offers a command for this conversion, built on its
+existing functions for reading `.scol` files. By default, the bundle is named for the file with the
+`.scol` extension replaced by `.txt`.
 
 The removal affects:
 

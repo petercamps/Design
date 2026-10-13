@@ -113,6 +113,10 @@ as listed below, and by the `producer` and `created` attributes carried by the b
 If `z` is missing or has a single value, `data` is 2-D representing a single data frame.
 If `z` is present with 2 or more values, `data` is 3-D representing a data cube.
 
+The `data` dataset has the name and layout that SKIRT expects for a FITS file bundle on input
+(see the [HDF5 input](hdf5-input/03-data-model.md) data model), so that an output bundle can be
+used as the input of another simulation, for example to define a geometry.
+
 ## Spatial grid plot file
 
 Wraps SKIRT's existing `SpatialGridPlotFile` helper (itself a thin wrapper around
@@ -142,11 +146,17 @@ the bundle adds an explicit `unit` attribute to close that gap.
 
 ## Unstructured text file
 
-Covers three otherwise-unrelated plain-text output types — `convergence.dat` (free-form
-human-readable text written by `ConvergenceInfoProbe`), `parameters.xml` (a reformatted
-copy of the ski file), and `log.txt` (progress, warning, and error messages) — each stored
-the same way: as a single string holding the entire file's content, unparsed. A `type`
-attribute records which of the three it is.
+Covers four otherwise-unrelated plain-text output types — `convergence.dat` (free-form
+human-readable text written by `ConvergenceInfoProbe`), `grainpops` (the table of dust grain
+populations written by `DustGrainPopulationsProbe`), `parameters.xml` (a reformatted copy of the
+ski file), and `log.txt` (progress, warning, and error messages) — each stored the same way: as a
+single string holding the entire file's content, unparsed. A `type` attribute records the kind of
+text: `free form` for the two probe outputs, `XML` for the parameter file, and `log` for the log
+file.
+
+The table of dust grain populations has a column header like a text column file, but one of its
+columns holds the name of the grain material of each population rather than a number. It can
+therefore not be stored as a Text column file bundle, of which all columns are 64-bit floats.
 
 The log file is the one special case. Because it grows throughout the run and users should
 be able to watch progress in real time, it continues to be written incrementally to a

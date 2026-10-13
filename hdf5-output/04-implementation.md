@@ -117,8 +117,7 @@ Call sites that construct a `TextOutFile` for a genuine column output file all m
 - `SpatialGridSourceDensityProbe` — gridded primary source densities.
 - `SpatialCellPropertiesProbe` — per-cell spatial grid properties.
 - `OpticalMaterialPropertiesProbe` — per-medium optical properties.
-- `DustGrainPopulationsProbe`, `DustGrainSizeDistributionProbe` — dust grain population and
-  size-distribution data.
+- `DustGrainSizeDistributionProbe` — dust grain size distributions.
 - `DustAbsorptionPerCellProbe`, `DustEmissivityProbe` — per-cell dust absorption and
   emissivity data.
 - `IntegratedSecondaryLineLuminosityProbe` — integrated per-line luminosities.
@@ -140,7 +139,9 @@ it is covered in a separate section below.
 Two groups of `TextOutFile` use stay out of scope, for different reasons:
 
 - `ConvergenceInfoProbe` writes free-form, human-readable text (`convergence.dat`), not a
-  column table — an Unstructured text file bundle, not covered here.
+  column table, and `DustGrainPopulationsProbe` writes a table (`grainpops`) in which one column
+  holds the name of a grain material rather than a number. Both become an Unstructured text file
+  bundle, covered in a separate section below.
 - `SpatialGridPlotFile` and the various spatial grid classes that write to it
   (`CartesianSpatialGrid`, `StructuredSphereSpatialGrid`, `Cylinder2DSpatialGrid`,
   `Cylinder3DSpatialGrid`, `Sphere2DSpatialGrid`) write raw polyline coordinates, not named
@@ -222,13 +223,17 @@ their geometry doesn't naturally split by view.
 
 ## Unstructured text output
 
-Covers the three cases in the Data model chapter's Unstructured text file bundle —
-`convergence.dat`, `parameters.xml`, and `log.txt`.
+Covers the four cases in the Data model chapter's Unstructured text file bundle —
+`convergence.dat`, `grainpops`, `parameters.xml`, and `log.txt`.
 
-All three share the same underlying trick: write the complete text to a real plain file
+All four share the same underlying trick: write the complete text to a real plain file
 exactly as today, then, if `output()`'s HDF5 candidate is non-empty, reopen that finished
 file as an `std::ifstream` and hand it to `H5DatasetW::write()`'s `text` overload, setting
 the bundle's `type` attribute (`"free form"`, `"XML"`, or `"log"`, per the Data model
-chapter) along the way. Neither `ConvergenceInfoProbe`'s, `XmlHierarchyWriter`'s, nor
-`FileLog`'s own writing logic needs to know anything about HDF5 — only the point where each
-one is known to be finished changes. This "copy" step could live in one small shared helper.
+chapter) along the way. None of the writing logic of `ConvergenceInfoProbe`,
+`DustGrainPopulationsProbe`, `XmlHierarchyWriter`, or `FileLog` needs to know anything about
+HDF5 — only the point where each one is known to be finished changes. This "copy" step could
+live in one small shared helper.
+
+`DustGrainPopulationsProbe` keeps writing its table through `TextOutFile`, with the same header
+and columns as today, so that the regular output file does not change.

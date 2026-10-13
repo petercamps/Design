@@ -266,9 +266,10 @@ dataset needs at creation is always already known.
 
 `read()` keeps `FITSInOut::read()`'s exact signature. It resolves `FilePaths::input(filename)`
 and either delegates straight to the existing cfitsio-backed implementation for the plain-file
-candidate, or opens the HDF5 candidate as a bundle and reads its `image` dataset — its shape
+candidate, or opens the HDF5 candidate as a bundle and reads its `data` dataset — its shape
 supplies `nx`/`ny`/`nz` — for the FITS input bundle already specified in the Data model
-chapter.
+chapter. Other datasets and attributes in the bundle are not read, so that a FITS file bundle
+written as output is accepted as well.
 
 `FITSInOut::read()` supports `[EXTNAME]`-style addressing for picking a non-primary data unit
 out of one FITS file. This has no equivalent in the HDF5 bundle scheme; instead each FITS
