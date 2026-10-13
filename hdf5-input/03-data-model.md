@@ -34,7 +34,16 @@ explicitly.
 
 **Attributes**
 
-None required.
+None required. A bundle can carry the `description` attribute that SKIRT writes for a text column
+output file (see the [HDF5 output](hdf5-output/03-data-model.md) data model). SKIRT ignores it on
+input.
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `description` | string | Optional free-form comment describing the contents of the bundle. |
+
+When a text column file is converted to a bundle, the comment lines that precede the column
+information become the description.
 
 **Datasets** — one per column; names, units, and count come from the source data, not a
 fixed schema. Shown here for a 4-column particle-import file,
@@ -46,6 +55,34 @@ where `N` is the number of rows:
 | `y` | (N) | 64-bit float | `column = 1`, `unit = "pc"` |
 | `z` | (N) | 64-bit float | `column = 2`, `unit = "pc"` |
 | `mass` | (N) | 64-bit float | `column = 3`, `unit = "Msun"` |
+
+**Dataset names** — the description of a column in a text file is free-form text, while the name
+of a dataset must be valid in HDF5 and unique within its bundle. The name of a dataset is therefore
+derived from the description of its column by the following rules, applied in this order:
+
+- White space at the start and at the end is removed, and consecutive white space characters are
+  replaced by a single space. This is the form in which SKIRT compares column descriptions.
+- A forward slash is replaced by a vertical bar, because HDF5 uses the forward slash to separate
+  the names of nested groups. For example, the column `n_He/n_H` becomes the dataset `n_He|n_H`.
+- An empty description is replaced by the word `column` followed by the 0-based index of the
+  column, as in `column3`.
+- If the resulting name is already used for a preceding column, a sequence number between
+  parentheses is added. Three columns described as `weight` thus become the datasets `weight`,
+  `weight (2)`, and `weight (3)`.
+
+On input, SKIRT takes the name of a dataset as the description of its column, with a vertical bar
+replaced by a forward slash. It matches the columns in a bundle to the columns it expects in the
+same way as for a text file: by default in the order given by the `column` attribute, and by name if
+the ski file specifies the `useColumns` property. A column that received a sequence number is
+selected by the name of its dataset, including that number. In a text file, a description cannot
+contain parentheses, and a description that occurs more than once cannot be used to select a column.
+
+**Units** — the `unit` attribute holds the unit string of the column exactly as in the header of a
+text file, with `1` or an empty string for a dimensionless quantity. The attribute is optional. For a
+dataset without it, SKIRT assumes the default unit for the column, as it does for a text file without
+column information. When such a text file is converted to a bundle, its datasets carry no `unit`
+attribute, and they get the generic names `column0`, `column1`, and so on, because the file provides
+no descriptions.
 
 ## AMR text file bundle
 
@@ -66,7 +103,7 @@ and each of the property datasets has a value for each leaf node.
 
 **Attributes**
 
-None required.
+None required. The optional `description` attribute is the same as for a Text column file bundle.
 
 **Datasets**
 
@@ -77,6 +114,10 @@ None required.
 | one per leaf-cell property | (N) | 64-bit float | `column`, `unit` (as Text column file); one row per leaf. |
 
 `N` is the number of leaf cells; `Nn` is the number of nonleaf (subdivided) nodes.
+
+The property datasets are named, and specify their units, as described for a Text column file
+bundle. A column described as `is_leaf` or `topology` receives a sequence number, as in
+`topology (2)`, because these names are taken by the structural datasets.
 
 ## Stored table (.stab) bundle
 
@@ -121,6 +162,13 @@ Dimension `i` of a quantity dataset corresponds to the axis dataset with `axis =
 dimension 0 to `lambda`, dimension 1 to `Z`, and dimension 2 to `t`. A table with several
 quantities gets one dataset per quantity, all sharing the same axis datasets; `log` records
 whether that axis or quantity interpolates logarithmically.
+
+Each dataset is named for its axis or quantity, with a forward slash replaced by a vertical bar,
+as for a Text column file bundle. SKIRT locates each axis and each quantity by the name of its
+dataset. The names of the axes and quantities of a table must therefore all differ from each other,
+which the `.stab` format does not require. This is the case for all stored tables in the SKIRT
+resources. A table in which a quantity has the name of an axis, or in which two quantities have the
+same name, cannot be read from a bundle.
 
 ## FITS file bundle
 

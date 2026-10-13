@@ -134,11 +134,12 @@ text column files, is removed. The text column file bundles proposed in the
 and fast reading, with an industry-standard file format. SKIRT 10 reports a fatal error for an input
 file with the `.scol` extension.
 
-Existing `.scol` files must be converted to a text column file bundle in an HDF5 file, and the ski
-file must refer to the resulting bundle. PTS offers a command for this conversion, built on its
-existing functions for reading `.scol` files. By default, the bundle is named for the file with the
-`.scol` extension replaced by `.txt`. A second PTS command converts a bundle to the corresponding
-regular file, so that the two commands together convert a `.scol` file to a text column file.
+Existing `.scol` files must be converted, either to a text column file bundle in an HDF5 file or to
+a regular text column file, and the ski file must refer to the result. PTS offers a command that
+converts a `.scol` file to a bundle, built on its existing functions for reading `.scol` files. By
+default, the bundle is named for the file with the `.scol` extension replaced by `.txt`. A second
+PTS command converts a bundle to the corresponding regular file, so that the two commands together
+convert a `.scol` file to a text column file.
 
 The removal affects:
 
@@ -214,6 +215,3 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
-
-- Report each input file name with the `.scol` extension, since these files must be converted
-  separately, as described above.

@@ -29,7 +29,8 @@ Wraps the same `TextInFile`/`TextOutFile` convention as the input side (see Text
 bundle in the [HDF5 input](hdf5-input/03-data-model.md) data model), used for SEDs, per-cell and
 per-position probe output, and instrument statistics tables. Every output column is written as a
 64-bit float and numbered from 0 in the order `addColumn()` is called, so the same per-dataset
-`column` and `unit` attributes apply.
+`column` and `unit` attributes apply. Each dataset is named for the description of its column,
+according to the rules for dataset names given there.
 Most call sites also write a free-form comment as the very first line, by convention rather
 than by any mechanism `TextOutFile` itself enforces (via the public `writeLine()`, before
 adding columns) — this becomes the bundle's own `description` attribute.
