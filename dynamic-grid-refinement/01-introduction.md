@@ -24,6 +24,20 @@ the medium state and the grid have stopped changing. Child cells start from thei
 so each iteration after a refinement round starts close to the previous solution rather than from
 scratch.
 
+Photoionization is the motivating case, and the only one for which the approach has been tested in
+production. The mechanism is not specific to it, however. Possible future use cases include:
+
+- **Dust destruction.** A dust destruction recipe lowers the density of the grain populations of a
+  fragmented dust mix where the radiation field is strong enough. The boundary of the region in
+  which grains are destroyed, for example around a hot star or an active nucleus, again emerges
+  only from the radiation field. It could be resolved by a criterion on the density fraction of a
+  fragment, provided that the `FragmentDustMixDecorator` gives these state variables short names.
+- **Dust radiative transfer.** In a simulation that iterates over dust emission, the grid could
+  adapt to the radiation field instead of being built from the density distribution alone, for
+  example by subdividing cells where the indicative dust temperature changes steeply, near
+  embedded sources or at the edge of an optically thick region. The
+  `DustTemperatureGradientCriterion` proposed in this note could serve as a step in this direction.
+
 ## Background
 
 This design note is based on the grid refinement code written by Anand Utsav Kapoor for the

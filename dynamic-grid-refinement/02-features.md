@@ -184,9 +184,10 @@ state of such a cell is an average over the layer and its surroundings, and may 
 from the state of the neighboring cells. Second, for some structures the required resolution
 follows from a physical scale rather than from the smoothness of the field. In an H II region, for
 example, low-ionization lines such as [N II] and [S II] form in a layer at the edge of the
-ionized region that holds a nearly fixed column density of gas, whatever the size of the region.
-The appropriate target is then a column density per cell, which a value criterion with a column
-density limit expresses directly.
+ionized region. The thickness of this layer is set by the mean free path of the ionizing photons,
+which scales as the inverse of the density, so that the layer holds a nearly fixed column density
+of gas, whatever the size of the region. The appropriate target is then a column density per cell,
+which a value criterion with a column density limit expresses directly.
 
 ### Conditions
 
@@ -236,7 +237,9 @@ defined as follows:
 
 Because child cells inherit their parent's number density, each octree subdivision halves the
 column density of a cell. A `minColumnDensity` value therefore produces cells with a size
-inversely proportional to the local density, rather than cells at a given level.
+inversely proportional to the local density, rather than cells at a given level, which matches
+the scaling of the layers described under Value criteria above. A limit on the number density
+alone could not serve this purpose, because subdividing a cell does not change its number density.
 
 In the example above, all three criteria specify the same `minColumnDensity` value, and only the
 third criterion specifies a `maxExtraLevels` value.
