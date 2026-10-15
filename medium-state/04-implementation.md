@@ -483,7 +483,7 @@ refers to the removed options.
 | `DiffuseIonizedGasMix`, `NonLTELineGasMix` | replace their accessor macros by handles |
 | `FragmentDustMixDecorator`, `AbsorptionOnlyMaterialMixDecorator` | follow the changed signatures; the `FragmentDustMixDecorator` replaces its weight macro by a private function |
 | `SelectDustMixFamily` | marks its index as categorical; provides `capabilities()` |
-| `XRayIonicGasMixFamily` | requests the temperature as a parameter; marks all its parameters as categorical; provides `capabilities()` from its properties |
+| `XRayIonicGasMixFamily` | requests the temperature as a parameter; provides `capabilities()` from its properties |
 | all mixes with custom variables | assemble the list of variables during setup, through a `StateVariableList` |
 
 The `NonLTELineGasMix` stores two temperatures. The effective temperature, which includes the

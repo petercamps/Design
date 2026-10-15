@@ -94,7 +94,8 @@ existing ski files, import files, and simulation results as follows:
 - Imported quantities other than a dust mix index are averaged over overlapping particles,
   where some used to be taken from the particle with the largest weight. This changes the
   results of simulations that import a `NonLTELineGasMix`, `SpinFlipHydrogenGasMix`,
-  `DiffuseIonizedGasMix`, or `FragmentDustMixDecorator` medium from smoothed particles.
+  `DiffuseIonizedGasMix`, `FragmentDustMixDecorator`, or `XRayIonicGasMixFamily` medium from
+  smoothed particles.
 - The `indices` property of the `CustomStateProbe` is renamed to `variables`, and accepts names
   as well as indices. The indices of the custom state variables shift for the material mixes
   that store a temperature or a metallicity.

@@ -153,10 +153,8 @@ ratio or a number density.
 Importing the mass or density of a medium keeps its own treatment, as today. 
 The velocity and the magnetic field are combined as today, and so are the temperature and the
 metallicity of a material mix. The other quantities requested by a material mix were all treated
-as categorical; they are now intensive, with two exceptions. The dust mix index of the
-`SelectDustMixFamily` remains categorical. All quantities of the `XRayIonicGasMixFamily`,
-including its temperature, are categorical, because the family creates a mix for each distinct
-set of values and therefore must not receive averaged values.
+as categorical; they are now intensive, except for the dust mix index of the
+`SelectDustMixFamily`, which remains categorical.
 
 For a snapshot without overlapping entities, such as a cell-based or Voronoi snapshot, and with a
 single property sample per cell, which is the default, the kind makes no difference.
@@ -220,10 +218,10 @@ become custom state variables of the mixes that store them.
   the import file. Import files that hold a velocity or a magnetic field, or that relied on the
   default temperature or metallicity of the mix, must be adjusted, or mapped with `useColumns`.
 - The quantities requested by the `NonLTELineGasMix`, the `SpinFlipHydrogenGasMix`, the
-  `DiffuseIonizedGasMix`, and the `FragmentDustMixDecorator` are averaged over overlapping
-  entities, where they used to be taken from the entity with the largest weight. Conversely, the
-  temperature of the `XRayIonicGasMixFamily` is now taken from the entity with the largest weight.
-  This changes the results of simulations that import these media from smoothed particles.
+  `DiffuseIonizedGasMix`, and the `FragmentDustMixDecorator`, and the ion abundances of the
+  `XRayIonicGasMixFamily`, are averaged over overlapping entities, where they used to be taken
+  from the entity with the largest weight. This changes the results of simulations that import
+  these media from smoothed particles.
 - With more than one property sample per cell, a categorical quantity is no longer averaged.
 - The `indices` property of the `CustomStateProbe` is renamed to `variables`, and the indices of
   the custom state variables shift for the mixes that store a temperature or a metallicity.
