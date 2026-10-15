@@ -244,20 +244,39 @@ them, are:
 
 The regional rebalance does not carry over directly: the line opacity depends on the level
 populations being solved for, including negative opacities in case of population inversion, so
-that transfer fractions measured in one iteration do not remain valid at the fixed point. Other
-techniques are established in line transfer codes:
+that transfer fractions measured in one iteration do not remain valid at the fixed point.
 
-- **Ng acceleration** extrapolates the level populations of each cell from the last three iterates.
-  It is a special case of the Anderson acceleration discussed for photoionization, with the same
-  requirements: a per-cell history type in the iteration history, holding a few iterates of the
-  populations of each cell, and safeguards against negative populations. It also shares the same
-  weakness, Monte Carlo noise.
-- **Separating the local contribution.** Accelerated Λ iteration treats the radiation that a cell
-  emits and reabsorbs itself implicitly, in the statistical equilibrium of that cell, so that the
-  iteration only has to propagate the exchange between cells. In SKIRT, this would require a
-  per-cell, per-transition tally of the line radiation that a cell absorbs from its own emission,
-  the line analogue of the diagonal of the rebalance transfer matrix, which needs the emission cell
-  of line photon packets.
+Kosei Matsumoto pointed out the two techniques that are established in non-LTE line transfer: Ng
+acceleration and accelerated Λ iteration. Both were developed for codes that trace rays rather than
+photon packets. They are complementary and can be combined: accelerated Λ iteration makes each
+iteration more effective, while Ng acceleration extrapolates the sequence of iterates to reduce
+the number of iterations. The Magritte code uses both.
+
+- **Ng acceleration** (Ng 1974) extrapolates the level populations of each cell from the last few
+  iterates, typically three. It is a special case of the Anderson acceleration discussed for
+  photoionization, with the same requirements: a per-cell history type in the iteration history,
+  holding a few iterates of the populations of each cell, and safeguards against negative
+  populations. Magritte implements a variant of it (Ceulemans et al. 2024, Sect. 4.2). The
+  extrapolation coefficients can be determined for each cell separately, or for the whole domain,
+  which requires a sum over all cells. In Kosei's experience, the per-cell variant is strongly
+  disturbed by Monte Carlo noise, the weakness it shares with Anderson acceleration. He suggests
+  that a machine-learning approach, predicting the updated populations from the history of previous
+  iterations, might do better.
+- **Accelerated Λ iteration** (Rybicki & Hummer 1991, 1992). In a plain Λ iteration, the radiation
+  field is calculated from the level populations of the previous iteration. This converges very
+  slowly in optically thick lines, where the radiation field is strongly coupled to the local
+  populations. Accelerated Λ iteration introduces an approximate Λ operator, which accounts for part
+  of this coupling analytically, in the statistical equilibrium equations, so that the iteration
+  only has to propagate the remaining exchange of radiation. A local, or diagonal, operator treats
+  the radiation that a cell emits and reabsorbs itself, so that the statistical equilibrium of each
+  cell can still be solved independently. A non-local operator, for example one that includes the
+  nearest neighbors, also treats the exchange between cells and may converge faster, but requires
+  solving a coupled system for several cells, at the cost of more computation. In
+  SKIRT, a local operator would require a per-cell, per-transition tally of the line radiation that
+  a cell absorbs from its own emission, the line analogue of the diagonal of the rebalance transfer
+  matrix, which needs the emission cell of line photon packets. Obtaining this coupling is harder
+  with photon packets than with rays, but Kosei considers at least the local operator feasible. His
+  preliminary tests showed a convergence about 1.5 times faster, not yet thoroughly checked.
 - **Exact line intensities.** The mean intensity of each transition is obtained from the binned
   radiation field, which therefore must resolve every line profile; the `errorForGaussianIntegral`
   property exists because this is not always the case. A per-path tally that adds the luminosity
@@ -272,3 +291,20 @@ techniques are established in line transfer codes:
 
 As for photoionization, the convergence behavior of representative non-LTE runs should be measured
 with the history probe before choosing a technique.
+
+### References
+
+- Ng, K. C. 1974, J. Chem. Phys., 61, 2680:
+  [Hypernetted chain solutions for the classical one-component plasma up to
+  Γ=7000](https://doi.org/10.1063/1.1682399), which introduces the extrapolation now known as Ng
+  acceleration.
+- Rybicki, G. B., & Hummer, D. G. 1991, A&A, 245, 171:
+  [An accelerated lambda iteration method for multilevel radiative transfer. I. Non-overlapping
+  lines with background continuum](https://ui.adsabs.harvard.edu/abs/1991A%26A...245..171R/abstract).
+- Rybicki, G. B., & Hummer, D. G. 1992, A&A, 262, 209:
+  [An accelerated lambda iteration method for multilevel radiative transfer. II. Overlapping
+  transitions with full continuum](https://ui.adsabs.harvard.edu/abs/1992A%26A...262..209R/abstract).
+- Ceulemans, T., De Ceuster, F., Decin, L., & Yates, J. 2024, arXiv:2411.03040:
+  [Magritte, a modern software library for spectral line radiative
+  transfer](https://arxiv.org/abs/2411.03040), whose Sect. 4.2 describes its variant of Ng
+  acceleration.
