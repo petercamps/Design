@@ -1,8 +1,6 @@
 # Introduction
 
 > Status: under construction
->
-> Depends on: none
 
 ## Motivation
 
@@ -39,12 +37,9 @@ The goal is an XSPEC table model equivalent to UXClumpy, but calculated with SKI
 
 The table model consists of a set of spectra covering the parameter space, 135 300 of them for
 the UXClumpy parameter grid, which must be free of visible Monte Carlo noise. A single SKIRT
-simulation covers all sight lines. The other parameters require either a separate simulation for
-each combination of values, or a technique that derives the spectra for several parameter values
-from a single set of simulations, as the response matrices of the original model do for the
-incident spectrum. Each simulation is expected to take on the order of a day at the required
-resolution, so that both reducing the number of simulations and reducing the run time of each
-simulation are important parts of the project.
+simulation covers all sight lines, but the other parameters require a separate simulation for
+each combination of values. Minimizing the run time while achieving excellent signal-to-noise
+at the required resolution will thus be an important issue.
 
 ## Starting point
 
