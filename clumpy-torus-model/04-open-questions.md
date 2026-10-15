@@ -72,7 +72,7 @@ realizations would show how much the spectra depend on the particular realizatio
 cost.
 
 **Omni component.** The angle-averaged omni component follows from the same simulations, as the
-solid-angle weighted average of the spectra of all instruments (see the Reference model chapter).
+solid-angle weighted average of the spectra of all instruments (see the Plan chapter).
 This requires instrument directions that cover the whole sphere, which constrains the choice of
 viewing directions. Whether the new model includes this component, and whether it keeps the
 redundant `NHLOS` and `Theta_inc` parameters for compatibility with UXClumpy, is to be decided.

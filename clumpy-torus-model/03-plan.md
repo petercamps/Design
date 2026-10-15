@@ -11,11 +11,15 @@ high-performance computing facility.
   repository or from its author, for each combination of `TORsigma` and `CTKcover`.
 - Convert each catalog to the text column format read by both the `ParticleMedium` (with the
   `UniformSmoothingKernel`) and the `ClumpySphericalSpatialGrid`: the center position and radius of
-  each clump, followed by its density or mass.
+  each clump, followed by its density or mass. The spatial domain must extend to a radius of at
+  least 1.1 R<sub>out</sub>, because the UXClumpy placement procedure only requires the cloud
+  centers to lie within R<sub>out</sub>, so that some clouds extend beyond it (see Reference model).
 - Verify that the clumps are fully inside the spatial domain and do not overlap. The grid removes
   offending clumps, while the medium keeps their mass, which would distort the densities. If the
   catalogs contain overlapping clumps, a strategy is needed, such as shrinking, merging, or
-  removing clumps while conserving the covering factor.
+  removing clumps while conserving the covering factor. The UXClumpy placement procedure rejects
+  overlapping clouds with a small margin, so that its catalogs should already satisfy the
+  requirement of the grid.
 - Configure the uniform background medium between the clumps, with a polar mesh of the structured
   grid that matches any angular boundaries of the background geometry.
 - Compare the column density maps as seen from the center, calculated by SKIRT (for example with a
@@ -78,6 +82,12 @@ The two routes can also be combined.
 
 - Assemble the spectra into a table model in the format expected by XSPEC, including the
   equivalent of the angle-averaged omni component if needed.
+- None of the four UXClumpy table files requires separate simulations. The transmitted and
+  reflected components correspond to the direct and scattered flux components that the instruments
+  record when `recordComponents` is enabled; in SKIRT, the fluorescent lines are part of the
+  scattered component. The omni component follows from the spectra of all instruments, averaged
+  over the sphere with weights for their solid angles, which requires instrument directions that
+  cover the whole sphere.
 - Test the table model in XSPEC, in particular the interpolation between parameter values and the
   loading time, given the size of the table.
 - Compare fits of the new model and UXClumpy on archival X-ray spectra.
