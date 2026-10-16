@@ -82,3 +82,58 @@ in the HDF5 input file of the pilot run. A test run with a luminosity probe on t
 that SKIRT reads the bundle and constructs the 25 800 bins as intended.
 
 ### Sight lines
+
+UXClumpy provides spectra for the 41 `NHLOS` values, from 10<sup>20</sup> to 10<sup>26</sup>
+cm<sup>−2</sup> in steps of 0.15 dex, and for three inclination bins (see Calculation method in
+the Reference model chapter). The pilot run uses instruments at four nominal inclinations: 0°,
+30°, 60°, and 90°. For each inclination, there are up to 41 instruments, with azimuths chosen so
+that the column density along the line of sight from the central source equals the `NHLOS` grid
+values. The azimuths thus differ from one geometry to the next, and grid values that do not occur
+near a given inclination are missing. As in UXClumpy, the lowest grid value stands for unobscured
+lines of sight. In terms of the UXClumpy inclination bins, the nominal inclinations 0° and 30°
+both fall in the face-on bin (0° to 48.2°), 60° in the intermediate bin (48.2° to 70.5°), and 90°
+in the edge-on bin (70.5° to 90°).
+
+The column density through a uniform sphere drops continuously to zero at its edge, so that the
+column density along a ring of constant inclination is a continuous function of the azimuth, and
+every value between its minimum and maximum along the ring is reached exactly. The search thus
+needs no tolerance on the column density. It finds all azimuths at which the column density equals
+a grid value, on rings within a small range of inclinations around the nominal value, and selects
+the direction where the column density changes most slowly with direction, to keep the line of
+sight away from cloud edges where possible. The ranges are ±1° around 30° and 60°, 89° to 90°
+for 90°, and 2° to 4° for 0°, because a ring at exactly 0° degenerates to a single direction,
+which in this geometry passes through a cloud with N<sub>H</sub> ≈ 10<sup>24.2</sup>
+cm<sup>−2</sup>. Unobscured lines of sight are placed in the middle of the widest unobscured
+stretch of these rings. For the geometry file, this yields 120 instruments:
+
+| Nominal inclination | Instruments | Inclinations | Missing `NHLOS` values (cm<sup>−2</sup>) |
+| --- | --- | --- | --- |
+| 0° | 31 | 2° to 4° | 10<sup>24.65</sup> to 10<sup>26</sup> |
+| 30° | 38 | 29° to 31° | 10<sup>25.7</sup> to 10<sup>26</sup> |
+| 60° | 41 | 59° to 61° | none |
+| 90° | 10 | 89° to 90° | 10<sup>20</sup> to 10<sup>24.5</sup> |
+
+Near the poles, the clouds are sparse, so that column densities above 10<sup>24.5</sup>
+cm<sup>−2</sup> do not occur, whereas every edge-on line of sight crosses the inner ring, so that
+all column densities are higher than that.
+
+![Sight lines of the pilot run](figures/pilot-sightlines.png)
+
+*Line-of-sight column density from the center over azimuth and inclination, for the range of
+inclinations searched around each nominal inclination, with the selected sight lines (orange
+dots). The structures are individual clouds; the white areas are unobscured.*
+
+Most lines of sight cross the interior of a cloud, where log N<sub>H</sub> changes by at most a
+few dex per degree. The lowest column densities, up to between 10<sup>20.75</sup> and
+10<sup>22.1</sup> cm<sup>−2</sup> depending on the inclination, are however reached only by
+grazing the edge of a thicker cloud, where the column density rises steeply from zero, and the
+gradient reaches up to 6 × 10<sup>4</sup> dex per degree. The inclinations and
+azimuths are therefore specified to 8 decimals, which keeps the column densities within
+3 × 10<sup>−5</sup> dex of the grid values. Such grazing lines of sight are legitimate: the
+UXClumpy sky bins for these column densities also cover only a tiny fraction of the sky (see
+Example spectra in the Reference model chapter).
+
+A test run with the 120 instruments in a narrow wavelength bin at 30 keV confirmed the directions.
+The optical depth, derived from the direct and transparent fluxes recorded by each instrument, is
+zero for the unobscured lines of sight, and its ratio to the computed column density is the same
+for all other lines of sight to within 1.1 × 10<sup>−5</sup>.
