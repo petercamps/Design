@@ -298,7 +298,7 @@ The table model has the following parameters. The grid values are those of the t
 | --- | --- | --- | --- |
 | incident radiation | `PhoIndex` | photon index of the primary power law | 11 values from 1.0 to 3.0, in steps of 0.2 |
 | incident radiation | `Ecut` | high-energy cutoff of the primary spectrum, in keV | 5 values: 60, 100, 140, 200, 400 |
-| incident radiation | `norm` | photon flux normalization at 1 keV | not tabulated |
+| incident radiation | `norm` | photon flux normalization at 1 keV (see Central source) | not tabulated |
 | viewing | `NHLOS` | total column density along the line of sight, in 10<sup>22</sup> cm<sup>−2</sup> | 41 values from 0.01 to 10<sup>4</sup>, in steps of 0.15 dex |
 | viewing | `Theta_inc` | viewing angle relative to the inner disk, in degrees | 3 values: 0, 60, 90 |
 | geometry | `TORsigma` | vertical extent of the cloud population, in degrees | 4 values: 0, 7, 28, 84 |
@@ -307,21 +307,35 @@ The table model has the following parameters. The grid values are those of the t
 The table thus contains 41 × 11 × 5 × 4 × 5 × 3 = 135 300 spectra, calculated from 4 × 5 = 20
 geometries. In the table file, the line-of-sight column density parameter is called `nH`.
 
-Each spectrum has 1000 energy bins from 0.1 keV to about 1.5 MeV: 800 bins of 10 eV from 0.1 to
-8.1 keV, followed by 200 bins whose width grows with energy, to about 1.5 keV near 50 keV. The
-table file has a size of about 540 MB.
+### Spectral resolution
+
+Each spectrum has 1000 contiguous energy bins from 0.1 to 1517.5 keV, defined by the `bending`
+binning module of XARS. The first 800 bins are 10 eV wide and cover 0.1 to 8.1 keV. The other 200
+bins have lower edges at 8.1 keV · exp(((i − 800) / A)<sup>1.5</sup>) for bin index i, with A
+chosen so that the first of these bins is 15 eV wide. Their width grows rapidly with energy, to
+134 eV at 10 keV, 0.44 keV at 20 keV, 1.4 keV at 50 keV, and 58 keV for the last bin. The
+resolving power E / ΔE thus rises from 10 at 0.1 keV to 640 at the Fe Kα line and 810 at 8.1 keV,
+and then drops abruptly, to 74 at 10 keV, 36 at 50 keV, and 25 at the high end. Even in the
+10 eV part of the grid, the bins are twice as wide as the energy resolution of XRISM/Resolve,
+4.5 eV FWHM, and above 8.1 keV they are much wider still.
+
+![Spectral resolution of the table spectra](figures/table-energy-grid.png)
+
+*Spectral resolution of the UXClumpy table spectra: (a) bin width and (b) resolving power as a
+function of energy. The shaded band is the XRISM/Resolve band, from 0.3 to 12 keV, and the dotted
+line marks the Fe Kα line at 6.4 keV.*
 
 ### Table files
 
 The release contains four table files with the same parameter grid, energy grid, and order of the
-spectra:
+spectra. Each table file has a size of about 540 MB.
 
 | File | Contents |
 | --- | --- |
 | `uxclumpy-cutoff.fits` | the total spectrum along the line of sight: transmitted plus reflected, including the fluorescent lines; this is the main model component |
 | `uxclumpy-cutoff-transmit.fits` | the transmitted component: primary photons that escape along the line of sight without interacting |
 | `uxclumpy-cutoff-reflect.fits` | the reflected component: Compton-scattered photons and fluorescent lines |
-| `uxclumpy-cutoff-omni.fits` | the spectrum of all escaping photons averaged over all directions, called `uxclumpy-omni.fits` in the documentation |
+| `uxclumpy-cutoff-omni.fits` | the spectrum of all escaping photons averaged over all directions |
 
 The total spectrum equals the sum of the transmitted and reflected components. For the spectra
 checked, the integrated sums agree to within 0.2 percent, and individual bins differ by more than
@@ -377,8 +391,70 @@ As a result, only the geometry parameters `TORsigma` and `CTKcover` require sepa
 calculations, which explains how a table with many spectra can be produced with a limited number
 of simulations.
 
+### Central source
+
+The incident radiation is an isotropic point source at the center of the geometry (Sect. 2.1 and
+Appendix A of the paper). XARS draws the initial photon directions uniformly in cos β.
+
+**Injection.** XARS does not emit photons from a given incident spectrum. Instead, it injects the
+same number of photons in each of the 1000 energy bins of the table separately, with energies
+drawn uniformly within the bin: 10<sup>6</sup> photons per bin by default in `torusC.py`, and
+10<sup>9</sup> photons across the 1000 bins for the benchmark quoted in Sect. 1 of the paper. The
+response matrices thus cover injected energies over the full energy grid, from 0.1 to 1517.5 keV,
+and no photons are injected outside this range.
+
+**Incident spectrum.** The export scripts apply the incident spectrum afterwards, by weighting the
+response to each injection bin with
+
+    w(E) = E^(−Γ) · exp(−E / Ecut) · ΔE / ΔE0,
+
+evaluated at the bin center E, where Γ is `PhoIndex`, ΔE is the bin width, and ΔE0 = 10 eV is the
+width of the bin at 1 keV. The incident spectrum is thus a cutoff power law, constant within each
+bin, over the full energy grid, without any other lower or upper limit. The paper (Sect. 6)
+correspondingly quotes an energy coverage of 0.1 to 1000 keV. The table confirms this: in the
+lowest `NHLOS` bin, where nearly all lines of sight are unobscured, the transmitted spectra follow
+w(E) in all 1000 bins, up to the last bin from 1459 to 1517.5 keV, for all spectra checked. The
+source spectrum is thus cut off abruptly at 1517.5 keV. For the hardest spectra, with Γ = 1 and
+`Ecut` = 400 keV, E<sup>2</sup> N(E) in the last bin is still 36 times its value at 1 keV, and a
+quarter of its peak value at 400 keV.
+
+**Normalization.** The documentation describes `norm` as the photon flux normalization at 1 keV.
+The table spectra are given in photons cm<sup>−2</sup> s<sup>−1</sup> per bin, and for `norm` = 1
+the unobscured transmitted spectra equal w(E) / 123, within 2% for each of 200 spectra checked
+(median ratio 0.008130). The same factor applies to the other table files: for the geometry
+without clouds, for example, the omni spectra equal w(E) / 123 exactly. The factor 123 = 41 × 3
+is the number of sky bins; the export script `createclumpytoruscutofftable.py` in the XARS
+repository divides the binned responses by this number, in addition to the fraction of the sky
+covered by each bin. As a result, `norm` = 1 corresponds to an intrinsic photon flux density of
+100 / 123 ≈ 0.813 photons cm<sup>−2</sup> s<sup>−1</sup> keV<sup>−1</sup> at 1 keV, rather than 1.
+
+
 ### Limitations
 
-Sect. 4.2.4 of Vander Meulen et al. (2023) discusses details and limitations of XARS, to be
-summarized here. In addition, XARS does not include bound-electron scattering, intrinsic line
-shapes, or the complete set of K- and L-shell lines.
+Sect. 4.2.4 of Vander Meulen et al. (2023) discusses XARS and compares it with an independent X-ray
+radiative transfer code for a uniform wedge torus, one of the geometries released with XARS, with
+an opening angle of 60°, free-electron scattering, the abundances of Anders & Grevesse (1989),
+column densities from 10<sup>21</sup> to 10<sup>24</sup> cm<sup>−2</sup>, and viewing angles of
+45° and 75°. It lists the following limitations:
+
+- **No peel-off.** XARS does not use biasing techniques such as peel-off. Photons escape in all
+  directions and are averaged over direction bins, which is inefficient, especially for
+  non-axisymmetric media, and leaves more Monte Carlo noise in the spectra.
+- **No bound-electron scattering.** Compton scattering is treated for free electrons only.
+- **Limited fluorescence.** XARS includes 11 fluorescent line transitions, with fluorescent yields
+  from Bambynek et al. (1972). It omits, for example, the S Kα line at 2.3 keV, which is more
+  important than the Ne and Mg lines that it does include.
+- **Photoabsorption cross sections.** The XARS cross sections are 10% to 15% higher below 12.5 keV
+  than the phfit2 cross sections (Verner & Yakovlev 1995; Verner et al. 1996) used by the other
+  codes in the comparison and by XSPEC, which lowers the soft X-ray flux along obscured lines of
+  sight. The UXClumpy paper nevertheless cites Verner et al. (1996) as the source of its cross
+  sections.
+- **Total flux only.** The comparison is limited to the total flux, because XARS does not output
+  the scattered flux separately. This does not apply to UXClumpy, whose table files include the
+  transmitted and reflected components separately.
+
+Apart from these differences, the agreement is good for all lines of sight and column densities.
+The Compton-dominated part of the spectra at high energies agrees, including the reflection hump
+near 40 keV, and so do the spectra between 6.0 and 7.5 keV for heavily obscured lines of sight,
+with a column density of 10<sup>24</sup> cm<sup>−2</sup>. In addition, XARS does not include
+intrinsic line shapes or the complete set of K- and L-shell lines.
