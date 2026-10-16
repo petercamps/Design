@@ -16,7 +16,7 @@ The paper first constructs a clumpy model that reproduces the observed column de
 of AGN and the observed cloud eclipse rates (Sects. 3.1 and 3.2, Table 2). The spectra of the
 released table model, however, were calculated with a less demanding set of values (Sect. 3.3).
 The XARS export scripts confirm the computed values: the geometry files are named after 10 000
-clouds, and the cloud angular size is derived from the number of clouds as
+clouds (see Geometry file), and the cloud angular size is derived from the number of clouds as
 θ<sub>cloud</sub> = (N<sub>tot</sub> / 10<sup>5</sup>)<sup>−1/2</sup> degrees.
 
 | Quantity | Target model (Sects. 3.1–3.2, Table 2) | Computed model (Sect. 3.3, XARS scripts) |
@@ -25,17 +25,17 @@ clouds, and the cloud angular size is derived from the number of clouds as
 | characteristic cloud angular size θ<sub>cloud</sub> | 1° | √10 · 1° ≈ 3.16° |
 | cloud column density N<sub>H</sub><sup>cloud</sup> | 10<sup>23 ± 1.0</sup> cm<sup>−2</sup> (Sect. 3.1) | 10<sup>23.5 ± 1.0</sup> cm<sup>−2</sup> |
 | angular width σ | 6° to 90° (Tables 1 and 2) | 0, 7°, 28°, 84° (0 means no cloud population) |
-| inner Compton-thick ring | not included | covering factor C = 0, 0.25, 0.3, 0.45, or 0.6 |
-| volume filling factor | 2% to 5% (Table 2) | 9% (measured in the geometry file) |
+| inner Compton-thick ring | not included | covering factor C = 0, 0.25, 0.3, 0.45, or 0.6 (see Inner Compton-thick ring) |
+| volume filling factor | 2% to 5% (Table 2) | 9% (measured in the geometry file, see Cloud population) |
 
 Reducing the number of clouds by a factor of ten while increasing their solid angle by the same
 factor keeps the number of clouds along a line of sight unchanged, and the paper reports that the
 spectrum is not affected by the number of clouds beyond 10<sup>4</sup> (Sect. 2.2). The total
 cloud volume, however, scales as N<sub>tot</sub> θ<sub>cloud</sub><sup>3</sup>, so that the volume
-filling factor grows by a factor √10, which explains the 9% measured in the geometry file. Table 2
-of the paper mixes both sets: it lists 10<sup>5</sup> clouds of 1°, but the column density
-distribution of the computed model. Recreating the released table model requires the values in
-the right-hand column.
+filling factor grows by a factor √10, which explains the 9% measured in the geometry file (see
+Cloud population). Table 2 of the paper mixes both sets: it lists 10<sup>5</sup> clouds of 1°, but
+the column density distribution of the computed model. Recreating the released table model
+requires the values in the right-hand column.
 
 ### Geometry file
 
@@ -43,10 +43,11 @@ The author provided one geometry file, `10000_30_f3_gexp5core.hdf5`, in the form
 `ClumpyTorusGeometry` class of XARS. The XARS scripts `torusCcovfrac.py` and `torusCNHeq.py` reveal
 the naming scheme of the geometry files for the released table: `10000_<s>_f<n>_gexp5core.hdf5`
 for s = 5, 20, 60 and n = 8, 6, 4, 3, where s is the angular width parameter and n the number of
-touching spheres in the inner ring (see below). The geometries without a cloud population
-(`TORsigma` = 0) use separate files for the ring alone, `dring_25.5_i0.5_n<n>.hdf5`, and an empty
-geometry, `dring_empty.hdf5`. The scripts convert s to the `TORsigma` parameter by a factor 1.4,
-and n to the `CTKcover` parameter with the table in the section on the inner ring.
+touching spheres in the inner ring (see Inner Compton-thick ring). The geometries without a cloud
+population (`TORsigma` = 0, see Parameters) use separate files for the ring alone,
+`dring_25.5_i0.5_n<n>.hdf5`, and an empty geometry, `dring_empty.hdf5`. The scripts convert s to
+the `TORsigma` parameter by a factor 1.4, and n to the `CTKcover` parameter (see the table in
+Inner Compton-thick ring).
 
 The file at hand, with s = 30 and n = 3, thus corresponds to `TORsigma` = 42° and `CTKcover` = 0.6.
 It is **not one of the 20 geometries of the released table**. The spectra in Fig. 6 of the paper
@@ -64,7 +65,7 @@ following datasets:
 
 The first 2 n = 6 clouds form the inner ring; the other 9994 clouds form the cloud population, so
 that the total of 10 000 includes the ring. The population clouds are stored in the order in which
-they were placed, which turns out to be useful for the analysis below.
+they were placed, which turns out to be useful for the analysis (see Cloud population).
 
 ![Cross sections through the geometry file](figures/geometry-slice.png)
 
@@ -78,10 +79,10 @@ and the innermost population clouds just outside R<sub>in</sub>.*
 The clouds are spheres of uniform density, placed around a central point source, with azimuthal
 symmetry. The paper describes their distributions in the formalism of the infrared CLUMPY model
 (Nenkova et al. 2008). The geometry file shows how these distributions were actually realized. The
-first clouds placed follow the input distributions of the recipe closely, while the final
-distributions deviate from them in a way that is fully explained by the rejection of overlapping
-clouds (see Placement below). The figure compares the file with these input distributions and with
-five realizations of the recipe, including the overlap rejection.
+first clouds placed closely follow the input distributions of the recipe (see Recipe), while the
+final distributions deviate from them in a way that is fully explained by the rejection of
+overlapping clouds (see Placement below). The figure compares the file with these input
+distributions and with five realizations of the recipe, including the overlap rejection.
 
 ![Cloud distributions in the geometry file](figures/geometry-distributions.png)
 
@@ -149,8 +150,8 @@ size. Two clouds count as overlapping if the distance between their centers is l
 times the sum of their radii; the closest pair in the file sits exactly at this limit. The
 resulting clouds therefore do not overlap. About 20% of the draws are rejected. Because the chance
 of rejection grows as clouds accumulate, the deviations from the input distributions grow with the
-placement order. A simulation of this recipe reproduces the trends in the file within the scatter
-between realizations:
+placement order. A simulation of this recipe (see Recipe) reproduces the trends in the file within
+the scatter between realizations:
 
 | Placement order (blocks of 2000 clouds) | 1 | 2 | 3 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- |
@@ -217,7 +218,7 @@ population is visible mainly in the gaps between them and towards the poles.
 
 *Line-of-sight column density from the center for the geometry file, in a Hammer projection with
 the equatorial plane horizontal. The dashed lines are the boundaries of the three inclination bins
-of the sky binning, labeled with the corresponding `Theta_inc` values.*
+of the sky binning (see Calculation method), labeled with the corresponding `Theta_inc` values.*
 
 The covering factor f(> N<sub>H</sub>), the fraction of the sky with a line-of-sight column density
 above a given value, summarizes this map. For the geometry file, the cloud population alone covers
@@ -237,7 +238,7 @@ reproduced closely by directions distributed uniformly in polar angle, which ove
 poles. The XARS script `torusCcovfrac.py` plots the covering factors of the released geometries from
 these samples. If the covering factors in the paper (Figs. 2 and C.1) were obtained in the same
 way, they are underestimated. The table model itself is not affected, because XARS emits its
-photons isotropically and normalizes the sky bins with isotropic directions.
+photons isotropically and normalizes the sky bins with isotropic directions (see Central source).
 
 ### Recipe
 
@@ -299,8 +300,8 @@ The table model has the following parameters. The grid values are those of the t
 | incident radiation | `PhoIndex` | photon index of the primary power law | 11 values from 1.0 to 3.0, in steps of 0.2 |
 | incident radiation | `Ecut` | high-energy cutoff of the primary spectrum, in keV | 5 values: 60, 100, 140, 200, 400 |
 | incident radiation | `norm` | photon flux normalization at 1 keV (see Central source) | not tabulated |
-| viewing | `NHLOS` | total column density along the line of sight, in 10<sup>22</sup> cm<sup>−2</sup> | 41 values from 0.01 to 10<sup>4</sup>, in steps of 0.15 dex |
-| viewing | `Theta_inc` | viewing angle relative to the inner disk, in degrees | 3 values: 0, 60, 90 |
+| viewing | `NHLOS` | total column density along the line of sight, in 10<sup>22</sup> cm<sup>−2</sup> (see Calculation method) | 41 values from 0.01 to 10<sup>4</sup>, in steps of 0.15 dex |
+| viewing | `Theta_inc` | viewing angle relative to the inner disk, in degrees (see Calculation method) | 3 values: 0, 60, 90 |
 | geometry | `TORsigma` | vertical extent of the cloud population, in degrees | 4 values: 0, 7, 28, 84 |
 | geometry | `CTKcover` | covering factor of the inner Compton-thick ring | 5 values: 0, 0.25, 0.3, 0.45, 0.6 |
 
@@ -319,7 +320,7 @@ of Verner et al. (1996). Three features of the calculation stand out:
   records the energy and direction of the escaping photons. The result is a response matrix (a
   Green's function) that maps injected energy to escaping energy. The spectrum for any incident
   spectrum, and thus for any `PhoIndex` and `Ecut`, follows by multiplying the incident spectrum
-  with this matrix, without further simulations.
+  with this matrix, without further simulations (see Central source).
 - **Sky binning.** XARS divides the sky as seen from the central source into bins of similar
   line-of-sight column density, further subdivided by inclination angle. The spectra collected in
   these bins provide the `NHLOS` and `Theta_inc` parameters. For a given geometry, a single
@@ -333,7 +334,7 @@ of Verner et al. (1996). Three features of the calculation stand out:
   bins in log N<sub>H</sub> between 20 and 26 (in cm<sup>−2</sup>), each 6/41 ≈ 0.146 dex wide,
   labeled with the `NHLOS` grid values, which are spaced by 0.15 dex; lower column densities fall
   in the first bin and higher ones in the last bin. A combination of `NHLOS` and `Theta_inc` that
-  does not occur in the geometry yields an empty spectrum.
+  does not occur in the geometry yields an empty spectrum (see Table files).
 - **Analytic paths.** The optical depth that a photon travels is drawn at random, but the end point
   is determined analytically, using the LightRayRider library to find the clouds that a ray
   intersects and their order.
@@ -396,11 +397,11 @@ edge-on views of geometries with an inner ring, and all of them are sky bins tha
 the sky fractions, which XARS estimates from 10<sup>6</sup> random directions. The same factor
 applies to the other table files: for the geometry without clouds, the omni spectra equal
 w(E) / 123 to within 10<sup>−4</sup>, and for all geometries, the omni spectra equal the
-sky-fraction weighted sum of the total spectra. The factor 123 = 41 × 3
-is the number of sky bins; the export script `createclumpytoruscutofftable.py` in the XARS
-repository divides the binned responses by this number, in addition to the fraction of the sky
-covered by each bin. As a result, `norm` = 1 corresponds to an intrinsic photon flux density of
-100 / 123 ≈ 0.813 photons cm<sup>−2</sup> s<sup>−1</sup> keV<sup>−1</sup> at 1 keV, rather than 1.
+sky-fraction weighted sum of the total spectra (see Table files). The factor 123 = 41 × 3 is the
+number of sky bins; the export script `createclumpytoruscutofftable.py` in the XARS repository
+divides the binned responses by this number, in addition to the fraction of the sky covered by
+each bin. As a result, `norm` = 1 corresponds to an intrinsic photon flux density of 100 / 123 ≈
+0.813 photons cm<sup>−2</sup> s<sup>−1</sup> keV<sup>−1</sup> at 1 keV, rather than 1.
 
 ### Table files
 
@@ -434,10 +435,10 @@ not depend on `NHLOS` or `Theta_inc`: they are identical for all values of these
 the table repeats only to share the grid of the other files. For each geometry, the omni spectrum
 equals the sum of the total spectra of all 123 sky bins, weighted with the fraction of the sky
 covered by each bin, to within the floating-point precision of the table (10<sup>−7</sup>).
-They add up to 1 for the geometry without clouds, but to 0.937 to 0.995 for the other geometries.
-This is consistent with `torusC.py`, which discards photons that escape in a direction with a
-column density beyond the last `NHLOS` bin, above about 10<sup>26.15</sup> cm<sup>−2</sup>, so
-that these directions are absent from all four table files.
+These fractions add up to 1 for the geometry without clouds, but to 0.937 to 0.995 for the other
+geometries. This is consistent with `torusC.py`, which discards photons that escape in a direction
+with a column density beyond the last `NHLOS` bin, above about 10<sup>26.15</sup> cm<sup>−2</sup>,
+so that these directions are absent from all four table files.
 
 A combination of `NHLOS` and `Theta_inc` that does not occur in a given geometry yields an empty
 spectrum, with zeros in all bins of the total, transmitted, and reflected components. Of the
