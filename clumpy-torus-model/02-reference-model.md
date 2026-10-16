@@ -470,6 +470,64 @@ escapes without interacting (for 42 of the 47 non-empty combinations of geometry
 The reflected component is empty for the geometry without clouds and for 50 combinations at
 `NHLOS` ≤ 0.63 in geometries with `TORsigma` = 0 or 7.
 
+### Example spectra
+
+The figures below illustrate the effect of the viewing and geometry parameters on the total
+spectrum, for a single source spectrum with Γ = 1.8 and `Ecut` = 200 keV, close to typical values
+for nearby AGN (see Central source), and `norm` = 1. The geometry file analyzed above
+(`TORsigma` = 42, `CTKcover` = 0.6) is not part of the table, so that the closest released geometry
+with the same inner ring, `TORsigma` = 28 and `CTKcover` = 0.6, serves as the reference geometry.
+
+Each spectrum collects the photons that escape into one sky bin, so that its Monte Carlo noise
+depends on the fraction of the sky covered by that bin (see Table files). These fractions are
+multiples of 10<sup>−6</sup>, consistent with the 10<sup>6</sup> random directions from which XARS
+estimates them. In the reference geometry, the inner ring blocks nearly all lines of sight at low
+elevations. For `Theta_inc` = 90, which like each inclination bin covers a third of the sky, only
+0.07% of the sky has a column density below 10<sup>24</sup> cm<sup>−2</sup>, and 30% has
+10<sup>25</sup> cm<sup>−2</sup> or more; for `Theta_inc` = 60, these numbers are 2% and 27%. The
+spectra for these low column densities are thus based on very few photons. In the face-on bin
+(`Theta_inc` = 0), most column densities cover 0.1% of the sky or more, which is why it is used to
+show the effect of `NHLOS`.
+
+![Total spectra for different viewing parameters](figures/table-spectra-viewing.png)
+
+*Total spectra of the reference geometry (`TORsigma` = 28, `CTKcover` = 0.6) for Γ = 1.8,
+`Ecut` = 200 keV, and `norm` = 1: (a) for five values of `NHLOS` at `Theta_inc` = 0, and (b) for
+the three values of `Theta_inc` at `NHLOS` = 10<sup>24.5</sup> cm<sup>−2</sup>, with the sky
+fraction of each bin in the legends; (c) fraction of the sky covered by each sky bin of the
+reference geometry.*
+
+With increasing `NHLOS` (panel a), the photoelectric cutoff moves to higher energies. Above about
+10<sup>24</sup> cm<sup>−2</sup>, the transmitted component disappears, and the spectrum is dominated
+by the reflected component, with the Compton hump near 30 keV and a soft scattered continuum three
+to four orders of magnitude below the incident spectrum. The fluorescent lines (Kα of O, Ne, Mg,
+Si, Ar, Ca, Cr, Fe, and Ni, and Fe Kβ) appear as spikes in single 10 eV bins. At `NHLOS` =
+10<sup>24.5</sup> cm<sup>−2</sup> (panel b), the spectra for the three inclinations have similar
+shapes, but the Compton hump of the face-on spectrum is 1.6 and 2.4 times higher than for
+`Theta_inc` = 60 and 90, respectively.
+
+![Total spectra for different geometry parameters](figures/table-spectra-geometry.png)
+
+*Total spectra for Γ = 1.8, `Ecut` = 200 keV, `norm` = 1, and `Theta_inc` = 60, varying `TORsigma`
+at `CTKcover` = 0.6 (left) and `CTKcover` at `TORsigma` = 28 (right), for `NHLOS` =
+10<sup>24.05</sup> cm<sup>−2</sup> (top) and 10<sup>25.1</sup> cm<sup>−2</sup> (bottom). The
+reference geometry is drawn in black, and the legends list the sky fraction of each bin.*
+
+The figure for the geometry parameters uses `Theta_inc` = 60, for which the sky bins of all
+geometries shown cover at least 0.1% of the sky at both column densities. At `NHLOS` =
+10<sup>24.05</sup> cm<sup>−2</sup>, close to the Compton-thick threshold, the transmitted component
+still carries 60% to 70% of the photon flux between 10 and 100 keV, and the spectra of the
+different geometries differ by at most 24% at 30 keV and 10% at 100 keV. They differ mainly in the
+soft scattered component, by up to a factor 3.7 in photon flux between 0.5 and 3 keV, and in the
+fluorescent lines. At `NHLOS` = 10<sup>25.1</sup> cm<sup>−2</sup>, the transmitted component has
+disappeared, and the level of the Compton hump varies by up to a factor 1.9 between geometries.
+This dependence is not monotonic: at `CTKcover` = 0.6, `TORsigma` = 0, 7, and 84 give nearly the
+same hump, while `TORsigma` = 28 gives about half of it, and at `TORsigma` = 28 the hump generally
+decreases with `CTKcover`. Similar irregularities occur for the other inclinations and column
+densities, presumably because the lines of sight in a given sky bin pass through different
+structures, the inner ring or the cloud population, in different geometries. The omni spectra, in
+contrast, vary smoothly with both geometry parameters.
+
 ### Limitations
 
 Sect. 4.2.4 of Vander Meulen et al. (2023) discusses XARS and compares it with an independent X-ray
