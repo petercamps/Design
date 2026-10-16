@@ -403,6 +403,23 @@ divides the binned responses by this number, in addition to the fraction of the 
 each bin. As a result, `norm` = 1 corresponds to an intrinsic photon flux density of 100 / 123 ≈
 0.813 photons cm<sup>−2</sup> s<sup>−1</sup> keV<sup>−1</sup> at 1 keV, rather than 1.
 
+**Representative spectra.** The figure shows the source spectrum for `norm` = 1, read from the omni
+spectra of the geometry without clouds, for the four extreme combinations of `PhoIndex` and `Ecut`
+and for two intermediate ones: Γ = 1.8 with `Ecut` = 200 keV, close to typical values for nearby
+AGN, and Γ = 2.0 with `Ecut` = 400 keV, close to the spectrum used for Fig. 6 of the paper (Γ = 2
+without cutoff) and to the starting point recommended by the documentation, which suggests
+freezing `Ecut` at 400 keV initially. All spectra share the normalization at 1 keV, apart from the
+factor exp(−1 keV / `Ecut`), which is at least 0.98. For Γ < 2, E<sup>2</sup> N(E) peaks at
+(2 − Γ) · `Ecut`, for example at 400 keV for the hardest spectrum, whereas for Γ ≥ 2 it decreases
+monotonically with energy, so that the lowest energies dominate the energy flux.
+
+![Representative source spectra](figures/table-source-spectrum.png)
+
+*Representative source spectra for `norm` = 1, read from the omni spectra of the geometry without
+clouds: (a) photon flux density and (b) E<sup>2</sup> N(E), for the extreme and two intermediate
+combinations of `PhoIndex` (Γ, color) and `Ecut` (line style). The dot marks the photon flux
+density of 100 / 123 at 1 keV, and the dotted line the end of the energy grid at 1517.5 keV.*
+
 ### Table files
 
 The release contains four table files with the same parameter grid, energy grid, and order of the
