@@ -307,55 +307,6 @@ The table model has the following parameters. The grid values are those of the t
 The table thus contains 41 × 11 × 5 × 4 × 5 × 3 = 135 300 spectra, calculated from 4 × 5 = 20
 geometries. In the table file, the line-of-sight column density parameter is called `nH`.
 
-### Spectral resolution
-
-Each spectrum has 1000 contiguous energy bins from 0.1 to 1517.5 keV, defined by the `bending`
-binning module of XARS. The first 800 bins are 10 eV wide and cover 0.1 to 8.1 keV. The other 200
-bins have lower edges at 8.1 keV · exp(((i − 800) / A)<sup>1.5</sup>) for bin index i, with A
-chosen so that the first of these bins is 15 eV wide. Their width grows rapidly with energy, to
-134 eV at 10 keV, 0.44 keV at 20 keV, 1.4 keV at 50 keV, and 58 keV for the last bin. The
-resolving power E / ΔE thus rises from 10 at 0.1 keV to 640 at the Fe Kα line and 810 at 8.1 keV,
-and then drops abruptly, to 74 at 10 keV, 36 at 50 keV, and 25 at the high end. Even in the
-10 eV part of the grid, the bins are twice as wide as the energy resolution of XRISM/Resolve,
-4.5 eV FWHM, and above 8.1 keV they are much wider still.
-
-![Spectral resolution of the table spectra](figures/table-energy-grid.png)
-
-*Spectral resolution of the UXClumpy table spectra: (a) bin width and (b) resolving power as a
-function of energy. The shaded band is the XRISM/Resolve band, from 0.3 to 12 keV, and the dotted
-line marks the Fe Kα line at 6.4 keV.*
-
-### Table files
-
-The release contains four table files with the same parameter grid, energy grid, and order of the
-spectra. Each table file has a size of about 540 MB.
-
-| File | Contents |
-| --- | --- |
-| `uxclumpy-cutoff.fits` | the total spectrum along the line of sight: transmitted plus reflected, including the fluorescent lines; this is the main model component |
-| `uxclumpy-cutoff-transmit.fits` | the transmitted component: primary photons that escape along the line of sight without interacting |
-| `uxclumpy-cutoff-reflect.fits` | the reflected component: Compton-scattered photons and fluorescent lines |
-| `uxclumpy-cutoff-omni.fits` | the spectrum of all escaping photons averaged over all directions |
-
-The total spectrum equals the sum of the transmitted and reflected components. For the spectra
-checked, the integrated sums agree to within 0.2 percent, and individual bins differ by more than
-1 percent only in about 2 percent of the bins, mostly where the values are tiny.
-
-The omni component represents the warm mirror: ionized gas far outside the obscurer that scatters
-part of the escaping radiation into the line of sight. This gas sees the obscurer from all
-directions, so that it scatters the angle-averaged spectrum, which is dominated by the unobscured
-directions and is thus mostly an unobscured power law. The component is added to the main
-component with a free scaling constant, typically between 10<sup>−5</sup> and 0.1. Its spectra do
-not depend on `NHLOS` or `Theta_inc`: for the spectra checked, they are identical for all values of
-these parameters, which the table repeats only to share the grid of the other files.
-
-A combination of `NHLOS` and `Theta_inc` that does not occur in a given geometry yields an empty
-spectrum. For the spectra checked at `NHLOS` values of 10 and 2510 (10<sup>23</sup> and 2.5 ×
-10<sup>25</sup> cm<sup>−2</sup>), about 15 percent of the spectra are empty.
-
-The checks above are based on 500 spectra at the lowest `NHLOS` value and 330 spectra at each of
-the two other values, for the lowest `PhoIndex` values, read from the four table files.
-
 ### Calculation method
 
 UXClumpy was calculated with XARS, a compact Monte Carlo code written in Python, which includes
@@ -391,17 +342,33 @@ As a result, only the geometry parameters `TORsigma` and `CTKcover` require sepa
 calculations, which explains how a table with many spectra can be produced with a limited number
 of simulations.
 
+### Spectral resolution
+
+Each spectrum has 1000 contiguous energy bins from 0.1 to 1517.5 keV, defined by the `bending`
+binning module of XARS. The first 800 bins are 10 eV wide and cover 0.1 to 8.1 keV. The other 200
+bins have lower edges at 8.1 keV · exp(((i − 800) / A)<sup>1.5</sup>) for bin index i, with A
+chosen so that the first of these bins is 15 eV wide. Their width grows rapidly with energy, to
+134 eV at 10 keV, 0.44 keV at 20 keV, 1.4 keV at 50 keV, and 58 keV for the last bin. The
+resolving power E / ΔE thus rises from 10 at 0.1 keV to 640 at the Fe Kα line and 810 at 8.1 keV,
+and then drops abruptly, to 74 at 10 keV, 36 at 50 keV, and 25 at the high end. Even in the
+10 eV part of the grid, the bins are twice as wide as the energy resolution of XRISM/Resolve,
+4.5 eV FWHM, and above 8.1 keV they are much wider still.
+
+![Spectral resolution of the table spectra](figures/table-energy-grid.png)
+
+*Spectral resolution of the UXClumpy table spectra: (a) bin width and (b) resolving power as a
+function of energy. The shaded band is the XRISM/Resolve band, from 0.3 to 12 keV, and the dotted
+line marks the Fe Kα line at 6.4 keV.*
+
 ### Central source
 
 The incident radiation is an isotropic point source at the center of the geometry (Sect. 2.1 and
 Appendix A of the paper). XARS draws the initial photon directions uniformly in cos β.
 
-**Injection.** XARS does not emit photons from a given incident spectrum. Instead, it injects the
-same number of photons in each of the 1000 energy bins of the table separately, with energies
-drawn uniformly within the bin: 10<sup>6</sup> photons per bin by default in `torusC.py`, and
-10<sup>9</sup> photons across the 1000 bins for the benchmark quoted in Sect. 1 of the paper. The
-response matrices thus cover injected energies over the full energy grid, from 0.1 to 1517.5 keV,
-and no photons are injected outside this range.
+**Injection.** XARS injects the same number of photons in each of the 1000 energy bins of the
+table separately, with energies drawn uniformly within the bin: 10<sup>6</sup> photons per bin by
+default in `torusC.py`. The response matrices thus cover injected energies over the full energy
+grid, from 0.1 to 1517.5 keV, and no photons are injected outside this range.
 
 **Incident spectrum.** The export scripts apply the incident spectrum afterwards, by weighting the
 response to each injection bin with
@@ -413,21 +380,77 @@ width of the bin at 1 keV. The incident spectrum is thus a cutoff power law, con
 bin, over the full energy grid, without any other lower or upper limit. The paper (Sect. 6)
 correspondingly quotes an energy coverage of 0.1 to 1000 keV. The table confirms this: in the
 lowest `NHLOS` bin, where nearly all lines of sight are unobscured, the transmitted spectra follow
-w(E) in all 1000 bins, up to the last bin from 1459 to 1517.5 keV, for all spectra checked. The
-source spectrum is thus cut off abruptly at 1517.5 keV. For the hardest spectra, with Γ = 1 and
-`Ecut` = 400 keV, E<sup>2</sup> N(E) in the last bin is still 36 times its value at 1 keV, and a
-quarter of its peak value at 400 keV.
+w(E) in all 1000 bins, up to the last bin from 1459 to 1517.5 keV, for all 3300 spectra in this
+bin, none of which has an empty bin. The source spectrum is thus cut off abruptly at 1517.5 keV.
+For the hardest spectra, with Γ = 1 and `Ecut` = 400 keV, E<sup>2</sup> N(E) in the last bin is
+still 36 times its value at 1 keV, and a quarter of its peak value at 400 keV.
 
 **Normalization.** The documentation describes `norm` as the photon flux normalization at 1 keV.
 The table spectra are given in photons cm<sup>−2</sup> s<sup>−1</sup> per bin, and for `norm` = 1
-the unobscured transmitted spectra equal w(E) / 123, within 2% for each of 200 spectra checked
-(median ratio 0.008130). The same factor applies to the other table files: for the geometry
-without clouds, for example, the omni spectra equal w(E) / 123 exactly. The factor 123 = 41 × 3
+the transmitted spectra in the lowest `NHLOS` bin equal w(E) / 123. Over all 3300 spectra in this
+bin, the median ratio to w(E) / 123 is 1.0000, and within each spectrum the ratio stays within 3%
+of its median for 99% of the bins. The level of the spectra deviates by more than 2% from 1 / 123
+for only 8 of the 60 combinations of geometry and `Theta_inc`, by up to 26%. Seven of these are
+edge-on views of geometries with an inner ring, and all of them are sky bins that cover at most
+1.3% of the sky (see Table files), so that the deviations are consistent with Monte Carlo noise in
+the sky fractions, which XARS estimates from 10<sup>6</sup> random directions. The same factor
+applies to the other table files: for the geometry without clouds, the omni spectra equal
+w(E) / 123 to within 10<sup>−4</sup>, and for all geometries, the omni spectra equal the
+sky-fraction weighted sum of the total spectra. The factor 123 = 41 × 3
 is the number of sky bins; the export script `createclumpytoruscutofftable.py` in the XARS
 repository divides the binned responses by this number, in addition to the fraction of the sky
 covered by each bin. As a result, `norm` = 1 corresponds to an intrinsic photon flux density of
 100 / 123 ≈ 0.813 photons cm<sup>−2</sup> s<sup>−1</sup> keV<sup>−1</sup> at 1 keV, rather than 1.
 
+### Table files
+
+The release contains four table files with the same parameter grid, energy grid, and order of the
+spectra. Each table file has a size of about 540 MB.
+
+| File | Contents |
+| --- | --- |
+| `uxclumpy-cutoff.fits` | the total spectrum along the line of sight: transmitted plus reflected, including the fluorescent lines; this is the main model component |
+| `uxclumpy-cutoff-transmit.fits` | the transmitted component: primary photons that escape along the line of sight without interacting |
+| `uxclumpy-cutoff-reflect.fits` | the reflected component: Compton-scattered photons and fluorescent lines |
+| `uxclumpy-cutoff-omni.fits` | the spectrum of all escaping photons averaged over all directions |
+
+The statements below were verified for all 135 300 spectra of the four files.
+
+The total spectrum equals the sum of the transmitted and reflected components, with one exception.
+For 19 of the 20 geometries, the integrated photon fluxes agree to within 10<sup>−7</sup>, and no
+bin differs by more than 1%. For the geometry with `TORsigma` = 28 and `CTKcover` = 0.25, however,
+38% of the bins differ by more than 1%, and the integrated photon fluxes by up to 15%. These
+differences are largest at low `NHLOS`, with 15% at 0.02 and up to 4% for the other values below
+1, and remain below 0.5% from `NHLOS` = 1.26 upwards. Because the omni spectra of this geometry are
+consistent with its total spectra (see below), its transmitted and reflected components appear to
+come from a different simulation run than its total spectra.
+
+The omni component represents the warm mirror: ionized gas far outside the obscurer that scatters
+part of the escaping radiation into the line of sight. This gas sees the obscurer from all
+directions, so that it scatters the angle-averaged spectrum, which is dominated by the unobscured
+directions and is thus mostly an unobscured power law. The component is added to the main
+component with a free scaling constant, typically between 10<sup>−5</sup> and 0.1. Its spectra do
+not depend on `NHLOS` or `Theta_inc`: they are identical for all values of these parameters, which
+the table repeats only to share the grid of the other files. For each geometry, the omni spectrum
+equals the sum of the total spectra of all 123 sky bins, weighted with the fraction of the sky
+covered by each bin, to within the floating-point precision of the table (10<sup>−7</sup>).
+They add up to 1 for the geometry without clouds, but to 0.937 to 0.995 for the other geometries.
+This is consistent with `torusC.py`, which discards photons that escape in a direction with a
+column density beyond the last `NHLOS` bin, above about 10<sup>26.15</sup> cm<sup>−2</sup>, so
+that these directions are absent from all four table files.
+
+A combination of `NHLOS` and `Theta_inc` that does not occur in a given geometry yields an empty
+spectrum, with zeros in all bins of the total, transmitted, and reflected components. Of the
+135 300 spectra, 20 735 (15.3%) are empty, the same for all values of `PhoIndex` and `Ecut`. All
+empty spectra belong to the geometries with `TORsigma` = 0 or 7, and the geometry without clouds
+has spectra only at the lowest `NHLOS`. The fraction of empty spectra is 0 at the lowest `NHLOS`,
+32% at 0.0141, decreasing to 13% from 0.112 to 112, then 15% from 158 to 7080, and 22% at
+10<sup>4</sup>. It is 31% for `Theta_inc` = 0, 8% for 60, and 7% for 90. In spectra that are not
+empty, the transmitted component is empty at the highest `NHLOS` values, where hardly any photon
+escapes without interacting (for 42 of the 47 non-empty combinations of geometry and `Theta_inc` at
+10<sup>4</sup>, 13 of 51 at 7080, and 2 of 51 at 5010), and for three combinations at low `NHLOS`.
+The reflected component is empty for the geometry without clouds and for 50 combinations at
+`NHLOS` ≤ 0.63 in geometries with `TORsigma` = 0 or 7.
 
 ### Limitations
 
@@ -443,18 +466,15 @@ column densities from 10<sup>21</sup> to 10<sup>24</sup> cm<sup>−2</sup>, and 
 - **No bound-electron scattering.** Compton scattering is treated for free electrons only.
 - **Limited fluorescence.** XARS includes 11 fluorescent line transitions, with fluorescent yields
   from Bambynek et al. (1972). It omits, for example, the S Kα line at 2.3 keV, which is more
-  important than the Ne and Mg lines that it does include.
+  important than the Ne and Mg lines that it does include. In addition, XARS does not include
+  intrinsic line shapes or the complete set of K- and L-shell lines.
 - **Photoabsorption cross sections.** The XARS cross sections are 10% to 15% higher below 12.5 keV
   than the phfit2 cross sections (Verner & Yakovlev 1995; Verner et al. 1996) used by the other
   codes in the comparison and by XSPEC, which lowers the soft X-ray flux along obscured lines of
   sight. The UXClumpy paper nevertheless cites Verner et al. (1996) as the source of its cross
   sections.
-- **Total flux only.** The comparison is limited to the total flux, because XARS does not output
-  the scattered flux separately. This does not apply to UXClumpy, whose table files include the
-  transmitted and reflected components separately.
 
 Apart from these differences, the agreement is good for all lines of sight and column densities.
 The Compton-dominated part of the spectra at high energies agrees, including the reflection hump
 near 40 keV, and so do the spectra between 6.0 and 7.5 keV for heavily obscured lines of sight,
-with a column density of 10<sup>24</sup> cm<sup>−2</sup>. In addition, XARS does not include
-intrinsic line shapes or the complete set of K- and L-shell lines.
+with a column density of 10<sup>24</sup> cm<sup>−2</sup>.
