@@ -7,12 +7,20 @@
 The pilot run uses the geometry file provided by the author of UXClumpy,
 `10000_30_f3_gexp5core.hdf5`, with 10 000 clouds including an inner ring of six clouds (see
 Reference model). Using this file avoids recreating the cloud distribution. Its clouds are converted
-to the column format read by both the `ParticleMedium` and the `ClumpySphericalSpatialGrid`.
-The geometry corresponds to `TORsigma` = 42 and `CTKcover` = 0.6 and is
-not part of the released table, so that its spectra can be compared with the table spectra only
-indirectly, for example through the closest released geometry with the same inner ring,
-`TORsigma` = 28 and `CTKcover` = 0.6, which serves as reference geometry for the example spectra
-in the Reference model chapter.
+to a text column file bundle named `clouds` in the HDF5 input file of the pilot run, which is read
+by both the `ParticleMedium`, with the `UniformSmoothingKernel`, and the
+`ClumpySphericalSpatialGrid`. The bundle lists the center position and radius of each cloud,
+scaled to an outer radius R<sub>out</sub> of 1 pc, an arbitrary choice because the X-ray
+radiative transfer depends only on column densities. Its last column lists the number of hydrogen
+atoms in each cloud, n<sub>H</sub> (4π / 3) r<sup>3</sup> with n<sub>H</sub> = N<sub>H</sub> /
+(2 r) as in XARS, because a `ParticleMedium` imports a number rather than a density. A test run
+confirmed that the grid accepts all 10 000 clouds, with a spatial domain extending to 1.1 pc, and
+that SKIRT recovers the intended density of every cloud.
+
+The geometry corresponds to `TORsigma` = 42 and `CTKcover` = 0.6 and is not part of the released
+table, so that its spectra can be compared with the table spectra only indirectly, for example
+through the closest released geometry with the same inner ring, `TORsigma` = 28 and `CTKcover` =
+0.6, which serves as reference geometry for the example spectra in the Reference model chapter.
 
 ### Source
 
