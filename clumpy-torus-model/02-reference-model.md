@@ -225,7 +225,7 @@ above a given value, summarizes this map. For the geometry file, the cloud popul
 85% of the sky above 10<sup>22</sup> cm<sup>−2</sup> and 47% above 10<sup>24</sup> cm<sup>−2</sup>;
 with the inner ring, this becomes 93% and 82%.
 
-![Covering factor as a function of column density](figures/geometry-covering.png)
+![Covering factor as a function of column density](figures/geometry-covering.png ':size=75%')
 
 *Covering factor as a function of column density for the geometry file, for isotropically
 distributed directions from the center, and for the stored `NH_samples`. The samples are
