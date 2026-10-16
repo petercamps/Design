@@ -67,10 +67,10 @@ performed on a high-performance computing facility.
 
 - **[Reference model](clumpy-torus-model/02-reference-model.md)** summarizes the UXClumpy model and
   the way it was calculated.
-- **[Plan](clumpy-torus-model/03-plan.md)** describes the project steps, starting with those that
-  can be done on a local workstation.
-- **[Open questions](clumpy-torus-model/04-open-questions.md)** collects the questions that need to
-  be answered before the production runs.
+- **[SKIRT pilot run](clumpy-torus-model/03-skirt-pilot-run.md)** describes a first SKIRT
+  simulation of the clumpy torus model.
+- **[Next steps](clumpy-torus-model/04-next-steps.md)** describes the remaining project steps and
+  collects the questions that need to be answered before the production runs.
 
 ## References
 
