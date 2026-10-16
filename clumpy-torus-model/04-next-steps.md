@@ -149,6 +149,21 @@ geometry.
 instruments require a wider range, possibly at a coarser resolution. The source must in any case
 emit up to a few hundred keV, because Compton scattering moves photons to lower energies.
 
+**High-energy limits in SKIRT.** The UXClumpy source spectra extend to 1517.5 keV (see Reference
+model), but SKIRT currently limits the energy range in two ways. Wavelengths must be at least
+1 pm, which corresponds to 1239.8 keV, so that higher energies cannot be configured at all.
+Furthermore, the `XRayAtomicGasMix` sets all cross sections to zero above 500 keV, so that photons
+with higher energies cross the medium without interacting. The pilot run is therefore capped at
+500 keV (see SKIRT pilot run), which omits only 0.9% of the energy of its source spectrum. For the
+hardest source spectra of the UXClumpy grid, with Γ = 1 and `Ecut` = 400 keV, however, the photons
+above 500 keV carry 27% of the energy, and those above 1239.8 keV still 2%. After scattering to
+lower energies, these photons contribute to the reflected component and the Compton hump. Production
+runs that cover the full parameter range of UXClumpy therefore require extending SKIRT: lowering
+the 1 pm limit, and extending the X-ray material mix to about 1.5 MeV, where Compton scattering on
+free electrons, with the Klein-Nishina cross section, is by far the dominant process.
+Alternatively, the energy range and the incident spectrum parameters of the new model could be
+restricted.
+
 **Monte Carlo noise.** The spectra must be free of visible noise at 0.5 eV resolution, in each sky
 bin. The number of photon packets needed, and techniques that reduce the noise, such as a separate
 treatment of the direct component or a suitable wavelength bias of the source, must be determined
