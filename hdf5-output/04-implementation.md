@@ -284,14 +284,35 @@ naturally split by view.
 Covers the four cases in the Data model chapter's Unstructured text file bundle —
 `convergence.dat`, `grainpops`, `parameters.xml`, and `log.txt`.
 
-All four share the same underlying trick: write the complete text to a real plain file
-exactly as today, then, if `output()`'s HDF5 candidate is non-empty, reopen that finished
-file, read it into a `string`, and pass it to `H5BundleW::createTextDataset()`, setting
-the bundle's `type` attribute (`"free form"`, `"XML"`, or `"log"`, per the Data model
-chapter) along the way. None of the writing logic of `ConvergenceInfoProbe`,
-`DustGrainPopulationsProbe`, `XmlHierarchyWriter`, or `FileLog` needs to know anything about
-HDF5 — only the point where each one is known to be finished changes. This "copy" step could
-live in one small shared helper.
+The two probe outputs and the two files written for every simulation are handled differently,
+because the latter remain regular files.
+
+**Probe outputs.** `TextOutFile` takes an optional text type in its constructor. Without it, the
+class writes a regular file as before, which `ColumnOutFile`, `ColumnOutFile::copyToBundle()`, and
+the spatial grid plot files rely on. With a text type and a non-empty HDF5 candidate from
+`output()`, it opens no file but collects the lines in memory, and `close()` writes the bundle with
+the `text` dataset and the `type` attribute. `ConvergenceInfoProbe` and `DustGrainPopulationsProbe`
+pass the type `free form`, so that their outputs become bundles only, without a regular file next to
+them; their writing logic does not change, apart from an explicit call to `close()`. As for the
+other output classes, writing a bundle can fail, and only `close()` can report that as a fatal
+error; the destructor does not throw, and logs the message of a fatal error if the client did not
+call `close()`.
+
+**Log file and parameter file.** The static function `TextOutFile::copyToBundle()` — the shared
+"copy" helper — reads a finished regular file into a `string` and passes it to
+`H5BundleW::createTextDataset()`, setting the `type` attribute (`"XML"` or `"log"`). The command
+line handler calls it for the parameter file and then for the log file at the end of each
+simulation, after the last message has been logged, and also after a fatal error during the run, so
+that the stored log includes the error; a failure to store the files after such an error is reported
+on the console only, so that the original error remains the one that is reported. The files are not
+stored when the simulation could not even be constructed. Only the root process stores them, so that
+the per-process log files of the verbose multiprocessing mode remain regular files only. The
+function logs no message: PTS recognizes a finished simulation by the message reporting the end of
+the simulation at the end of the log file, so nothing may be logged after it, and the stored log is
+identical to the regular one. The command line handler reports the storage on the console instead.
+
+The iteration history files of the `HistoryProbe` use `ColumnOutFile::copyToBundle()` instead, as
+described in the previous section.
 
 `DustGrainPopulationsProbe` keeps writing its table through `TextOutFile`, with the same header
 and columns as today, so that the regular output file does not change.

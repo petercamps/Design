@@ -179,11 +179,13 @@ The table of dust grain populations has a column header like a text column file,
 columns holds the name of the grain material of each population rather than a number. It can
 therefore not be stored as a Text column file bundle, of which all columns are 64-bit floats.
 
-The log file is the one special case. Because it grows throughout the run and users should
-be able to watch progress in real time, it continues to be written incrementally to a
-regular file during the simulation, exactly as today (see File types in the Features chapter);
-only the finished, complete text is added to its bundle at the very end
-of the run — the bundle itself is never updated incrementally.
+The log file and the parameter file are special cases. Because the log file grows throughout the run
+and users should be able to watch progress in real time, it continues to be written incrementally to
+a regular file during the simulation, exactly as today (see File types in the Features chapter);
+only the finished, complete text is added to its bundle at the very end of the run — the bundle
+itself is never updated incrementally. The parameter file is likewise written as a regular file and
+stored in its bundle at the end of the run. Both regular files remain in the output directory, so
+that the bundles hold copies of them.
 
 **Attributes**
 

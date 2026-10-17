@@ -17,12 +17,14 @@ SKIRT currently writes the following kinds of output files:
   `convergence.dat` file written by `ConvergenceInfoProbe`, and the `grainpops` table written by
   `DustGrainPopulationsProbe`, which is not a table of numbers because one of its columns holds
   the name of a grain material.
-- **XML file** — the `parameters.xml` file, a reformatted version of the ski file
-  governing the simulation.
-- **Log file** — the `log.txt` plain text file with progress, warning and error messages.
-  Because this file grows as the simulation runs, and users should be able to view the
-  simulation's progress in real time, the log file is always written as a regular file
-  and then stored in the HDF5 file after the simulation has ended.
+- **XML file** — the `parameters.xml` file, a reformatted version of the ski file governing the
+  simulation. Like the log file, it is always written as a regular file, so that users and tools
+  find it next to the log file, and then stored in the HDF5 file after the simulation has ended.
+- **Log file** — the `log.txt` plain text file with progress, warning and error messages. Because
+  this file grows as the simulation runs, and users should be able to view the simulation's progress
+  in real time, the log file is always written as a regular file and then stored in the HDF5 file
+  after the simulation has ended, also when the simulation has ended with an error. The regular file
+  remains in the output directory.
 - **Iteration history files** — the text column files written by the `HistoryProbe` proposed in
   the [Iteration history](iteration-history/01-introduction.md) note, one for each iteration loop,
   with a row per iteration. Like the log file, these files grow as the simulation runs, so that the
@@ -44,12 +46,13 @@ syntax in the [HDF5 input](hdf5-input/02-features.md) note).
 If only `<dir>` is given, SKIRT behaves exactly as before: every output file is written as a
 plain file inside `<dir>`.
 
-If `<hdf>` is also given, SKIRT writes into that HDF5 file instead. The file as a whole is
-never replaced: if it already exists, SKIRT opens it and adds to it. Each individual output
-is written as a new bundle, or replaces an existing one if a bundle with the same name is
-already present; every other bundle in the file is left untouched. The bundle name matches
-the plain output file that would otherwise have been produced, prefixed with `<suite>` if
-given, exactly as on the input side.
+If `<hdf>` is also given, SKIRT writes into that HDF5 file instead, except for the log file and the
+parameter file, which remain regular files in `<dir>` and are also stored in the HDF5 file (see File
+types, above). The file as a whole is never replaced: if it already exists, SKIRT opens it and adds
+to it. Each individual output is written as a new bundle, or replaces an existing one if a bundle
+with the same name is already present; every other bundle in the file is left untouched. The bundle
+name matches the plain output file that would otherwise have been produced, prefixed with `<suite>`
+if given, exactly as on the input side.
 
 This makes it possible to collect the output of several simulations in a single HDF5 file,
 each under its own suite, or to store both the input and the output of a single simulation
