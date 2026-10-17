@@ -48,7 +48,98 @@ Each of these functions returns an **`H5DatasetW`**, which offers just the attri
 The object lifetime rules of the HDF5 input note apply unchanged. They matter in particular for
 MPI: when input and output are pointed at the same HDF5 file, every rank must have destroyed all
 objects obtained while reading it before the root process opens that same file for writing,
-since reading and writing must not overlap in time (see Concurrency in the Features chapter).
+since reading and writing must not overlap in time (see Concurrency in the Features chapter). The
+I/O cutover, below, guarantees this.
+
+## I/O cutover
+
+The concurrency rules of HDF5 (see Concurrency in the Features chapter) matter when the input and
+the output of a simulation share an HDF5 file: a file cannot be opened for writing while any process
+has it open for reading, and there can be only one writer. Within a single process, the object
+lifetime rules and the mutex in the `h5` target suffice, because each reader releases its HDF5
+objects as soon as it has loaded its data, and each writer closes its bundle after writing it.
+Across the processes of a multiprocessing run, however, a process could still be reading an input
+bundle while the root process writes an output bundle into the same file.
+
+The *I/O cutover* is the moment in a simulation that separates all bundle input from all bundle
+output: before it, the processes only read bundles; after it, only the root process writes bundles.
+It falls at the end of setup, in `MonteCarloSimulation::setupSimulation()`: after
+`SimulationItem::setup()` and the existing `wait("setup")` barrier, which synchronizes all
+processes, and before `probeSystem()->probeSetup()`. No further barrier is needed.
+
+The cutover exists for all simulations, because:
+
+- every class that reads a user input file does so during setup: directly in `setupSelfBefore()` or
+  `setupSelfAfter()`, in a function that its base class calls during setup (such as the `get...()`
+  functions of the tabulated SEDs, bands, and dust mixes), or while creating the input file of an
+  importer or a mesh;
+- all bundle output comes from probes, which run after setup, from instruments, which write their
+  output at the end of the run, and from the command line handler, which stores the log file and the
+  parameter file at the end of the simulation.
+
+The one exception today is `AtPositionsForm`, which reads its positions file when the probe runs,
+i.e. after setup. It must instead read the positions during setup and keep them in memory. Planned
+features follow the same pattern: resuming from a checkpoint reads the checkpoint during setup,
+while checkpoints and iteration history files are written later.
+
+To make this rule explicit and enforce it, each simulation records on which side of the cutover it
+is, in its `FilePaths` instance. This state cannot live in the `h5` target, because with the `-s`
+option several simulations run in parallel in the same process, each at its own stage. Before the
+cutover, opening a bundle for writing is a fatal error; after it, opening a bundle or suite for
+reading, or testing whether a bundle exists, is a fatal error. Regular files are not affected, so
+that, for example, the log file can still be read when it is stored at the end. When a process runs
+a single simulation, which is always the case in a multiprocessing run because the `-s` option
+cannot be combined with multiprocessing, each process also verifies at the cutover that it has no
+open HDF5 objects, so that a reader that keeps a bundle open is reported right away rather than
+causing a conflict later. This check is skipped when several simulations run in parallel in the
+process, because the other simulations may legitimately hold HDF5 objects at that moment, for
+example while they read their input; conflicts within the process are then handled by the wait for
+readers described below. The checks on opening bundles apply in every run, including runs with a
+single process, and the functional tests run one simulation per process, so that they catch any
+violation.
+
+**Parallel simulations.** With the `-s` option, several simulations run in parallel threads of the
+same process (which then cannot use multiprocessing), each at its own stage, so that the cutover of
+one simulation says nothing about the others. Within one process, HDF5 keeps a single shared object
+for each open file, and the mutex in the `h5` target serializes all calls. As a result, reading a
+file that another simulation holds open for writing is safe, and so is writing a file that another
+simulation writes as well. The one combination that fails is opening a file for writing while
+another simulation holds it open for reading: HDF5 cannot turn the shared read-only object into a
+writable one, so that `createBundle()` reports a fatal error, depending on the timing of the
+simulations. This happens when one simulation reads its input from an HDF5 file that another
+simulation in the same run writes its output to, for example with `-i in/data.hdf5 -o in/data.hdf5`
+for a set of ski files.
+
+To avoid this, the `h5` target counts, for each file, the objects that hold it open for reading in
+the process, and opening a file for writing waits until no object holds that file open for reading,
+rather than failing. Readers hold a file only while they load a bundle, so that the wait is short. A
+thread that holds a file open for reading while it opens the same file for writing would wait
+forever; the cutover excludes this within a simulation, and a time limit on the wait turns any
+remaining case into a fatal error rather than a hang.
+
+**Early check of the output file.** A failure to write a bundle, because the HDF5 output file is not
+an HDF5 file, is read-only, or is held open by another program, would otherwise surface only when
+the first bundle is written, which for many simulations is at the end of the run. The cutover is the
+earliest moment at which the root process can test the output file without any risk of a conflict
+with readers among the processes of the simulation, because these have finished reading and closed
+their files; with the wait for readers, it also waits for parallel simulations that are still
+reading the file. Right after the cutover, the root process therefore opens the HDF5 output file for
+writing, creating it if it does not exist, and closes it again; if this fails, the simulation ends
+with a fatal error before the run. The file is not kept open until the end of the run, because that
+would prevent other programs from reading output that has already been written, and a crash would
+leave the file marked as open for writing. The check is a snapshot: the file can still become
+unwritable later, for example when another program opens it during the run, so that each write still
+reports its own failure. A check before setup would need a barrier of its own, and would create the
+HDF5 file even if setup fails.
+
+Together with the fact that only the root process writes bundles, the cutover guarantees that the
+processes of a multiprocessing run never violate the HDF5 concurrency rules among themselves, and
+the wait for readers does the same for simulations that run in parallel in one process. This matters
+in particular on the parallel file systems of compute clusters, where HDF5 file locking is often
+disabled, so that a violation would not be reported as an error but could corrupt the file. The
+guarantee does not cover other programs that open the HDF5 file while a simulation runs, nor
+independent SKIRT processes; the Concurrency section of the Features chapter describes how to avoid
+such conflicts.
 
 ## Supported data types
 

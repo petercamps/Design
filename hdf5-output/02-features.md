@@ -52,7 +52,10 @@ types, above). The file as a whole is never replaced: if it already exists, SKIR
 to it. Each individual output is written as a new bundle, or replaces an existing one if a bundle
 with the same name is already present; every other bundle in the file is left untouched. The bundle
 name matches the plain output file that would otherwise have been produced, prefixed with `<suite>`
-if given, exactly as on the input side.
+if given, exactly as on the input side. At the end of setup, before the simulation runs, SKIRT
+verifies that it can write the HDF5 file, so that a file that is not an HDF5 file, that is
+read-only, or that is held open by another program is reported before the bulk of the work has been
+done.
 
 This makes it possible to collect the output of several simulations in a single HDF5 file,
 each under its own suite, or to store both the input and the output of a single simulation
@@ -94,5 +97,13 @@ Using the same HDF5 file for both `-i` and `-o` in a given simulation, as in the
 example above, does not violate this concurrency rule: a single process reading from and
 writing to a file it already has open is explicitly allowed.
 
-When a simulation runs in MPI multi-processing mode, SKIRT ensures that there are no
-concurrency conflicts between these processes.
+Simulations that run in parallel within a single SKIRT process, with the `-s` option, are not
+independent processes in this sense. They may write their output to the same HDF5 file, and one of
+them may read its input from an HDF5 file that another one writes its output to: a simulation that
+is about to write waits until no other simulation is reading that file (see I/O cutover in the
+Implementation chapter).
+
+When a simulation runs in MPI multi-processing mode, SKIRT ensures that there are no concurrency
+conflicts between these processes: all processes read their input bundles during setup, and only
+then, after all processes have finished setup, does the root process start writing output bundles
+(see I/O cutover in the Implementation chapter).

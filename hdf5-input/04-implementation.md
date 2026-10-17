@@ -235,7 +235,8 @@ Call sites that construct a `TextInFile` for a genuine input file all move to
 - `MultiGaussianExpansionGeometry` — expansion parameters.
 - `MeanFileDustMix` — optical dust properties.
 - `NonLTELineGasMix` — initial level populations.
-- `AtPositionsForm` — probe sample positions.
+- `AtPositionsForm` — probe sample positions, read during setup (see I/O cutover in the
+  [HDF5 output](hdf5-output/04-implementation.md) note).
 - `TopologyTreePolicy` — tree topology recorded by the `TreeSpatialGridTopologyProbe`.
 - `SiteListTreePolicy`, `ResolvedSpheresTreePolicy` — site positions, and the centers and radii
   of spheres, for the tree policies proposed in the
