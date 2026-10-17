@@ -31,9 +31,12 @@ per-position probe output, and instrument statistics tables. Every output column
 64-bit float and numbered from 0 in the order `addColumn()` is called, so the same per-dataset
 `column` and `unit` attributes apply. Each dataset is named for the description of its column,
 according to the rules for dataset names given there.
-Most call sites also write a free-form comment as the very first line, by convention rather
-than by any mechanism `TextOutFile` itself enforces (via the public `writeLine()`, before
-adding columns) — this becomes the bundle's own `description` attribute.
+Most call sites also specify a free-form comment, written as the very first line of the plain
+file (through `ColumnOutFile::setLongDescription()`, where call sites used to call the public
+`writeLine()` of `TextOutFile` before adding columns) — this becomes the bundle's own
+`description` attribute. A few tables have further comment lines in their header, such as the
+comment that follows the column information in the instrument statistics tables; these follow on
+separate lines of the `description` attribute.
 
 **Attributes**
 

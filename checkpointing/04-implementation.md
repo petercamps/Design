@@ -7,8 +7,9 @@ A checkpoint is an ordinary bundle, so it is read and written through the `H5Bun
 [HDF5 input](hdf5-input/04-implementation.md) and [HDF5 output](hdf5-output/04-implementation.md)
 notes. The checkpoint probe creates a checkpoint with `H5Lib::createBundle()`, sets the checkpoint
 attributes (`when`, `iteration`, the ski parameters from Iterating across simulations,
-`grid_type`, and `history_loop` and `history_iteration`) with `setAttribute()`,
-and creates a dataset for each stored array with `createDataset()`, named with the prefixes
+`grid_type`, and `history_loop` and `history_iteration`) with the typed attribute setters
+(`setIntAttribute()`, `setStringAttribute()`, and so on), and creates and writes a dataset for
+each stored array with the typed `create...Dataset()` functions, named with the prefixes
 listed in the Data model chapter. Resuming opens the checkpoint with `H5Lib::openBundle()`, and
 checks which parts are present with `hasDataset()`.
 

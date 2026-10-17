@@ -7,28 +7,41 @@ extended with classes for writing. Every concept splits into a read-only class (
 a write-only class (suffixed `W`), except suite, which has no writable form. Writing always
 targets a specific bundle directly, never "a suite" as a whole.
 
-**`H5Lib`** gains a factory method for writing:
+**`H5Lib`** gains two functions for writing:
 
-- `H5BundleW createBundle(<filepath>:<suite>/<bundle>)` — creates a bundle for writing,
-  erasing any existing bundle of that name first, per How output files are written in the
-  Features chapter.
+- `H5BundleW createBundle(<filepath>:<suite>/<bundle>)` — creates a bundle for writing, per How
+  output files are written in the Features chapter: it creates the HDF5 file and any missing suites
+  if needed, and erases an existing bundle of that name first, leaving the rest of the file
+  untouched. It attaches the three standard attributes (`producer`, `format`, `created`)
+  automatically. It throws a fatal error if the path refers to an existing suite or dataset, if one
+  of the parent groups is not a suite, or if the file cannot be opened for writing: because it is
+  not an HDF5 file, because it is read-only, or because it is open for reading in this or another
+  process (see Concurrency in the Features chapter).
+- `setProducer(string producer)` — sets the value of the `producer` attribute. The command line
+  handler passes the version string of SKIRT's welcome message, so that the `h5` target does not
+  need to depend on the build information itself.
 
-**`H5BundleW`**
+**`H5ObjectW`** is the common base class of the writable classes, as `H5ObjectR` is for reading. It
+offers one attribute setter per supported attribute type, mirroring the getters of `H5ObjectR`:
+`setBoolAttribute()`, `setIntAttribute()`, `setDoubleAttribute()`, and `setStringAttribute()`, each
+taking the name and the value of the attribute, and replacing an existing attribute with that name.
+The type is part of the function name, rather than being selected by the overloads of a single
+`setAttribute()`, because a string literal would otherwise select the Boolean overload.
 
-- `setAttribute(<name>, value)` — one overload per supported attribute type; these are the
-  types of the attribute getters of `H5BundleR`.
-- `H5DatasetW createDataset(<name>)` — creates one of this bundle's datasets for writing,
-  with the shape and on-disk type the Data model chapter specifies for it.
+**`H5BundleW`** creates the datasets of a bundle. Each of its functions creates a dataset and writes
+its contents in a single call, because HDF5 needs the shape and the data type of a dataset when the
+dataset is created:
 
-**`H5DatasetW`**
+- `createBoolDataset(<name>, values, shape)`, `createIntDataset(<name>, values, shape)`, and
+  `createDoubleDataset(<name>, values, shape)` — create a dataset holding the specified values (a
+  `vector<char>`, a `vector<int>`, or an `Array`), in row-major order. The shape defaults to a
+  one-dimensional dataset holding all values; a shape that does not match the number of values is a
+  fatal error.
+- `createTextDataset(<name>, text)` — creates a scalar dataset holding the specified `string`; this
+  type is output-only.
 
-- `setAttribute(<name>, value)` — as `H5BundleW::setAttribute()`, above.
-- `write()` — one overload per supported dataset content type (boolean, 32-bit integer,
-  64-bit float), as for `H5DatasetR::read()`, plus one further overload for `text`, since
-  that type is output-only.
-
-A bundle created for writing attaches the three standard attributes (`producer`, `format`,
-`created`) automatically; one opened for reading exposes whatever attributes it actually has.
+Each of these functions returns an **`H5DatasetW`**, which offers just the attribute setters of
+`H5ObjectW`.
 
 ## Object lifetime
 
@@ -39,15 +52,18 @@ since reading and writing must not overlap in time (see Concurrency in the Featu
 
 ## Supported data types
 
-When writing, attributes of type `string` are stored as a fixed 128-byte field — comfortably
-larger than any attribute value in the Data model chapter, including the free-form `description`
-attributes. Datasets additionally support `text`, for output only, passed in as a `std::istream`
-in UTF-8 and stored as a variable-length string on disk — the Unstructured text file's `text`
-dataset is the only case that needs it, and unlike an attribute, its content can genuinely be
-arbitrarily long.
+When writing, each value is stored in the data type named by the function that writes it, without
+any conversion: a Boolean as an enumeration based on a signed byte with the members `FALSE` (0) and
+`TRUE` (1), the representation used by the `h5py` Python package; an integer as a 32-bit signed
+integer; a floating point number as a 64-bit floating point number; and a string, whether an
+attribute or the contents of a `text` dataset, as a variable-length string in UTF-8 encoding. A
+variable-length string cannot be truncated, and `h5py` returns it as a Python `str`. The contents of
+a `text` dataset are passed in as a `string`, since the files it holds, those of the Unstructured
+text file bundle, are small enough to be held in memory. Datasets are stored contiguously, without
+chunking or compression.
 
-No conversion happens when writing attributes or data, so client code is responsible for writing
-exactly the data type each table in the Data model chapter specifies.
+Client code is therefore responsible for writing exactly the data type each table in the Data model
+chapter specifies.
 
 ## Name resolution
 
@@ -91,15 +107,39 @@ today of calling `writeLine()` to write a `#`-prefixed first line by hand.
 The constructor's `description` is used for logging, while the `longDescription` goes
 on the text file's first line and in the bundle's `description` attribute.
 
+A further `addComment(string comment)` adds another comment line to the header: in the plain file it
+follows the column information lines of the columns added before it, and in a bundle it becomes a
+further line of the `description` attribute. The instrument statistics tables of `FluxRecorder` need
+it for the comment that follows their column information.
+
 `addColumn()` keeps its existing signature unchanged; its `format` and `precision` arguments
 only apply to the plain-text branch, since HDF5 stores each column as typed binary data
 with no formatting question to answer.
 
-`FilePaths::output(filename)` is only resolved once writing is actually finished, at
-`close()`, since the description and the full set of columns must be settled first. Unlike
-`ColumnInFile`, there is no trying one candidate and falling back to the other: per Name
-resolution, above, `ColumnOutFile` creates the bundle and its datasets if the HDF5 candidate is
-non-empty, and writes the plain file otherwise.
+`FilePaths::output(filename)` is resolved when the first row is written, or at `close()` for a table
+without rows: by then the description and the full set of columns must be settled, so that changing
+the header afterwards is a fatal error. Unlike `ColumnInFile`, there is no trying one candidate and
+falling back to the other: per Name resolution, above, `ColumnOutFile` writes a bundle if the HDF5
+candidate is non-empty, and the plain file otherwise. The plain file is written row by row through
+an internal `TextOutFile`, exactly as a call site using `TextOutFile` directly would write it, so
+that the plain output does not change and is not held in memory. For a bundle, the rows are
+collected in memory, and the bundle and its datasets are created at `close()`.
+
+A client must call `close()` explicitly after writing the last row. Writing a bundle can fail, for
+example when the HDF5 file is open in another program, and only `close()` can report that as a fatal
+error. The destructor never throws an exception, as the coding guidelines require: if `close()` was
+not called, it completes the file, and logs the message of a fatal error instead of propagating it.
+While an exception is propagating, the destructor leaves the file incomplete.
+
+**Memory.** Because a bundle is written at `close()`, the complete table is held in memory in the
+HDF5 case, as a 64-bit value for each row and column, while a plain file needs no such buffer. For
+most outputs this is negligible, but per-cell probe output for a very large spatial grid is an
+exception: ten million cells with ten columns take at least 800 MB, in addition to the memory used
+by the simulation itself. Writing the rows to the bundle as they are produced would require chunked,
+extendible datasets, whose use the Data model chapter leaves for future consideration. Writing a
+plain file first and copying it at the end, as for the incrementally written files below, would
+limit the values to the precision of the text file. This is to be revisited if the buffer proves a
+problem in practice.
 
 Call sites that construct a `TextOutFile` for a genuine column output file all move to
 `ColumnOutFile`:
@@ -159,10 +199,12 @@ configuration — like `FileLog`, it uses the plain-file candidate of `output()`
 At the end of the run, if `output()`'s HDF5 candidate is non-empty, each finished file is copied
 into its own Text column file bundle: the file is reopened, its header is parsed for the column
 descriptions and units, as `TextInFile` does for input files, and the bundle and its datasets are
-created with the complete columns, exactly as `ColumnOutFile` would have created them. The first
-line of the file, the free-form comment, becomes the bundle's `description` attribute. This copy
-step could live in a small helper next to `ColumnOutFile`, similar to the helper shared by the
-unstructured text outputs.
+created with the complete columns, exactly as `ColumnOutFile` would have created them. The
+comment lines of the header other than the column information lines, normally just the free-form
+comment on the first line, become the bundle's `description` attribute, one line each. The static
+function `ColumnOutFile::copyToBundle()` performs this copy step, with the same arguments as the
+constructor of `ColumnOutFile`; it does nothing if the HDF5 candidate is empty, and leaves the
+plain file in place.
 
 The copy requires that the history probe is also invoked at the end of the run, in addition to
 after each iteration. `Probe`'s dispatch functions, such as `probeRun()`, are not virtual today;
@@ -228,7 +270,7 @@ Covers the four cases in the Data model chapter's Unstructured text file bundle 
 
 All four share the same underlying trick: write the complete text to a real plain file
 exactly as today, then, if `output()`'s HDF5 candidate is non-empty, reopen that finished
-file as an `std::ifstream` and hand it to `H5DatasetW::write()`'s `text` overload, setting
+file, read it into a `string`, and pass it to `H5BundleW::createTextDataset()`, setting
 the bundle's `type` attribute (`"free form"`, `"XML"`, or `"log"`, per the Data model
 chapter) along the way. None of the writing logic of `ConvergenceInfoProbe`,
 `DustGrainPopulationsProbe`, `XmlHierarchyWriter`, or `FileLog` needs to know anything about
