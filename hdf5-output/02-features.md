@@ -23,8 +23,9 @@ SKIRT currently writes the following kinds of output files:
 - **Log file** — the `log.txt` plain text file with progress, warning and error messages. Because
   this file grows as the simulation runs, and users should be able to view the simulation's progress
   in real time, the log file is always written as a regular file and then stored in the HDF5 file
-  after the simulation has ended, also when the simulation has ended with an error. The regular file
-  remains in the output directory.
+  after the simulation has ended, also when the simulation has ended with an error (in a
+  multiprocessing run, only if the error occurred after setup, when the processes no longer read
+  bundles). The regular file remains in the output directory.
 - **Iteration history files** — the text column files written by the `HistoryProbe` proposed in
   the [Iteration history](iteration-history/01-introduction.md) note, one for each iteration loop,
   with a row per iteration. Like the log file, these files grow as the simulation runs, so that the

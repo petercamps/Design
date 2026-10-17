@@ -94,9 +94,12 @@ open HDF5 objects, so that a reader that keeps a bundle open is reported right a
 causing a conflict later. This check is skipped when several simulations run in parallel in the
 process, because the other simulations may legitimately hold HDF5 objects at that moment, for
 example while they read their input; conflicts within the process are then handled by the wait for
-readers described below. The checks on opening bundles apply in every run, including runs with a
-single process, and the functional tests run one simulation per process, so that they catch any
-violation.
+readers described below. The cutover is recorded only if its checks succeed (this one and the early
+check of the output file described below), so that a simulation that fails them remains before the
+cutover. After a fatal error before the cutover, the log file and the parameter file are stored only
+in a single-process run, as described for the unstructured text output. The checks on opening
+bundles apply in every run, including runs with a single process, and the functional tests run one
+simulation per process, so that they catch any violation.
 
 **Parallel simulations.** With the `-s` option, several simulations run in parallel threads of the
 same process (which then cannot use multiprocessing), each at its own stage, so that the cutover of
@@ -395,12 +398,16 @@ call `close()`.
 line handler calls it for the parameter file and then for the log file at the end of each
 simulation, after the last message has been logged, and also after a fatal error during the run, so
 that the stored log includes the error; a failure to store the files after such an error is reported
-on the console only, so that the original error remains the one that is reported. The files are not
-stored when the simulation could not even be constructed. Only the root process stores them, so that
-the per-process log files of the verbose multiprocessing mode remain regular files only. The
-function logs no message: PTS recognizes a finished simulation by the message reporting the end of
-the simulation at the end of the log file, so nothing may be logged after it, and the stored log is
-identical to the regular one. The command line handler reports the storage on the console instead.
+on the console only, so that the original error remains the one that is reported. If the error
+occurred before the I/O cutover, other processes of a multiprocessing run may still be reading
+bundles: the files are then stored only in a single-process run, after the command line handler has
+recorded the cutover, and in a multiprocessing run the console reports that they are not stored. The
+files are not stored when the simulation could not even be constructed. Only the root process stores
+them, so that the per-process log files of the verbose multiprocessing mode remain regular files
+only. The function logs no message: PTS recognizes a finished simulation by the message reporting
+the end of the simulation at the end of the log file, so nothing may be logged after it, and the
+stored log is identical to the regular one. The command line handler reports the storage on the
+console instead.
 
 The iteration history files of the `HistoryProbe` use `ColumnOutFile::copyToBundle()` instead, as
 described in the previous section.
