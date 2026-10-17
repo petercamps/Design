@@ -61,17 +61,16 @@ its own bundle, with the same layout as any other text column file bundle.
 
 ## FITS file
 
-Wraps SKIRT's existing `FITSInOut::write()` and `FITSInOut::writeMap()` helpers (built on
-`cfitsio`) for 2-D data frames and 3-D data cubes (a stack of frames along a third axis).
-These are used for instrument fluxes (IFUs and STMs) and statistics, and for planar
-cuts or projections produced by probes.
+Wraps SKIRT's `FITSInOutFile::write()` and `FITSInOutFile::writeMap()` functions (which write FITS
+files through `cfitsio`) for 2-D data frames and 3-D data cubes (a stack of frames along a third
+axis). These are used for instrument fluxes (IFUs and STMs) and statistics, and for planar cuts or
+projections produced by probes.
 
 Data values are stored at 64-bit float precision as opposed to 32-bit float in actual
 FITS output files. The three axis coordinate values are the equivalent of information
 otherwise stored in the FITS header and/or in FITS table extensions named `GRID_POINTS`.
 The quantities represented by data and axes differ for the various use cases, as shown
-in the table below. The axis and data datasets each carry attributes defining the
-quantity type and unit.
+in the table below. The axis and data datasets each carry an attribute defining the unit.
 
 | Output type | x-axis | y-axis | z-axis | data |
 | --- | --- | --- | --- | --- |
@@ -84,11 +83,18 @@ quantity type and unit.
 | ... for velocity | spatial | spatial | (vx, vy, vz) | velocity |
 | ... for spectral grid | spatial | spatial | spectral | depends on probe |
 
+The bundle format can also accommodate a `quantity` attribute on each dataset, naming the physical
+quantity in the SKIRT unit system, but SKIRT does not write it for now, because the functions that
+write FITS output receive only unit strings. Readers should treat the attribute as optional.
+
 **Attributes**
 
 | Attribute | Type | Description |
 | --- | --- | --- |
 | `description` | string | Free-form comment describing the output. |
+
+SKIRT stores the human-readable description of the data that it also uses in its log message,
+such as `total flux` or `mass density in the xy plane`.
 
 Only for distant-instrument IFUs:
 
@@ -109,13 +115,18 @@ as listed below, and by the `producer` and `created` attributes carried by the b
 
 | Dataset | Dimensions | Type | Attributes |
 | --- | --- | --- | --- |
-| `x` | (nx) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
-| `y` | (ny) | 64-bit float | `quantity = "length"`, `unit = "pc"` |
-| `z` | (nz) | 64-bit float | `quantity = "wavelength"`, `unit = "micron"` |
-| `data` | (ny, nx) or (nz, ny, nx) | 64-bit float | `quantity = "frequencysurfacebrightness"`, `unit = "MJy/sr"` |
+| `x` | (nx) | 64-bit float | `unit = "pc"` |
+| `y` | (ny) | 64-bit float | `unit = "pc"` |
+| `z` | (nz) | 64-bit float | `unit = "micron"` |
+| `data` | (ny, nx) or (nz, ny, nx) | 64-bit float | `unit = "MJy/sr"` |
 
 If `z` is missing or has a single value, `data` is 2-D representing a single data frame.
 If `z` is present with 2 or more values, `data` is 3-D representing a data cube.
+
+The grid points of an axis that a FITS file describes through its CRPIX, CRVAL, and CDELT cards (the
+spatial axes of frames, cuts, and projections) are the coordinates of the pixel centers, as these
+cards define them; the grid points of an axis that a FITS file lists in a table extension are the
+listed values.
 
 The `data` dataset has the name and layout that SKIRT expects for a FITS file bundle on input
 (see the [HDF5 input](hdf5-input/03-data-model.md) data model), so that an output bundle can be
@@ -133,6 +144,10 @@ between them are connected, a "lineto"). No unit is recorded in the plain-text f
 even though the coordinates do have one (the simulation's configured output length unit) —
 the bundle adds an explicit `unit` attribute to close that gap.
 
+The plane-cut variants written by the Voronoi and tetrahedral grids are an exception to the
+two-coordinate rule: they hold the complete polyhedra of the cells that intersect the plane, so that
+their points have three coordinates, as in the regular files.
+
 **Attributes**
 
 | Attribute | Type | Description |
@@ -146,7 +161,9 @@ the bundle adds an explicit `unit` attribute to close that gap.
 | `points` | (N, 2) or (N, 3) | 64-bit float | One coordinate pair or triple per row. |
 | `moveto` | (N) | boolean | `true` marks the start of a new polyline; always `true` for row 0. |
 
-`N` is the total number of points across every polyline in the file.
+`N` is the total number of points across every polyline in the file. A plot without any points
+has an empty `points` dataset with three columns if its name ends with `_xyz`, and with two
+columns otherwise, as for the corresponding empty plain file.
 
 ## Unstructured text file
 

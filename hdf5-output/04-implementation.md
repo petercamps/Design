@@ -215,13 +215,23 @@ functions, so that the checkpoint probe can fire at every point.
 
 ## FITS output
 
-The `FITSInOutFile` class introduced in the HDF5 input note for reading is extended with
-`write()` and `writeMap()`, which keep `FITSInOut`'s exact signatures, including the optional
-`ObserverInfo` struct. `FilePaths::output(filename)` resolves the output location as for
-`read()`; the HDF5 branch creates the bundle and writes `data` plus whichever of `x`/`y`/
-`z` apply in one shot each, and sets the bundle's attributes — `description`, and, for
-distant-instrument IFUs, `ObserverInfo`'s fields — exactly as the FITS file output bundle
-already specifies in the Data model chapter.
+The `FITSInOutFile` class introduced in the HDF5 input note for reading is extended with `write()`
+and `writeMap()`, which keep the exact signatures of the functions of `FITSInOut` that write in the
+context of a simulation item, including the optional `ObserverInfo` struct. These functions are
+removed from `FITSInOut`, whose remaining basic functions become private, with `FITSInOutFile` as a
+friend; `ObserverInfo` stays in `FITSInOut`. `FilePaths::output(filename)` resolves the output
+location as for `read()`; the HDF5 branch creates the bundle and writes `data` plus whichever of
+`x`/`y`/`z` apply in one shot each, and sets the bundle's attributes — `description`, and, for
+distant-instrument IFUs, `ObserverInfo`'s fields — as the FITS file output bundle specifies in the
+Data model chapter. For the regularly spaced x- and y-axes passed to `write()`, the grid points are
+computed as they follow from the CRPIX, CRVAL, and CDELT cards of a FITS file, i.e. the pixel
+centers. A data cube with a single frame is stored as a 2-D frame next to a `z` dataset with a
+single grid point.
+
+The datasets carry a `unit` attribute but no `quantity` attribute. The write functions receive only
+unit strings, and the names of the wavelength- and flux-dependent quantities, which depend on the
+output style, exist only inside the `Units` class; passing them would change every signature. Adding
+the attribute was postponed on 2026-10-17.
 
 Call sites:
 
@@ -238,30 +248,36 @@ exclusively through its shape-drawing methods — `writeLine`, `writeRectangle`,
 `writePolyhedron` — never by touching a file directly. None of those call sites need to
 change; the whole adaptation is internal to this one class.
 
-Today, every one of those methods writes straight to the protected `_out` stream it
-privately inherits from `TextOutFile`, doing its own unit conversion inline —
-`SpatialGridPlotFile` never actually uses `TextOutFile`'s own public
-`writeLine(string)`/`addColumn()`/`writeRow()` API, just its constructor and protected
-members. This needs to become two private primitives, `moveTo`/`lineTo` — each with a 2D and
-a 3D overload, mirroring `writeLine`'s own two overloads, and matching the "moveto"/"lineto"
-terminology the class's own doc comment already uses — that every one of these public
-methods is rewritten to call instead of writing to `_out` directly. `moveTo` starts a new
-polyline and `lineTo` continues the current one, matching the `points`/`moveto` datasets the
-Spatial grid plot file bundle already specifies in the Data model chapter.
+Every one of those methods used to write straight to the protected `_out` stream it privately
+inherited from `TextOutFile`, doing its own unit conversion inline — `SpatialGridPlotFile` never
+actually used `TextOutFile`'s own public `writeLine(string)`/`addColumn()`/`writeRow()` API, just
+its constructor and protected members. Each method now converts its coordinates to output units
+exactly as before, and passes the results to two private primitives, `moveTo`/`lineTo` — each with a
+2D and a 3D overload, mirroring `writeLine`'s own two overloads, and matching the "moveto"/"lineto"
+terminology the class's own doc comment already uses. `moveTo` starts a new polyline and `lineTo`
+continues the current one, matching the `points`/`moveto` datasets the Spatial grid plot file bundle
+specifies in the Data model chapter. Because the primitives take coordinates that are already in
+output units, every value is computed with the same arithmetic as before, so that the plain file
+remains byte-identical.
 
-Because deciding between the plain file and the HDF5 bundle needs to wait until the total
-point count is known, exactly as for Column output, `SpatialGridPlotFile` can no longer
-construct its `TextOutFile` base immediately the way it does today; it needs to hold one
-internally instead, built lazily — the same shift `ColumnOutFile` already made. On the
-plain-text branch, `moveTo`/`lineTo` can still write immediately, since a text file needs no
-upfront point count; only the HDF5 branch actually needs to buffer until `close()`.
+`SpatialGridPlotFile` no longer derives from `TextOutFile`. Its constructor resolves the output
+location right away, because the file has no header and the choice does not depend on the contents:
+for a plain file, it opens the file through a private subclass of `TextOutFile` that exposes the
+output stream, and the primitives write each point immediately, ending a polyline with an empty
+line; for a bundle, the primitives collect the points in memory, and the bundle is written at
+`close()`. As for `ColumnOutFile`, writing a bundle can fail, so the class gains an explicit
+`close()`, which the code that constructs a plot file calls when the plot is complete, and a
+destructor that does not throw: if `close()` was not called, it completes the file and logs the
+message of a fatal error instead of propagating it. A plot without any points gets two or three
+columns based on its name, as described in the Data model chapter.
 
-Two call patterns exercise this file type, neither needing to change: most grid types
-override `SpatialGrid::write_xy()`/`write_xz()`/`write_yz()`/`write_xyz()`, each receiving an
-already-constructed `SpatialGridPlotFile*` from `SpatialGrid`'s own driving code, which
-constructs one file per view; `VoronoiMeshSnapshot` and `TetraMeshSpatialGrid` instead each
-construct their own four files directly, in one combined `writeGridPlotFiles()` method, since
-their geometry doesn't naturally split by view.
+Two call patterns exercise this file type, neither needing to change apart from the added calls to
+`close()`: most grid types override
+`SpatialGrid::write_xy()`/`write_xz()`/`write_yz()`/`write_xyz()`, each receiving an
+already-constructed `SpatialGridPlotFile*` from `SpatialGrid`'s own driving code, which constructs
+one file per view; `VoronoiMeshSnapshot` and `TetraMeshSpatialGrid` instead each construct their own
+four files directly, in one combined `writeGridPlotFiles()` method, since their geometry doesn't
+naturally split by view.
 
 ## Unstructured text output
 
