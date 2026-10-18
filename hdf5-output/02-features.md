@@ -108,3 +108,21 @@ When a simulation runs in MPI multi-processing mode, SKIRT ensures that there ar
 conflicts between these processes: all processes read their input bundles during setup, and only
 then, after all processes have finished setup, does the root process start writing output bundles
 (see I/O cutover in the Implementation chapter).
+
+## PTS
+
+PTS reads output bundles in the same way as plain output files, so that its plotting commands, and
+the Python functions they build on, work unchanged for a simulation with HDF5 output:
+
+- The output location of a simulation is given in the `<dir>/<hdf>:<suite>` format of the `-o`
+  option, or as just `<dir>`. In the latter case, PTS finds the HDF5 file and the suite through the
+  log file, which reports each bundle written. It uses only the filename of the HDF5 file, which
+  always resides in `<dir>`, so that the output directory can be moved.
+- PTS lists a bundle under the name of the plain file it replaces. A plain file with the same name
+  as a bundle is not listed. The functions that load column text files, FITS files, spatial grid
+  plot files, and convergence reports accept a bundle, and return the same data as for the plain
+  file.
+- Plots and images made from a bundle are plain files next to the HDF5 file, with the names they
+  would have for plain output.
+
+Reading bundles requires the `h5py` Python package; PTS still handles plain output without it.

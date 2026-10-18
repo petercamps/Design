@@ -31,9 +31,10 @@ backward-compatible way.
 
 ## Impact on PTS
 
-These features will also require updates to PTS, the Python Toolkit for SKIRT — mostly its
-functionality for visualizing and testing SKIRT output. Working out these changes, however, is out
-of scope for this note.
+These features also require updates to PTS, the Python Toolkit for SKIRT — mostly its
+functionality for visualizing and testing SKIRT output. Working out these changes in detail is out
+of scope for this note; the PTS section of the [Features](hdf5-output/02-features.md) chapter
+summarizes how PTS reads HDF5 output.
 
 ## Overview
 
