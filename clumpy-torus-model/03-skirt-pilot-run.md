@@ -137,3 +137,62 @@ A test run with the 120 instruments in a narrow wavelength bin at 30 keV confirm
 The optical depth, derived from the direct and transparent fluxes recorded by each instrument, is
 zero for the unobscured lines of sight, and its ratio to the computed column density is the same
 for all other lines of sight to within 1.1 × 10<sup>−5</sup>.
+
+### Wavelength bias
+
+The source samples the energy of each photon packet from the intrinsic spectrum with probability
+1 − ξ, and from a bias distribution with probability ξ, the `wavelengthBias` property of the source.
+With s and b the intrinsic and bias distributions per unit ln E, a packet launched at energy E
+carries the weight w = s / ((1 − ξ) s + ξ b), which never exceeds 1 / (1 − ξ), so that the expected
+spectra do not change. The pilot run uses ξ = 0.9 and a bias distribution provided as a text column
+file bundle named `wavelength_bias` in the HDF5 input file, read by a `FileWavelengthDistribution`.
+
+**Need for a bias.** Launched from the intrinsic spectrum, half of the packets would have energies
+above 12 keV, where the spectra need relatively few packets. Below 12 keV, the 0.5 eV bins are much
+narrower (see Spectral resolution), and the spectra of obscured lines of sight consist of faint
+scattered light, which takes many packets to sample. Moreover, packets at high energies are
+expensive: above about 10 keV, Compton scattering dominates over absorption, so that a packet
+scatters many times, each time peeling off to all instruments. A packet launched at 7 to 12 keV
+costs about 10 times as much as one at 0.1 to 0.2 keV, and one above 100 keV about 30 times.
+
+**Construction.** The bias distribution is derived from the reliability statistics of a pilot run
+with the same configuration: the relative error R and the variance of the variance VOV of each bin
+(see the SKIRT user guide), with the thresholds R < 0.1 and VOV < 0.1. Assuming that R<sup>2</sup>
+and the VOV scale as 1 / n, with n the number of packets launched at energies within the bin, these
+statistics give the number of packets needed in each bin. Bins with negligible flux, and bins
+dominated by fluorescent lines, which stem from packets launched at higher energies, are left out.
+The number needed for each bin is the 90th percentile over the 120 spectra, so that nearly all
+spectra are balanced, including the obscured ones. Expressed per unit ln E and smoothed over
+0.025 dex, this number is the target launch density. The bias distribution makes the effective
+density (1 − ξ) s + ξ b proportional to the target, except where the intrinsic part alone already
+exceeds it.
+
+**Choice of ξ.** Combined with the measured cost per packet, the same noise model predicts that the
+run time decreases by a factor 1.9 from ξ = 0.5 to 0.9, and by less than 4% for larger values,
+while the maximum weight 1 / (1 − ξ) keeps growing. Packets with large weights launched above
+12 keV also add noise at lower energies after Compton scattering, which the noise model does not
+capture, so that ξ = 0.9 is a good compromise.
+
+**Effect.** Compared with the intrinsic spectrum, the bias distribution moves most launches from
+above 12 keV to the range of the 0.5 eV bins:
+
+| Energy range | Intrinsic spectrum | Effective distribution (ξ = 0.9) |
+| --- | --- | --- |
+| 0.1 to 0.17 keV | 3.5% | 0.4% |
+| 0.17 to 12 keV | 46% | 92% |
+| 12 to 500 keV | 50% | 8% |
+
+Between 0.17 and 12 keV, the packets carry weights between 0.25 and 1.7. Below 0.17 keV, where only
+nearly unobscured lines of sight carry relevant flux, and at most energies above 12 keV, the weights
+reach the maximum of 10. In a run with this bias distribution, 2.1 × 10<sup>8</sup> packets suffice
+to meet the thresholds in 99% of the bins for 90% of the spectra. According to the noise model,
+launching from the intrinsic spectrum would require 2.2 times as many packets, at a mean cost per
+packet 2.4 times higher, and the SKIRT default, a bias distribution uniform in ln E with ξ = 0.5,
+would take about as long. The bias distribution thus reduces the run time by a factor of about 5.
+
+![Wavelength bias of the pilot run](figures/pilot-wavelength-bias.png)
+
+*Wavelength bias of the pilot source: (a) launch probability per unit ln E for the intrinsic
+spectrum s, the bias distribution b, which drops to a negligible floor where it is not needed, and the
+effective distribution (1 − ξ) s + ξ b with ξ = 0.9; (b) weight of the launched packets relative to
+unbiased launching. The shaded band marks the part of the instrument grid with 0.5 eV bins.*
