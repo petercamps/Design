@@ -280,3 +280,14 @@ For strongly self-absorbing models, the documentation recommends:
   hundred thousand cells, since ten times more packets changed the global quantities by only 0.1%;
 - a maximum of 40–60 secondary emission iterations, which leaves room for the convergence criteria
   to stop the loop.
+
+For other models with dust emission, the documentation points out the
+`TemperatureWavelengthCellLibrary` as an option and explains the trade-off, leaving the choice to
+the user. Andrea Gebek tested it with the same 100 × 50 entries on 300 COLIBRE galaxies at redshift
+0, with stellar masses from 10<sup>8.5</sup> to over 10<sup>11</sup> solar masses. The library made
+the simulations three times faster on average, with a gain that grows with the number of cells, to
+about five for a million cells. Part of this gain stems from the dust model of these runs, which
+has seven components. The integrated spectra changed by up to 0.015 dex, or 3.5%, with a deficit
+around 50 µm and an excess beyond 100 µm, most pronounced for stellar masses between
+10<sup>9.5</sup> and 10<sup>10.5</sup> solar masses. The error correlated only weakly with the
+range of the indicative temperatures and wavelengths, so that the log gives little warning of it.

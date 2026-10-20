@@ -78,7 +78,9 @@ The proposal only documents the difference.
 makes iterations about 25 times faster without a measurable effect on the spectrum. It could become
 the default when the simulation iterates over secondary emission. This would change many functional
 test results for a speed gain that matters only for large models, so the proposal only adds it to the
-recommended settings.
+recommended settings. In less optically thick galaxies, the library changes the spectrum by a few
+percent (see Recommended settings in the Features chapter), which is another reason to leave the
+choice to the user.
 
 **Final emission without the library.** An option could calculate the final secondary emission with
 a different library, such as `AllCellsLibrary`, than the iterations. The experiments did not show a
