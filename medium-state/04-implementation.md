@@ -61,9 +61,12 @@ int count() const;
 ```
 
 These functions follow the pattern of the `aggregated()` function proposed in the Iteration
-history design note, so that the attributes can be combined. The factory function `custom()` gains
-an overload without an index, for a variable that receives its index when it is added to the
-variable list of a mix (see Declaring and accessing variables below):
+history design note, so that the attributes can be combined. An array may have zero elements, and
+`isArray()` and `elementDescription(k)` (the description followed by the element index) serve the
+code that lists the elements, such as the `CustomStateProbe`. The factory function `custom()` no
+longer takes an index: a variable receives its index when it is added to the variable list of a
+mix (see Declaring and accessing variables below), which every mix with custom variables uses, so
+that the overload with an index is removed:
 
 ```cpp
 StateVariable::custom("hydrogen neutral fraction", "").named("x_HI")
@@ -185,9 +188,15 @@ struct Capabilities
     bool lineEmission{false};
     DynamicStateType dynamicMediumState{DynamicStateType::None};
 
+    bool stagedStateUpdate{false};
+
     bool operator==(const Capabilities& other) const;
 };
 ```
+
+The last member, filled from `hasStagedStateUpdate()` (see Staged updates below), lets the medium
+system ask the medium whether a component updates its state in stages, and lets the verification
+of the members of a family cover this as well.
 
 - `MaterialMix` implements `capabilities()` once, for all mixes. It fills the structure from the
   existing virtual functions, such as `materialType()` and `hasPolarizedScattering()`, which
@@ -224,7 +233,9 @@ state variables as the representative mix, and reports a fatal error otherwise.
 - `parameters(Position, Array&)` combines the values of the overlapping entities according to the
   kind of each parameter. In a single pass over the entities at the position, it accumulates the
   weighted sum of the intensive parameters, with the weight that `temperature(Position)` uses
-  today, and remembers the entity with the largest weight for the categorical ones.
+  today, and remembers the entity with the largest weight for the categorical ones. Where no
+  entity covers the position, or the weights add up to zero, the parameters are zero, as the
+  temperature is today.
 - The functions `metallicity(Position)` and `temperature(Position)` are removed.
 
 ### Medium
@@ -277,10 +288,13 @@ virtual void endSpecificStateUpdate(const MediumState& state, int h) const;
 ```
 
 For the components that opt in, `MediumSystem::updateDynamicStateMedia()` performs an extra
-parallel pass over the cells for stage 1, synchronizes the state, and calls stage 2. It then
-performs the existing pass for stage 3, for all components with a dynamic state, synchronizes,
-calls stage 4 for the components that opted in, and finally calls `isSpecificStateConverged()` as
-today. A component that does not opt in is updated exactly as today.
+parallel pass over the cells for stage 1, synchronizes the cells that stage 1 marks as updated,
+and calls stage 2. It then performs the existing pass for stage 3, for all components with a
+dynamic state, synchronizes and logs the update statistics, calls stage 4 for the components that
+opted in, and finally calculates the aggregate state and calls `isSpecificStateConverged()` as
+today. A component that does not opt in is updated exactly as today. `MediumState` gains
+`numCells()` for the serial stages, and the `AbsorptionOnlyMaterialMixDecorator` forwards the
+four functions to the mix it decorates.
 
 The stages communicate through two channels:
 
@@ -408,10 +422,20 @@ public:
     size_t size() const;
     vector<StateVariable>::const_iterator begin() const;
     vector<StateVariable>::const_iterator end() const;
+
+    /** Returns the number of custom values occupied by the variables, i.e. the number of custom
+        indices assigned so far. */
+    int numCustomValues() const;
+
+    /** Compare two lists, variable by variable. */
+    bool operator==(const StateVariableList& other) const;
+    bool operator!=(const StateVariableList& other) const;
 };
 ```
 
-The functions that add a variable report a fatal error if its name is already in use. Other code
+The functions that add a variable report a fatal error if its name is already in use, and if a
+scalar variable is added as an array, or the reverse. The comparison serves the verification of
+the members of a family. Other code
 finds a variable through the list of a mix, as in `mix->specificStateVariableInfo().index("T")`,
 and loops over the variables as it does over the vector today.
 
@@ -442,18 +466,21 @@ double k = kappa[j] + (kappa[j + 1] - kappa[j]) * fraction;
   works with an index, such as the probes.
 
 A macro that abbreviates an expression rather than an accessor, such as the fragment weight in the
-`FragmentDustMixDecorator`, becomes a private inline function of the mix.
+`FragmentDustMixDecorator`, becomes a private inline function of the mix. The fragment weights and
+density fractions remain scalar variables that this function reads by index, because the
+`DustDestructionRecipe` relies on their layout (the weights at indices 0 to N−1, followed by the
+density fractions).
 
 ## Changes to existing classes
 
 | Class | Change |
 | --- | --- |
 | `SnapshotParameter` | gains a kind |
-| `StateVariable` | loses the metallicity and temperature identifiers; gains name, kind, and number of elements, with factory functions for the standard names and a `custom()` overload without index |
+| `StateVariable` | loses the metallicity and temperature identifiers and the index argument of `custom()`; gains name, kind, and number of elements, with factory functions for the standard names |
 | `StateScalar`, `StateArray`, `StateVariableList` | new classes: the handles for the custom variables of a mix, and the list that assigns their indices and finds a variable by name |
 | `MaterialState` | loses the metallicity and temperature functions; gains `customs()` |
 | `MediumState` | loses the metallicity and temperature functions and offsets; gains `numCells()` and access to a range of custom variables |
-| `MaterialMixProvider` | new abstract base class of `MaterialMix` and `MaterialMixFamily`; holds the `MaterialType` and `DynamicStateType` enumerations and the `Capabilities` structure |
+| `MaterialMixProvider` | new abstract base class of `MaterialMix` and `MaterialMixFamily`; holds the `MaterialType` and `DynamicStateType` enumerations and the `Capabilities` structure, which includes the staged update flag |
 | `MaterialMix` | derives from `MaterialMixProvider`; changed `initializeSpecificState()`; `specificStateVariableInfo()` returns a `StateVariableList`; gains `capabilities()` and the staged update functions |
 | `MaterialMixFamily` | derives from `MaterialMixProvider`; changed `mix()`; gains `capabilities()` |
 | `Snapshot` and subclasses | lose the metallicity and temperature import functions, the temperature cutoff, and the metallicity multiplier; combine parameters by kind |
@@ -479,8 +506,8 @@ refers to the removed options.
 | `ElectronMix`, `LyaNeutralHydrogenGasMix`, `SpinFlipAbsorptionMix` | request the temperature as a parameter; store it as a custom variable named `T` |
 | `SpinFlipHydrogenGasMix`, `DiffuseIonizedGasMix` | request the metallicity and the temperature as parameters; store them as custom variables with the standard names |
 | `NonLTELineGasMix` | requests the temperature as a parameter; stores the effective temperature as the custom variable named `T`, next to its kinetic temperature |
-| `DiffuseIonizedGasMix` | names the variables listed in the Dynamic grid refinement design note; declares its opacity tables as array variables and reads them through views |
-| `DiffuseIonizedGasMix`, `NonLTELineGasMix` | replace their accessor macros by handles |
+| `DiffuseIonizedGasMix` | names the variables listed in the Dynamic grid refinement design note, and its extinction opacity table `kappa_ext`; declares its opacity tables as array variables and reads them through views, so that its opacity functions no longer cast away the constness of the state; the output of the `CustomStateProbe` now numbers the re-emission fractions within the re-emission range |
+| `DiffuseIonizedGasMix`, `NonLTELineGasMix` | replace their accessor macros by handles; the `NonLTELineGasMix` declares its level populations and line mean intensities as array variables, with the same descriptions as before for the elements |
 | `FragmentDustMixDecorator`, `AbsorptionOnlyMaterialMixDecorator` | follow the changed signatures; the `FragmentDustMixDecorator` replaces its weight macro by a private function |
 | `SelectDustMixFamily` | marks its index as categorical; provides `capabilities()` |
 | `XRayIonicGasMixFamily` | requests the temperature as a parameter; provides `capabilities()` from its properties |
@@ -513,11 +540,20 @@ lines and that the `TemperatureProbe` reports today.
   derived from the same answers. This includes the tests that configure a material mix family,
   after their ski files have been upgraded. A new test configures a family with mismatching
   members and expects the fatal error.
-- **Staged updates.** A test-only material mix, in the spirit of the `TrivialGasMix`, uses the
-  four stages to derive the state of each cell from a table built in stage 2, with one and with
-  several processes.
-- **Variable access.** Unit-style checks through the test-only mix, and unchanged results for the
-  mixes that adopt the views, the handles, and the variable list.
+- **Staged updates.** A test-only material mix, the `TrivialStagedGasMix` (a `TrivialGasMix` with
+  a primary dynamic state), uses the four stages to derive the state of each cell from a table
+  built in stage 2: stage 1 bins the number density of each cell on a grid of nodes, stage 2
+  computes the value of each distinct node, distributed over threads and processes, and stage 3
+  stores the result for each cell, with the size of the table. The mix ignores the radiation
+  field, so that its state does not depend on the random numbers, and the test compares the state
+  for one and for several threads and processes.
+- **Variable access.** Unchanged results for the mixes that adopt the views, the handles, and the
+  variable list, and a test that selects variables by name and an array variable by name.
+
+As implemented, the test for a family with mismatching members was dropped, together with support
+for an expected fatal error in the test procedure, after a manual check of the error; and the
+unit-style checks of the variable access through the test-only mix were not added to the
+repository, since the other tests cover the handles and the array variables.
 
 ## Order of implementation
 
@@ -533,3 +569,6 @@ The changes can be implemented and verified in five steps:
 5. Staged updates.
 
 Steps 4 and 5 are independent of each other, and each is useful without the others.
+
+All five steps have been implemented on the SKIRT 10 beta branch (October 2026), as described in
+this note.
