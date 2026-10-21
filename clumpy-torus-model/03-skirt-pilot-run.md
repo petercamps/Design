@@ -229,9 +229,7 @@ packets, by a factor of 2 at 7 to 10 keV, rising to 4 at 30 to 80 keV and to mor
 keV, where the VOV determines the number of packets needed. In these bins, a few packets carry a
 large part of the flux, and a longer run samples rarer and larger contributions, so that the VOV
 decreases more slowly than 1 / N. A shorter run thus underestimates the number of packets needed at
-these energies. The large contributions occur in the reflected component of Compton-thick lines of
-sight; whether they stem from the packets launched above 12 keV, which carry the maximum weight, or
-from the geometry of the peel-off paths remains to be investigated.
+these energies.
 
 ![Packets needed to reach the reliability thresholds](figures/pilot-reliability-need.png ':size=75%')
 
@@ -242,9 +240,23 @@ run with 10<sup>8</sup> packets and the same configuration (dashed). For each bi
 percentile over the bins in a cell of 0.05 dex. The dotted line marks the number of packets of the
 longer run, and the shaded band the 0.5 eV bins.*
 
-The fluxes of both runs agree within their errors. In the bins dominated by the transmitted
-component, the median flux ratio is 1.0000, and in the bins dominated by scattered light, it is
-1.003, with differences beyond three times the combined relative error in 0.7% of these bins.
+The large contributions occur in the scattered light of Compton-thick lines of sight. Short
+diagnostic runs, restricted to these lines of sight and to energies above 7 keV, identify their
+cause. With equal packet weights for all energies, the tail is unchanged, so that it does not stem
+from the weights set by the wavelength bias. With scattering by free electrons instead of bound
+electrons (`scatterBoundElectrons` = `Free` instead of `Good`), the tail disappears completely,
+while the fluxes change by less than 1% above 10 keV. Of the processes that this removes, only
+Rayleigh scattering has a sharply peaked phase function: at these energies, it scatters almost
+exclusively in the forward direction, with a peak that for hydrogen is about 200 times the isotropic
+value at 30 keV and grows roughly as E<sup>2</sup>. Rayleigh scattering events are rare, but when a
+packet that already travels towards an instrument undergoes one, its peel-off picks up this peak,
+and the contribution is much larger than usual. A smaller part of the tail, about 8% of the affected
+bins, lies in weak fluorescent lines such as Ni Kα and Kβ, which stem from rare fluorescence events.
+
+The fluxes of the runs with 10<sup>8</sup> and 5 × 10<sup>8</sup> packets agree within their errors.
+In the bins dominated by the transmitted component, the median flux ratio is 1.0000, and in the bins
+dominated by scattered light, it is 1.003, with differences beyond three times the combined relative
+error in 0.7% of these bins.
 
 ### Comparison with UXClumpy
 

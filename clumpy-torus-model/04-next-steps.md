@@ -169,6 +169,27 @@ bin. The number of photon packets needed, and techniques that reduce the noise, 
 treatment of the direct component or a suitable wavelength bias of the source, must be determined
 in the scoping runs.
 
+**Rayleigh peel-off noise.** In the pilot run, rare Rayleigh scattering events, whose peel-off picks
+up the narrow forward peak of the phase function, cause most of the bins between about 7 and
+100 keV in which the VOV exceeds its threshold (see Reliability in the SKIRT pilot run chapter).
+Possible remedies:
+
+- **More photon packets.** This works, but slowly, because the VOV of such a heavy-tailed
+  distribution of contributions decreases more slowly than 1 / N.
+- **Free-electron scattering.** Replacing bound-electron by free-electron scattering removes the tail
+  and changes the fluxes by less than 1% above 10 keV, but it also removes Rayleigh scattering and
+  the binding effects on Compton scattering, which matter at lower energies (3.6% at 7 to 10 keV in
+  the diagnostic runs). Bound electrons at low energies combined with free electrons at high energies
+  would require a change to SKIRT.
+- **Delta-scaling.** The narrow forward peak could be removed from the Rayleigh phase function,
+  together with the corresponding fraction of the cross section, so that nearly forward Rayleigh
+  scattering is treated as no scattering at all. Because such scattering hardly changes the
+  direction and does not change the energy, the spectra should remain nearly unchanged, while the
+  large peel-off contributions disappear. This also requires a change to SKIRT.
+- **Relaxed criterion.** Because R and the fluxes converge as expected, the VOV threshold could be
+  relaxed for the scattered light above 7 keV, accepting occasional deviations of a few percent in
+  single bins.
+
 **Table size.** With the parameter grid of UXClumpy, the table contains 135 300 spectra. A
 resolution of 0.5 eV from 0.3 to 12 keV amounts to about 23 400 energy bins, compared with 1000 in
 UXClumpy, so that a table in single precision takes about 13 GB, compared with about 540 MB for
