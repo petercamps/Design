@@ -196,3 +196,130 @@ would take about as long. The bias distribution thus reduces the run time by a f
 spectrum s, the bias distribution b, which drops to a negligible floor where it is not needed, and the
 effective distribution (1 − ξ) s + ξ b with ξ = 0.9; (b) weight of the launched packets relative to
 unbiased launching. The shaded band marks the part of the instrument grid with 0.5 eV bins.*
+
+## Results
+
+The results come from a run with 5 × 10<sup>8</sup> photon packets and the configuration described
+in Setup.
+
+### Reliability
+
+At this number of packets, the relative error R is below 0.1 in 99.8% of all bins with flux, with a
+median of 0.012, and the VOV is below 0.1 in 98.1% of the bins. Leaving out the bins that carry no
+relevant flux or are dominated by fluorescent lines (see Wavelength bias), both thresholds are met
+in 99% of the bins for 90% of the spectra, the criterion for which the wavelength bias was designed.
+The remaining bins with R above 0.1 lie near 0.17 keV, where the flux is negligible, and above 300
+keV in the most obscured spectra. The bins with VOV above 0.1 are scattered between about 7 and 100
+keV, mostly in the spectra of obscured lines of sight.
+
+![Reliability statistics of the pilot run](figures/pilot-reliability.png)
+
+*Reliability statistics of the pilot run with 5 × 10<sup>8</sup> packets: distribution of (a) the
+relative error R and (b) the VOV over all bins with flux, per nominal inclination, with the
+thresholds as dashed lines; (c) R and (d) VOV of each bin as a function of energy, with the spectra
+sorted by inclination and, within each inclination, by `NHLOS`. The dotted line marks 12 keV.*
+
+Assuming that R<sup>2</sup> and the VOV scale as 1 / N, the statistics give the number of packets
+needed to reach each threshold. The figure below shows this number as a function of energy, for this
+run and for a run with five times fewer packets. For R, both runs give the same number everywhere,
+so that R decreases as expected, and the number is nearly constant from 0.2 to 12 keV, as intended
+by the wavelength bias; the R threshold alone would be reached with about 1.4 × 10<sup>8</sup>
+packets. For the VOV, the runs agree below about 6 keV, but above 7 keV the longer run needs more
+packets, by a factor of 2 at 7 to 10 keV, rising to 4 at 30 to 80 keV and to more than 10 near 100
+keV, where the VOV determines the number of packets needed. In these bins, a few packets carry a
+large part of the flux, and a longer run samples rarer and larger contributions, so that the VOV
+decreases more slowly than 1 / N. A shorter run thus underestimates the number of packets needed at
+these energies. The large contributions occur in the reflected component of Compton-thick lines of
+sight; whether they stem from the packets launched above 12 keV, which carry the maximum weight, or
+from the geometry of the peel-off paths remains to be investigated.
+
+![Packets needed to reach the reliability thresholds](figures/pilot-reliability-need.png ':size=75%')
+
+*Number of photon packets needed to reach R < 0.1 (blue) and VOV < 0.1 (orange) as a function of
+energy, assuming that both scale as 1 / N, for the run with 5 × 10<sup>8</sup> packets (solid) and a
+run with 10<sup>8</sup> packets and the same configuration (dashed). For each bin, the number is the
+90th percentile over the spectra, considering only the relevant bins; each point is the 90th
+percentile over the bins in a cell of 0.05 dex. The dotted line marks the number of packets of the
+longer run, and the shaded band the 0.5 eV bins.*
+
+The fluxes of both runs agree within their errors. In the bins dominated by the transmitted
+component, the median flux ratio is 1.0000, and in the bins dominated by scattered light, it is
+1.003, with differences beyond three times the combined relative error in 0.7% of these bins.
+
+### Comparison with UXClumpy
+
+The geometry of the pilot run (`TORsigma` = 42, `CTKcover` = 0.6) is not part of the UXClumpy table,
+so that its spectra are compared with those of the two released geometries on either side, with
+`TORsigma` = 28 and 84 and the same inner ring, for the same source spectrum. Both are expressed as
+the ratio of the observed to the intrinsic photon flux on the UXClumpy energy bins up to 500 keV,
+which avoids any difference in normalization. A SKIRT spectrum is that of a single line of sight
+with the `NHLOS` grid value, whereas a UXClumpy spectrum averages over all directions in its sky bin,
+which spans 0.15 dex in column density and a wide range of inclinations (see Calculation method in
+the Reference model chapter). Sky bins covering less than 0.1% of the sky are left out, because their
+spectra contain few photons.
+
+![Pilot spectra compared with UXClumpy](figures/pilot-uxclumpy-spectra.png)
+
+*Observed-to-intrinsic photon flux for six sight lines of the pilot run (blue), compared with the
+UXClumpy total spectra for the same `NHLOS` and inclination bin for `TORsigma` = 28 (orange) and 84
+(green), both with `CTKcover` = 0.6, on the UXClumpy energy bins. Solid lines show the total
+spectrum, dotted lines the reflected component (Compton scattering and fluorescence). Each panel
+lists the fraction of the sky covered by the UXClumpy sky bins.*
+
+![Ratio of pilot to UXClumpy fluxes](figures/pilot-uxclumpy-ratios.png)
+
+*Ratio of the SKIRT to the UXClumpy observed-to-intrinsic photon flux in four energy bands, for all
+sight lines of the pilot run, as a function of the column density, with the color indicating the
+UXClumpy inclination bin and filled (open) symbols the geometry with `TORsigma` = 28 (84). Only sky
+bins covering at least 0.1% of the sky are included.*
+
+The comparison shows the following:
+
+- **Compton-thin lines of sight.** Up to 10<sup>24</sup> cm<sup>−2</sup>, the spectra agree to
+  within 10% from 2 to 100 keV for both geometries, including the Compton hump of the reflected
+  component. Below 2 keV, the transmitted flux of SKIRT is higher, by a factor that grows with the
+  optical depth, to about 2 between 1 and 2 keV at 10<sup>23.3</sup> cm<sup>−2</sup>, as expected
+  from the photoabsorption cross sections of XARS, which are 10% to 15% higher below 12.5 keV (see
+  Limitations in the Reference model chapter).
+- **Compton-thick lines of sight.** Above 10<sup>24</sup> cm<sup>−2</sup>, the ratios above 2 keV
+  scatter between about 0.3 and 4. For `Theta_inc` = 60 and 90, the SKIRT spectra above 10 keV
+  mostly lie between those of the two geometries, as expected for `TORsigma` = 42; for `Theta_inc` =
+  0, they lie below both, by up to a factor 3. The reflected light that reaches a single line of
+  sight depends on its surroundings, and the UXClumpy spectra of the two geometries themselves
+  differ by similar factors, so that these differences are no sign of an error in either code. A
+  like-for-like comparison requires a SKIRT run for a released geometry, with spectra averaged over
+  the sky bins.
+- **High energies.** Above about 200 keV, the reflected component of SKIRT falls off, because the
+  source stops at 500 keV, whereas UXClumpy also includes photons Compton-scattered down from
+  higher energies (see Source).
+
+### Spectral detail
+
+The 0.5 eV bins of the pilot run resolve the shapes of the fluorescent lines, which the 10 eV bins
+of UXClumpy reduce to single-bin spikes. The figure shows four small energy ranges for a Compton-thin
+line of sight, dominated by the transmitted component, and a Compton-thick one, dominated by the
+reflected component.
+
+- **Fe K complex** (panels a and b). The Fe Kα<sub>1</sub> and Kα<sub>2</sub> lines at 6.404 and
+  6.391 keV are fully resolved, with Kα<sub>1</sub> about twice as strong. SKIRT emits the Kα and Kβ
+  lines of Cr to Cu with the intrinsic line shapes measured in the lab (Hölzer et al. 1997), whose
+  Lorentzian wings are visible in the figure. For the Compton-thick line of sight, the Compton
+  shoulder extends from the line down to 6.24 keV, the energy of a line photon scattered straight
+  back, where the UXClumpy spectrum shows the same onset. The Fe Kβ line with its own shoulder, the
+  Fe K edge at 7.11 keV, and the Ni Kα doublet near 7.47 keV are also resolved.
+- **Lighter elements** (panels c and d). Besides the Kα lines of O, Ne, Si, and Ar, which UXClumpy
+  also includes, the SKIRT spectra show lines that UXClumpy lacks: S Kα at 2.31 keV, Kα of P and Cl,
+  Kβ of Si and S, and L-shell lines of Fe between 0.6 and 0.8 keV. These lines have no intrinsic
+  width in SKIRT, apart from thermal broadening, so that each occupies a single 0.5 eV bin.
+
+The noise is low enough to show these features clearly: R is 0.4% to 0.5% at the peak of the Fe Kα
+line, 1.2% to 1.6% in the Compton shoulder, and about 5% in the soft continuum.
+
+![Spectral detail of the pilot run](figures/pilot-spectral-detail.png)
+
+*Observed-to-intrinsic photon flux in four small energy ranges, at the 0.5 eV resolution of the
+pilot run, for a Compton-thin (blue, 10<sup>23</sup> cm<sup>−2</sup> at 30°) and a Compton-thick
+(orange, 10<sup>24.5</sup> cm<sup>−2</sup> at 60°) line of sight, with the UXClumpy spectra of the
+geometry with `TORsigma` = 28 and `CTKcover` = 0.6 for the same `NHLOS` and inclination bin (dashed):
+(a) Fe K complex; (b) Fe Kα doublet and Compton shoulder; (c) Kα lines of Si, S, and Ar; (d) Kα
+lines of O and Ne, with L-shell lines of Fe in between.*
