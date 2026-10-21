@@ -21,8 +21,9 @@ client that needs it.
 ## Scope
 
 This design note proposes a refactoring. The convergence criteria themselves remain unchanged,
-except for one small behavioral change in the `DiffuseIonizedGasMix`, discussed in the Call sites
-chapter. Specifically:
+except for two small behavioral changes, discussed in the Call sites chapter: the plateau of the
+`DiffuseIonizedGasMix` is cleared at different moments, and the global criterion of the
+`NonLTELineGasMix` measures the change relative to the current value. Specifically:
 
 - In scope: the historical values kept by the iteration loops, the aggregate medium states, and
   the history kept by material mixes, as well as the per-cell history needed by the proposed

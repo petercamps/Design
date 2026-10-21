@@ -37,6 +37,8 @@ struct AggregationRule
 {
     const Medium* medium;  // the medium component
     int customIndex;       // the index of the custom state variable
+
+    bool operator==(const AggregationRule& other) const;  // to verify a repeated declaration
 };
 ```
 
@@ -169,7 +171,8 @@ public:
                                   int depth = 2, string description = "", string quantity = "");
 
     /** Returns the cell window with the key (item, id), creating it for the specified number of
-        cells if needed. The returned reference remains valid for the lifetime of the history. */
+        cells if needed. Throws a fatal error if the window exists with a different lifetime. The
+        returned reference remains valid for the lifetime of the history. */
     CellWindow& cellWindow(const SimulationItem* item, int id, int numCells, Lifetime lifetime,
                            string description);
 
@@ -179,7 +182,8 @@ public:
         declared during setup. Throws a fatal error if there is no such series. */
     ScalarSeries& series(const SimulationItem* item, int id);
 
-    /** Returns all aggregate series, so that the medium system can record their values. */
+    /** Returns all aggregate series, in the order in which they were declared, so that the medium
+        system can record their values. */
     vector<ScalarSeries*> aggregates();
 
     //======== Dynamic grid refinement ========
@@ -192,18 +196,28 @@ public:
 
     //======== Listing ========
 
-    /** Return all scalar series and all cell windows, for logging and probing. */
+    /** Return all scalar series and all cell windows, in the order in which they were declared,
+        for logging and probing. This order is the same on all processes and in all runs. */
     vector<const ScalarSeries*> allScalarSeries() const;
     vector<const CellWindow*> allCellWindows() const;
 
 private:
+    struct ScalarEntry { ScalarSeries series; Lifetime lifetime; };
+    struct WindowEntry { CellWindow window; Lifetime lifetime; };
+
     Loop _loop{Loop::None};
     int _iteration{0};
-    bool _gridChanged{false};                    // true if cells were appended in this iteration
-    std::map<SeriesKey, ScalarSeries> _scalars;  // node-based, so references remain valid
-    std::map<SeriesKey, CellWindow> _windows;
+    bool _gridChanged{false};                   // cells were appended since beginIteration()
+    std::map<SeriesKey, ScalarEntry> _scalars;  // node-based, so references remain valid
+    std::map<SeriesKey, WindowEntry> _windows;
+    vector<ScalarEntry*> _scalarOrder;          // the same entries, in the order of declaration
+    vector<WindowEntry*> _windowOrder;
 };
 ```
+
+The history keeps the lifetime of each series next to it, so that the series classes need not know
+their lifetime. Only the history constructs series and cell windows, and only the history advances,
+clears, or grows them.
 
 ## History scope
 
@@ -237,20 +251,30 @@ public:
 
 ```cpp
 /** HistoryProbe writes the current value of all scalar series in the iteration history to a text
-    column file after each iteration of each iteration loop, with a separate file for each loop.
-    Values are converted to output units according to the quantity of each series. */
+    column file after each iteration of each iteration loop, with a separate file for each loop,
+    named prefix_probe_loop.dat. Values are converted to output units according to the quantity of
+    each series. */
 class HistoryProbe : public Probe
 {
     ITEM_CONCRETE(HistoryProbe, Probe, "convergence: iteration history")
+        ATTRIBUTE_TYPE_DISPLAYED_IF(HistoryProbe, "IteratePrimary|IterateSecondary")
     ITEM_END()
 
 protected:
+    /** Locates the iteration history. */
+    void setupSelfBefore() override;
+
     /** Returns When::Iterations. */
     When when() const override;
 
     /** Opens the output file at the first iteration of a loop, and appends a row for the current
         iteration. */
     void probe() override;
+
+public:
+    /** Closes the file of the last loop and, if the output path names an HDF5 file, stores each
+        file as a text column file bundle. */
+    void probeRun() override;
 };
 ```
 
@@ -263,7 +287,8 @@ protected:
     id. When it initializes the medium state, the medium system declares an aggregate series with
     the key (medium component, id) for the variable. The material mix chooses the id, which must be
     unique among the ids of all its series, and retrieves the series through HistoryScope::series().
-    Only custom variables can be marked. The aggregate is meaningful for densities; this is not
+    For an array variable, element k is aggregated into the series with id seriesId + k. Only
+    custom variables can be marked. The aggregate is meaningful for densities; this is not
     enforced. */
 StateVariable aggregated(int seriesId) const;
 
@@ -295,11 +320,15 @@ vector<double> volumeIntegrals(const vector<std::pair<int, int>>& variables) con
 
 **Probe.** The `When` enumeration gains a value for probes performed after each iteration of any
 loop. The `probePrimary()` and `probeSecondary()` functions invoke `probe()` for such probes as
-well:
+well. The `probeRun()` function becomes virtual, so that the history probe can finish its files at
+the end of the run:
 
 ```cpp
 enum class When { Setup, Run, Primary, Secondary, Iterations };
 ```
+
+**TextOutFile.** A new function `flush()` writes any buffered text to the file, so that a client
+that writes a file row by row can make each row visible while the simulation runs.
 
 **DynamicStateRecipe.** No change. A recipe that needs history locates the history itself (see the
 Call sites chapter).

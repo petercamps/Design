@@ -12,18 +12,22 @@ covering all exit paths.
 **Keeping references.** Because declaration is idempotent and cheap, the proposal lets clients
 declare their series whenever they need them. Clients with a setup phase could instead keep the
 returned references. This saves a map lookup per iteration, which is negligible, at the cost of an
-extra data member per series.
+extra data member per series. The convergence criteria implemented so far keep no references; the
+history probe keeps pointers to the series of its current file, which remain valid for the lifetime
+of the history.
 
 **Relative change convention.** The helper function computes the change relative to the current
-value, which matches the dust emission and the `DiffuseIonizedGasMix` criteria. The
-`NonLTELineGasMix` computes the change relative to the previous value, and keeps its own formula.
-Unifying the conventions would change the behavior of that criterion slightly, which is outside the
-scope of a refactoring.
+value, and all three global criteria use it: the dust emission criterion; the
+`DiffuseIonizedGasMix`, whose own formula gave the same numbers; and the `NonLTELineGasMix`, whose
+formula divided by the previous value and now divides by the current one, as its criterion per cell
+already did. This changes the logged values of that criterion, but in the functional tests not its
+decisions (see the Call sites chapter).
 
 **Plateau reset.** The lifetime of the plateau series in the `DiffuseIonizedGasMix` changes
-when its history is cleared (see the Call sites chapter). If the current behavior must be preserved
-exactly, the mix can clear the series itself on convergence, which requires a `clear()` function on
-scalar series.
+when its history is cleared (see the Call sites chapter). The implementation accepts this change:
+in the functional tests, it alters only the plateau listed in the log, not the convergence or the
+number of iterations. Should the previous behavior be needed after all, the mix can clear the series
+itself on convergence, which requires a public `clear()` function on scalar series.
 
 **Per-cell iterates.** Accelerators for fixed-point iterations, such as the Anderson and Ng
 acceleration discussed in the Dust self-heating design note, combine the last few iterates of a

@@ -37,13 +37,14 @@ while (true)
 ```
 
 **Dust emission convergence.** The `DustAbsorptionConvergence` helper class and its `_prevLabsseco`
-member are replaced by a private member function of the simulation:
+member are replaced by a private member function of the simulation, which also receives the
+iteration index for its log messages:
 
 ```cpp
-bool MonteCarloSimulation::isDustEmissionConverged(double fractionOfPrimary, double fractionOfPrevious)
+bool MonteCarloSimulation::isDustEmissionConverged(int iter, double fractionOfPrimary,
+                                                   double fractionOfPrevious)
 {
-    double Labsprim, Labsseco;
-    std::tie(Labsprim, Labsseco) = mediumSystem()->totalDustAbsorbedLuminosity();
+    auto [Labsprim, Labsseco] = mediumSystem()->totalDustAbsorbedLuminosity();
     auto& series = _history->scalarSeries(this, DustAbsorbedLuminosity, 2, IterationHistory::Lifetime::Loop,
                                           "dust-absorbed secondary luminosity", "bolluminosity");
     series.set(Labsseco);
@@ -89,21 +90,27 @@ marked for aggregation. The series is keyed on the medium component, with the id
 ```cpp
 for (auto medium : _media)
 {
-    auto variables = medium->mix()->specificStateVariableInfo();
+    const auto& variables = medium->mix()->specificStateVariableInfo();
     _state.initSpecificStateVariables(variables);
-    for (const auto& variable : variables)
+    for (const StateVariable& variable : variables)
         if (variable.isAggregated())
-            _history->aggregateSeries(medium, variable.aggregateSeriesId(),
-                                      AggregationRule{medium, variable.customIndex()}, 2,
-                                      variable.description(), integratedQuantity(variable.quantity()));
+            for (int k = 0; k != variable.count(); ++k)
+                _history->aggregateSeries(medium, variable.aggregateSeriesId() + k,
+                                          AggregationRule{medium, variable.customIndex() + k}, 2,
+                                          variable.elementDescription(k),
+                                          integratedQuantity(variable.quantity()));
 }
 ```
+
+An array variable has a custom index for each element, and the medium system declares a series for
+each element, with consecutive ids, described by the description of the variable and the index of
+the element. A scalar variable has a single element, described by the description of the variable.
 
 The quantity of the series follows from the quantity of the variable: the volume integral of a
 number density is a pure number, which needs no quantity, and that of a mass density is a mass. The
 helper function `integratedQuantity()` performs this mapping, returning the empty string for
-quantities it does not know. It could be a private function of the medium system, or a function
-of the `Units` class.
+quantities it does not know. It is a local function in the implementation file of the medium
+system.
 
 **Recording aggregates.** The private function `recordAggregates()` retrieves all aggregate series
 from the history, whoever declared them. For each series, it maps the medium in the aggregation
@@ -138,17 +145,17 @@ enum HistoryId { ConvergedFraction, IonizedHydrogen, FirstIonFraction };
 ```
 
 **Aggregates.** The mix marks its ionized hydrogen density and its ion fraction aggregates for
-aggregation, keeping their current quantity type:
+aggregation when it adds them to its variable list, keeping their current quantity type:
 
 ```cpp
-result.push_back(StateVariable::custom(index++, "ionized hydrogen number density",
-                                       "numbervolumedensity").aggregated(IonizedHydrogen));
+auto variable = StateVariable::custom("ionized hydrogen number density", "numbervolumedensity");
+_nHIonized = _variables.add(variable.aggregated(IonizedHydrogen));
 ```
 
 The ion fraction aggregates are marked with the ids `FirstIonFraction + i`.
 
 **Convergence.** The plateau criterion uses a series with grid lifetime, and the global criterion
-uses the aggregate series:
+reads the aggregate series:
 
 ```cpp
 constexpr int plateauLength = 3;
@@ -162,7 +169,12 @@ const auto& ionizedH = history.series(IonizedHydrogen);
 bool globalConverged = ionizedH.relativeChange() <= maxChangeInGlobalIonizedH();
 ```
 
-The logged ion fractions use `history.series(FirstIonFraction + i)` in the same way.
+The former formula also divided by the current value, with a small minimum (1e-12) to avoid a
+division by zero. Because the aggregate is the number of ionized hydrogen atoms, that minimum
+matters only for a total that is exactly zero, where both formulas report the mix as not
+converged, so `relativeChange()` gives the same numbers and decisions. The logged plateau, oldest
+value first, is taken from the series, and the logged ion fractions use
+`history.series(FirstIonFraction + i)`.
 In the first primary iteration, the previous value of each aggregate is the initial state recorded
 at setup, as today.
 
@@ -173,24 +185,40 @@ Conversely, when the loop continues after convergence because the minimum number
 has not been reached, the plateau is no longer restarted. Both changes seem to be improvements.
 With dynamic grid refinement, the history is also cleared after each refinement round, because
 the fraction of converged cells before the round and the fraction after it count different
-cells. The plateau criterion then needs three iterations on the refined grid.
+cells. The plateau criterion then needs three iterations on the refined grid. In the functional
+tests, the change alters only the plateau listed in the log of the cases that use the mix, not
+their convergence or their number of iterations.
 
 ## NonLTELineGasMix
 
 **Access.** Through the scope passed to `isSpecificStateConverged()`.
 
-**Aggregates.** The mix marks only its level populations for aggregation, using the level index `p`
-as the series id, since it keeps no other series. Its collision partner densities, which are
-aggregated today without being used, are no longer aggregated.
+**Aggregates.** The mix marks only its level populations for aggregation. They form a single array
+variable, marked with the id `FirstLevelPopulation` (zero, since the mix keeps no other series), so
+that the population of level `p` has the id `FirstLevelPopulation + p`. Its collision partner
+densities, which are aggregated today without being used, are no longer aggregated.
 
-**Convergence.** The global criterion keeps its own formula, which is relative to the previous
-value rather than the current one, and reads the values from the aggregate series:
+**Convergence.** The global criterion takes the largest relative change of the aggregate series:
 
 ```cpp
-const auto& population = history.series(p);
-double currentPop = population.value(0);
-double previousPop = population.value(1);
+double changeInGlobalLevelPops = 0.;
+for (int p = 0; p != _model.numLevels(); ++p)
+{
+    double change = history.series(FirstLevelPopulation + p).relativeChange();
+    if (std::isnan(change) || change > changeInGlobalLevelPops) changeInGlobalLevelPops = change;
+}
 ```
+
+**Behavioral change.** The change is now relative to the current value rather than the previous
+one, consistent with the criterion per cell of the mix, which already divided by the new value,
+and with the other global criteria. The special cases for a zero population disappear: a population
+that appears from zero is still a change of 100%, and one that stays zero no change, while one that
+drops to zero is an infinite rather than a 100% change. A missing value is kept as NaN, so that it
+blocks convergence rather than being skipped. Near convergence, the two conventions differ in
+second order only, but after a large drop the new value can exceed 100%. In the functional tests,
+the logged changes differ, for example 215%, 40%, and 12% instead of 133%, 29%, and 11% for the
+three iterations of one case, but the decisions, and thus all output files, are unchanged. The
+documentation of the `maxChangeInGlobalLevelPopulations` property shows the new formula.
 
 ## AbsorptionOnlyMaterialMixDecorator
 
@@ -236,6 +264,9 @@ information, as envisioned by the comment in `MediumSystem::updateDynamicStateRe
 _history = find<IterationHistory>();
 ```
 
+**Availability.** The wizard offers the probe only for simulations that iterate over primary or
+secondary emission (`ATTRIBUTE_TYPE_DISPLAYED_IF` with `IteratePrimary|IterateSecondary`).
+
 **Timing.** The probe returns `When::Iterations`, so that it is performed after each iteration of
 each loop, through `ProbeSystem::probePrimary()` in the primary loop and
 `ProbeSystem::probeSecondary()` in the secondary and merged loops. The history's `loop()` and
@@ -243,19 +274,27 @@ each loop, through `ProbeSystem::probePrimary()` in the primary loop and
 
 **Output.** The probe writes a separate text column file for each iteration loop. When it is first
 performed in a loop, it opens the file for that loop, named after the simulation prefix, the probe
-name, and the loop, for example `prefix_history_primary.txt`, `prefix_history_secondary.txt`, or
-`prefix_history_merged.txt`. Each loop runs at most once in a simulation, so a file is never
+name, and the loop, for example `prefix_history_primary.dat`, `prefix_history_secondary.dat`, or
+`prefix_history_merged.dat`. Each loop runs at most once in a simulation, so a file is never
 reopened. The first column holds the iteration index within the loop. The other columns follow the
 scalar series listed by `allScalarSeries()` at that time, so that each file has its own set of
 columns. A series with simulation lifetime, such as an aggregate, appears in the file of each loop
 in which it exists, so that its evolution across loops can be followed by combining the files. Each
 column header combines the description of the series with a description of its item, such as its
 type and, for a medium component, its index, so that series of different items of the same type can
-be told apart. Values are converted to output units according to the quantity of each series. For
-each iteration, the probe appends a row with the current value of each series, or NaN if the value
-was not set in that iteration, and flushes the file, so that the progress of a long run can be
-followed while it executes, and the output survives an aborted run. Only the root process writes
-the files; the series hold identical values on all processes.
+be told apart, as in `population of level 1 -- medium 0` or
+`loop converged -- MonteCarloSimulation`. Values are converted to output units according to the
+quantity of each series. For each iteration, the probe appends a row with the current value of each
+series, or NaN if the value was not set in that iteration, and flushes the file, so that the
+progress of a long run can be followed while it executes, and the output survives an aborted run.
+Only the root process writes the files; the series hold identical values on all processes.
+
+**End of the run.** The probe overrides `probeRun()`, which the probe system calls at the end of
+the run, to close the file of the last loop. If the output path of the simulation names an HDF5
+file, it then stores each of its files as a text column file bundle through
+`ColumnOutFile::copyToBundle()`, leaving the regular file in place. The functional test procedure
+of PTS accepts such a bundle next to the regular file when both hold the same information, whereas
+it counts any other file written both ways as a failure.
 
 ## Removed code
 

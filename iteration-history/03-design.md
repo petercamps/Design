@@ -78,7 +78,9 @@ system setup, before any iteration starts. Aggregates must therefore be requeste
 - A material mix requests an aggregate by marking the corresponding state variable as aggregated,
   with a series id of its choice, in the list it returns from `specificStateVariableInfo()`. When
   it initializes the medium state, the medium system declares the aggregate series on behalf of
-  the mix, keyed on the medium component and the id chosen by the mix.
+  the mix, keyed on the medium component and the id chosen by the mix. For an array variable, it
+  declares a series for each element, with the chosen id for the first element and consecutive ids
+  for the others, so that the mix reserves a range of ids.
 - Any other client, such as a dynamic state recipe, declares an aggregate series directly with the
   history during its own setup, keyed on itself. The setup of all such clients precedes the final
   setup phase of the medium system.
@@ -151,18 +153,20 @@ a plateau spanning the round would be meaningless.
 
 ## Logging and probing
 
-Because every series carries its key and a description, the history can list its contents. This
-makes it possible to log all convergence quantities in a consistent format, and to write them to a
-text column file with a probe performed after each iteration. A scalar series can optionally carry
-a physical quantity, as a quantity name known to the `Units` class, so that its values can be
-converted to output units. Most convergence metrics, such as fractions and relative changes, are
-dimensionless and need no quantity.
+Because every series carries its key and a description, the history can list its contents. It
+lists the series in the order in which they were declared, which is the same on all processes and
+in all runs, unlike the order of the keys, which depends on pointer values. This makes it possible
+to log all convergence quantities in a consistent format, and to write them to a text column file
+with a probe performed after each iteration. A scalar series can optionally carry a physical
+quantity, as a quantity name known to the `Units` class, so that its values can be converted to
+output units. Most convergence metrics, such as fractions and relative changes, are dimensionless
+and need no quantity.
 
 The proposal includes such a probe, the `HistoryProbe`. It writes one text column file per
 iteration loop, with a row per iteration and a column per scalar series, holding the value set in
 that iteration. A simulation that iterates thus produces a file for the primary loop, a file for
-the secondary or merged loop, or both. This gives a compact, machine-readable record of how each loop converged, which
-serves several purposes:
+the secondary or merged loop, or both. This gives a compact, machine-readable record of how each
+loop converged, which serves several purposes:
 
 - finding out which criterion keeps a loop from converging when it reaches its maximum number of
   iterations;
@@ -178,3 +182,7 @@ serves several purposes:
 
 Cell windows are not written. They hold per-cell partial results, potentially millions of numbers
 per iteration, and the refined grid and its state can be inspected with existing per-cell probes.
+
+Because the probe writes its files row by row while the simulation runs, they are always regular
+files. If the output path of the simulation names an HDF5 file, the probe also stores each file as
+a text column file bundle at the end of the run, leaving the regular file in place.
