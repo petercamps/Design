@@ -197,6 +197,21 @@ spectrum s, the bias distribution b, which drops to a negligible floor where it 
 effective distribution (1 − ξ) s + ξ b with ξ = 0.9; (b) weight of the launched packets relative to
 unbiased launching. The shaded band marks the part of the instrument grid with 0.5 eV bins.*
 
+### Packet termination
+
+With forced scattering, SKIRT terminates a photon packet, without a final peel-off, once its weight has dropped
+below 1 / `minWeightReduction` of its launch weight, so that the contributions of its remaining interactions are
+lost. The pilot run uses the default value of 10<sup>4</sup>. Runs of the pilot configuration with values of
+10<sup>6</sup>, 10<sup>8</sup>, and 10<sup>12</sup>, each with 1.2 × 10<sup>7</sup> packets and compared with
+two runs with the default value and different random seeds, take 1.3, 1.5, and 1.8 times as long. The only
+consistent change is an increase of 0.3% to 0.6% in the scattered continuum between 0.3 and 2 keV, where
+absorption dominates and the weight of a packet drops below the threshold after a few interactions. All other
+energy bands, and the Fe Kα line and its Compton shoulder, are unchanged to within the run-to-run noise of 0.1% to
+0.4% per band; weak lines such as Ni Kα are too noisy at this number of packets to reveal changes of a few
+percent. The relative error and the VOV of the bins are unchanged as well: the additional contributions are too
+small to reduce the noise, so that the noise per unit of run time becomes worse. The default value is therefore
+kept.
+
 ## Results
 
 The results come from a run with 5 × 10<sup>8</sup> photon packets and the configuration described
