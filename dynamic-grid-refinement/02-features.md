@@ -265,15 +265,24 @@ subdivided first.
 
 The medium state criteria and the `MediumStateCondition` have a `variable` property that names a
 medium state variable. Any state variable of any material mix can be used, provided the mix gives
-it a short name, as proposed in the [Medium state](medium-state/03-features.md) design note. The
-`DiffuseIonizedGasMix` names the following variables:
+it a short name, as proposed in the [Medium state](medium-state/03-features.md) design note. Every
+custom variable of the `DiffuseIonizedGasMix` has a short name; these are the most relevant ones
+for refinement:
 
 | Variable | Meaning |
 | --- | --- |
 | `logU` | the ionization parameter (resolves the ionized region) |
 | `x_HI` | the neutral hydrogen fraction (resolves the ionization front) |
+| `x_HeI` | the neutral helium fraction (resolves the helium ionization front) |
 | `x_HII`, `x_NII`, `x_OI`, `x_OII`, `x_OIII`, `x_SII` | the fraction of H+, N+, O0, O+, O2+, or S+ (resolves that ion's emitting layer) |
+| `n_HII`, `n_e` | the ionized hydrogen and electron number densities (resolve the structure of the ionized gas) |
 | `T` | the gas temperature (resolves thermal transitions) |
+
+The other gas mixes and the `FragmentDustMixDecorator` name their variables as well, for example
+the atomic hydrogen fraction `f_atom` of the `SpinFlipHydrogenGasMix` and the dynamic density
+fraction `fdyn_f` of fragment f of the `FragmentDustMixDecorator`, which change between
+iterations, and the kinetic temperature `T_kin` of the `NonLTELineGasMix`, which is imported and
+can thus serve only in a condition.
 
 The variable is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component

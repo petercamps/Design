@@ -31,7 +31,7 @@ production. The mechanism is not specific to it, however. Possible future use ca
   fragmented dust mix where the radiation field is strong enough. The boundary of the region in
   which grains are destroyed, for example around a hot star or an active nucleus, again emerges
   only from the radiation field. It could be resolved by a criterion on the density fraction of a
-  fragment, provided that the `FragmentDustMixDecorator` gives these state variables short names.
+  fragment, which the `FragmentDustMixDecorator` names `fdyn_f` for fragment f (e.g. `fdyn_0`).
 - **Dust radiative transfer.** In a simulation that iterates over dust emission, the grid could
   adapt to the radiation field instead of being built from the density distribution alone, for
   example by subdividing cells where the indicative dust temperature changes steeply, near

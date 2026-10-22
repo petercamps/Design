@@ -70,7 +70,7 @@ that the overload with an index is removed:
 
 ```cpp
 StateVariable::custom("hydrogen neutral fraction", "").named("x_HI")
-StateVariable::custom("extinction opacity", "").named("kappa_ext").array(n)
+StateVariable::custom("extinction opacity", "opacity").named("kappa_ext").array(n)
 ```
 
 Two factory functions create the custom variables with the standard names, so that all mixes
@@ -446,7 +446,8 @@ list from `specificStateVariableInfo()`:
 // during setup
 _temperature = _variables.add(StateVariable::temperature());
 _hNeutralFraction = _variables.add(StateVariable::custom("hydrogen neutral fraction", "").named("x_HI"));
-_opacityExt = _variables.addArray(StateVariable::custom("extinction opacity", "").named("kappa_ext").array(n));
+_opacityExt = _variables.addArray(
+    StateVariable::custom("extinction opacity", "opacity").named("kappa_ext").array(n));
 
 // in the functions that use the state
 double h0 = _hNeutralFraction(state);

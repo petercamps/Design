@@ -183,7 +183,9 @@ that the rest of the code can find these quantities in any mix that stores them:
 | `Z` | the metallicity of the material, as a mass fraction |
 
 Other names are chosen by the mix. The `DiffuseIonizedGasMix`, for example, names its ionization
-parameter `logU` and its neutral hydrogen fraction `x_HI`.
+parameter `logU` and its neutral hydrogen fraction `x_HI`. Every custom variable of the
+`DiffuseIonizedGasMix`, the `NonLTELineGasMix`, the `SpinFlipHydrogenGasMix`, and the
+`FragmentDustMixDecorator` has a name, listed in the documentation of the mix.
 
 Names serve wherever a user selects a state variable:
 
