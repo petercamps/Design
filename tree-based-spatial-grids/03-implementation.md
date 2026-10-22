@@ -130,7 +130,11 @@ node.
 
 `GasThermalEnergyTreePolicy` estimates the thermal energy of each gas medium component in a node
 as the number of entities in the node, calculated exactly if the component offers the
-`MassInBoxInterface`, multiplied by the average temperature in the node, i.e. the temperature
+`MassInBoxInterface` (a particle medium with a material mix family whose members may have a
+different mass per entity does not, so that its number is estimated from the sampled density, with
+an accuracy that depends on the number of samples; a family such as the `XRayIonicGasMixFamily`,
+whose members all have the same mass per entity, declares this through `hasUniformMass()`),
+multiplied by the average temperature in the node, i.e. the temperature
 sampled at the shared sample positions weighted by the sampled number density. If none of the
 samples hits any material while the node does contain material, which can happen for a small
 particle in a large node, the average temperature of the medium component is used instead. That

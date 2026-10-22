@@ -194,10 +194,17 @@ configured.
 `GasThermalEnergyTreePolicy` refines cells holding more than `maxFraction` of the total
 gas thermal energy, `n T V`, mirroring the `DensityTreePolicy` above but for a
 gas-physics quantity instead. Because the tree is constructed before the medium state is
-initialized, the policy uses the temperature imported by the gas medium components (i.e. an
-imported medium with the `importTemperature` flag). Gas medium components that do not import a
-temperature are ignored, and setup logs a warning listing them; if none of them imports a
-temperature, setup reports a fatal error. The policy is offered only if the simulation has gas.
-A limitation remains to be resolved: an imported medium that also imports variable mix
-parameters does not report its imported temperature (`ImportedMedium::hasTemperature()` returns
-false for it), so that such a medium, for example one with an `XRayIonicGasMixFamily`, is ignored.
+initialized, the policy uses the temperature imported by the gas medium components, i.e. the
+temperature among the quantities requested by the material mix or material mix family of an
+imported medium (see the [Medium state](medium-state/03-features.md) design note), for example
+by a `LyaNeutralHydrogenGasMix` or an `XRayIonicGasMixFamily`. Gas medium components that do not
+import a temperature, including all geometric media, are ignored, and setup logs a warning
+listing them; if none of them imports a temperature, setup reports a fatal error. The policy is
+offered only if the simulation has gas.
+
+The policy sums the number density times the temperature over the gas medium components. The
+number density of each component counts the entities of its material mix, which differ between
+mixes: hydrogen atoms, neutral hydrogen atoms, or the molecules of a trace species. The constant
+factor of the thermal energy per entity, and the number of free particles per entity (electrons
+and helium in ionized gas), are not taken into account. The policy is therefore intended for a
+single gas medium component, or for components whose entities are comparable.
