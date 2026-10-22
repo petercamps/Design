@@ -207,6 +207,14 @@ of the members of a family cover this as well.
   from its properties, and no longer forces its setup ahead of time.
 - `Medium::capabilities()` is a new pure virtual function. A geometric medium forwards it to its
   mix, and an imported medium to its mix or family.
+- Next to its capabilities, a family declares through `hasUniformMass()` whether all its members
+  have the same mass per entity. A single mix and the `XRayIonicGasMixFamily`, whose members all
+  have the proton mass, return true; other families, including the `SelectDustMixFamily`, return
+  false. `Medium::hasUniformMass()` forwards the answer. With a uniform mass, an imported medium
+  converts between mass and number densities with its representative mix, without looking up the
+  member at each position, and a particle medium offers the exact mass in a box
+  (`MassInBoxInterface`) to the tree policies and the cell density calculation; otherwise these
+  fall back to sampled densities.
 
 `ConfigurationSetup` replaces its calls to `medium->mix()->hasXxx()` by
 `medium->capabilities()`. The other code that asks a representative mix for the material type
@@ -214,8 +222,9 @@ does the same. The remaining uses of the representative mix returned by `Medium:
 the mass per entity and the list of state variables, occur after the media have been set up.
 
 When the medium system obtains the mix of each cell for a medium with a family, it verifies for
-each distinct mix that its capabilities equal those of the medium and that it declares the same
-state variables as the representative mix, and reports a fatal error otherwise.
+each distinct mix that its capabilities equal those of the medium, that it declares the same
+state variables as the representative mix, and, if the family declares a uniform mass, that it has
+the same mass per entity as the representative mix, and reports a fatal error otherwise.
 
 ## Import
 
