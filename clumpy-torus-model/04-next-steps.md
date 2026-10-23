@@ -1,214 +1,109 @@
 # Next steps
 
-The project proceeds in steps. The first steps can be done on a local workstation, with a reduced
-number of photon packets and a coarser wavelength grid where needed. They establish the model
-setup and provide the measurements needed to plan the production runs, which are performed on a
-high-performance computing facility.
+The pilot run has established the setup of the SKIRT simulations, the wavelength bias of the source, and
+the reliability that can be reached with a given number of photon packets (see SKIRT pilot run). The
+remaining work is listed below, starting with the issues that determine whether and how the production
+runs can be done.
 
-## 1. Reproduce the geometry
+## Pre-production considerations
 
-- Obtain the clump catalogs used for UXClumpy, or the scripts that generate them, from the XARS
-  repository or from its author, for each combination of `TORsigma` and `CTKcover`.
-- Convert each catalog to the text column format read by both the `ParticleMedium` (with the
-  `UniformSmoothingKernel`) and the `ClumpySphericalSpatialGrid`: the center position and radius of
-  each clump, followed by its density or mass. The spatial domain must extend to a radius of at
-  least 1.1 R<sub>out</sub>, because the UXClumpy placement procedure only requires the cloud
-  centers to lie within R<sub>out</sub>, so that some clouds extend beyond it (see Reference model).
-- Verify that the clumps are fully inside the spatial domain and do not overlap. The grid removes
-  offending clumps, while the medium keeps their mass, which would distort the densities. If the
-  catalogs contain overlapping clumps, a strategy is needed, such as shrinking, merging, or
-  removing clumps while conserving the covering factor. The UXClumpy placement procedure rejects
-  overlapping clouds with a small margin, so that its catalogs should already satisfy the
-  requirement of the grid.
-- Configure the uniform background medium between the clumps, with a polar mesh of the structured
-  grid that matches any angular boundaries of the background geometry.
-- Compare the column density maps as seen from the center, calculated by SKIRT (for example with a
-  probe or a set of instruments), with the maps published for UXClumpy.
+**Review.** Have the previous chapters reviewed by Bert Vander Meulen, and possibly by other candidate
+co-authors.
 
-## 2. Set up the physics
+**Geometries.** Find out whether the geometry files of the released UXClumpy geometries can be obtained
+from the author of UXClumpy, who provided the geometry file used in the pilot run, and decide whether to
+use these geometries or freshly regenerated ones.
 
-- Configure the X-ray gas mix with the abundances used by UXClumpy, and the source with the
-  UXClumpy incident spectrum at the center.
-- Run a first simulation with a few viewing directions and a modest resolution, to verify the
-  setup and measure the run time and memory use.
-- Record the direct and scattered flux components separately. The direct component is the
-  incident spectrum attenuated along the line of sight, which may allow a separate, noise-free
-  treatment (see Open questions below).
+- *Released geometries.* The spectra can be compared directly with the UXClumpy table, for the same clouds and
+  sky fractions, and users can switch between the two models without a change of geometry. On the other hand,
+  the parameter grid is that of UXClumpy, with a single random realization per geometry, whose particular
+  structures cause irregular dependencies on the geometry parameters (see Example spectra in the Reference
+  model chapter), and obtaining the files depends on the cooperation of the author.
+- *Regenerated geometries.* These allow a different or finer parameter grid, and several realizations per
+  geometry, which show how much the spectra depend on the particular realization. On the other hand, the
+  recipe must be reproduced faithfully, which is uncertain for some details (see Open points in the Reference
+  model chapter), and verified, for example through the column density distributions. Moreover, the comparison
+  with UXClumpy becomes statistical rather than direct.
 
-## 3. Validate against UXClumpy
+**Energetic end of the spectral range.** SKIRT currently does not allow wavelengths short of 1 pm (1239.8 keV),
+and the `XRayAtomicGasMix` sets all cross sections to zero above 500 keV, whereas the UXClumpy source extends
+to 1517.5 keV (see Central source in the Reference model chapter). The photons above 500 keV carry 0.9% of the
+energy of the source spectrum of the pilot run, but 27% for the hardest source spectra of the UXClumpy grid,
+with Γ = 1 and `Ecut` = 400 keV. The options are:
 
-- Run SKIRT with its physics reduced to match XARS as closely as possible: free-electron Compton
-  scattering, the XARS set of fluorescent lines, and no intrinsic line shapes.
-- Compare the resulting spectra with the UXClumpy table for a set of parameter values, and explain
-  any differences.
-- Repeat with the full SKIRT physics, to document the effect of bound-electron scattering, the
-  additional lines, and the line shapes.
+- Extend SKIRT: lower the 1 pm limit and extend the X-ray material mix to about 1.5 MeV, where Compton
+  scattering on free electrons, with the Klein-Nishina cross section, is by far the dominant process. A
+  simpler variant would treat the photons above 500 keV with free-electron scattering only.
+- Keep the source capped at 500 keV, and restrict the new model accordingly: limit the incident spectrum
+  parameters to spectra with little energy above 500 keV, or limit the energy range of the table to energies
+  where the cap does not affect the reflected component (in the pilot run, the reflected component falls off
+  above about 200 keV).
 
-## 4. Scope the production runs
+In either case, find out how far the source range must extend beyond the energy range of the detectors to
+include the photons that Compton scattering moves into that range. After a single scattering, photons at
+energy E stem from energies up to E / (1 − 2E / 511 keV), for E below 255.5 keV: up to 114 keV for the
+upper limit of NuSTAR at 79 keV, and up to 824 keV for that of Swift/BAT at 195 keV. Multiple scattering
+extends the range further, so that test runs with different upper limits of the source are needed.
 
-The number of simulations, their cost, and the size of the resulting table follow from a few
-decisions, which are listed under Open questions below:
+**Omni spectrum.** Find a way to obtain the angle-averaged spectrum of all escaping photons (see Table files
+in the Reference model chapter). There are two options:
 
-- how the incident spectrum parameters `PhoIndex` and `Ecut` are covered;
-- how the viewing parameters `NHLOS` and `Theta_inc` are covered, and with how many viewing
-  directions;
-- the energy range and resolution of the spectra;
-- the number of photon packets needed to suppress Monte Carlo noise at 0.5 eV resolution.
+- *Additional sight lines* that cover the whole sphere, so that the omni spectrum follows as the
+  solid-angle weighted average of the spectra of all sight lines. This requires no change to SKIRT, but the
+  cost grows with the number of sight lines, and the accuracy depends on how well they sample the angular
+  variation of the reflected component.
+- *An escape recorder*: a new SKIRT feature that records, at each step of a photon packet with forced
+  scattering, the part of its luminosity that escapes along its direction of travel, a fraction e<sup>−τ</sup>
+  of its weight that SKIRT already calculates. This yields the angle-integrated escaping spectrum exactly,
+  with low noise and at negligible extra cost. Binned by escape direction, it would also yield spectra for
+  sky bins as in XARS, which allow a like-for-like comparison with UXClumpy.
 
-The scoping runs measure how the run time scales with the number of viewing directions, the number
-of wavelength bins, and the number of photon packets. From these measurements, the total cost of
-the production runs can be estimated. Two routes to reduce the total cost are pursued in parallel:
+**Signal-to-noise level.** Decide whether R < 0.1 suffices, or whether the spectra must be essentially free
+of noise. In the pilot run, R < 0.1 in 99% of the relevant bins for 90% of the spectra requires about
+1.4 × 10<sup>8</sup> photon packets (see Reliability in the SKIRT pilot run chapter). Because R<sup>2</sup>
+scales as 1 / N, R < 0.01 requires 100 times more packets, about 1.4 × 10<sup>10</sup>. An intermediate
+criterion follows from the energy resolution of XRISM/Resolve, 4.5 eV FWHM, which spans about nine 0.5 eV
+bins: R < 0.03 per bin amounts to about 0.01 per resolution element, and requires about 1.5 × 10<sup>9</sup>
+packets. These estimates consider R only; the VOV above 7 keV requires more packets (see Rayleigh peel-off
+noise below).
 
-- **Fewer simulations.** If the incident spectrum parameters can be derived from a single set of
-  simulations per geometry, as with the response matrices of XARS, only the 20 geometries of the
-  UXClumpy grid require separate simulations, and the total cost is a few tens of days of
-  computing.
-- **Shorter simulations.** If each combination of geometry and incident spectrum requires its own
-  simulation, the UXClumpy grid amounts to 4 × 5 × 11 × 5 = 1100 simulations. At about a day each,
-  this is feasible on a high-performance computing facility only if the run time of each
-  simulation can be reduced substantially.
+**Rayleigh peel-off noise.** Rare Rayleigh scattering events, whose peel-off picks up the narrow forward peak
+of the phase function, cause most of the bins between about 7 and 100 keV in which the VOV exceeds its
+threshold (see Reliability in the SKIRT pilot run chapter). Apart from launching more photon packets, a
+possible remedy is delta-scaling of the Rayleigh phase function, removing its forward peak together with the
+corresponding fraction of the cross section, which requires a change to SKIRT.
 
-The two routes can also be combined.
+**Direct component.** The direct component is the incident spectrum attenuated along the line of sight,
+which can be calculated exactly for any sight line and incident spectrum, removing its noise and leaving
+only the scattered component to be simulated.
 
-## 5. Production runs
+**Run time on the production platform.** Run a few representative simulations on the computing platform that
+will be used for the production runs, to measure the run time. The pilot run with 5 × 10<sup>8</sup> packets
+took 34.8 hours, or 0.25 ms per packet, on a laptop with an Intel i7-13700H processor using 20 threads; a
+workstation with 16 threads ran 2.5 times faster per packet. Each simulation covers all viewing directions of
+one combination of geometry and incident spectrum, so that the UXClumpy grid, with 4 × 5 = 20 geometries and
+11 × 5 = 55 incident spectra, requires 1100 simulations. Evaluate whether this is feasible.
 
-- Prepare the ski files for all parameter combinations, with scripts that generate them from a
-  single template.
-- Run the simulations on a high-performance computing facility, in parallel over the parameter
-  combinations, possibly combined with the hybrid parallelization of SKIRT within each simulation.
-- Verify each run for completeness and noise level.
+**SKIRT performance.** Measure where SKIRT spends time when simulating these models, and implement performance
+improvements where possible.
 
-## 6. Build and test the table model
+**Comparison with released geometries.** Run a few simulations with geometries identical or close to
+released ones, such as those with `TORsigma` = 28 and 84 and `CTKcover` = 0.6 used in the comparison of the
+pilot run, both with the full SKIRT physics and with physics reduced to match XARS (free-electron
+scattering, the XARS set of fluorescent lines, and no intrinsic line shapes), and preferably with spectra
+for sky bins ((see Omni spectrum above), to allow a like-for-like comparison with UXClumpy.
 
-- Assemble the spectra into a table model in the format expected by XSPEC, including the
-  equivalent of the angle-averaged omni component if needed.
-- None of the four UXClumpy table files requires separate simulations. The transmitted and
-  reflected components correspond to the direct and scattered flux components that the instruments
-  record when `recordComponents` is enabled; in SKIRT, the fluorescent lines are part of the
-  scattered component. The omni component follows from the spectra of all instruments, averaged
-  over the sphere with weights for their solid angles, which requires instrument directions that
-  cover the whole sphere.
-- Test the table model in XSPEC, in particular the interpolation between parameter values and the
-  loading time, given the size of the table.
-- Compare fits of the new model and UXClumpy on archival X-ray spectra.
+## Production tasks
 
-## 7. Apply the model
-
-- Fit the model to XRISM/Resolve data of a nearby, obscured AGN.
-- Explore self-consistent infrared and X-ray models, using the multi-wavelength capabilities of
-  SKIRT.
-
-## Open questions
-
-**Incident spectrum parameters.** XARS covers `PhoIndex` and `Ecut` without extra simulations,
-through response matrices. SKIRT emits photon packets from a given source spectrum, and its
-instruments do not record the energy at which a packet was emitted. The options are:
-
-- one simulation for each combination of incident spectrum parameters, which multiplies the number
-  of simulations by the number of such combinations and is probably not feasible;
-- a set of simulations, each with a source that emits only in one injection energy band, forming a
-  basis from which the spectrum for any incident spectrum is obtained as a weighted sum. The
-  number of bands must be limited, so the incident spectrum is represented only approximately
-  within each band;
-- a hybrid approach, in which the direct component is obtained exactly by applying the
-  line-of-sight transmission to any incident spectrum, and only the scattered component, including
-  the fluorescent lines, is obtained from a basis of injection bands. The scattered continuum is
-  smooth, and the line strengths depend on the incident spectrum integrated above the absorption
-  edges, so a modest number of bands may suffice.
-
-Each option needs to be tested for accuracy and cost. Recording the injection energy band of each
-detected photon packet in a single simulation would make the basis approach much cheaper, but would
-require a change to SKIRT.
-
-**Run time.** Independently of the number of simulations, the run time of each simulation should be
-reduced as much as possible. Possible levers include the number of photon packets and the
-wavelength bias of the source, the number of instruments and wavelength bins, the treatment of
-the direct component, the configuration of the physics, and the parallelization. The scoping runs
-must measure how the run time depends on each of these, and how much each can be reduced without
-compromising the accuracy or the noise level of the spectra.
-
-With forced scattering, the `minWeightReduction` property of the photon packet options is a
-further lever. A photon packet is terminated once its weight has been reduced by this factor
-(10<sup>4</sup> by default, 10<sup>3</sup> at least), so that a lower value shortens the life
-cycles of packets that scatter many times in the Compton-thick clumps. These packets contribute to
-the reflected component and the Compton hump, so that the effect on those parts of the spectra
-must be checked. Path length stretching, which helps in regions of high optical depth, is not
-available, because the photon packet wavelength changes in Compton scattering.
-
-**Viewing directions.** XARS records escaping photons in sky bins, so that a single simulation
-yields spectra for all directions. SKIRT records the flux for a limited set of instruments through
-peel-off, with a cost per interaction that grows with the number of lines of sight (instruments with
-the same line of sight share a single peel-off photon packet). The spectra for bins of similar
-line-of-sight column density can be obtained by grouping the spectra of many instruments, but the
-number of directions needed to sample the column density distribution, and the resulting cost, must
-be determined. The line-of-sight column density of each direction can be calculated from the
-geometry.
-
-**Energy range and resolution.** A resolution of 0.5 eV over the XRISM/Resolve band, roughly 0.3 to
-12 keV, amounts to more than 20 000 bins. The Compton hump near 20 keV and data from hard X-ray
-instruments require a wider range, possibly at a coarser resolution. The source must in any case
-emit up to a few hundred keV, because Compton scattering moves photons to lower energies.
-
-**High-energy limits in SKIRT.** The UXClumpy source spectra extend to 1517.5 keV (see Reference
-model), but SKIRT currently limits the energy range in two ways. Wavelengths must be at least
-1 pm, which corresponds to 1239.8 keV, so that higher energies cannot be configured at all.
-Furthermore, the `XRayAtomicGasMix` sets all cross sections to zero above 500 keV, so that photons
-with higher energies cross the medium without interacting. The pilot run is therefore capped at
-500 keV (see SKIRT pilot run), which omits only 0.9% of the energy of its source spectrum. For the
-hardest source spectra of the UXClumpy grid, with Γ = 1 and `Ecut` = 400 keV, however, the photons
-above 500 keV carry 27% of the energy, and those above 1239.8 keV still 2%. After scattering to
-lower energies, these photons contribute to the reflected component and the Compton hump. Production
-runs that cover the full parameter range of UXClumpy therefore require extending SKIRT: lowering
-the 1 pm limit, and extending the X-ray material mix to about 1.5 MeV, where Compton scattering on
-free electrons, with the Klein-Nishina cross section, is by far the dominant process.
-Alternatively, the energy range and the incident spectrum parameters of the new model could be
-restricted.
-
-**Monte Carlo noise.** The spectra must be free of visible noise at 0.5 eV resolution, in each sky
-bin. The number of photon packets needed, and techniques that reduce the noise, such as a separate
-treatment of the direct component or a suitable wavelength bias of the source, must be determined
-in the scoping runs.
-
-**Rayleigh peel-off noise.** In the pilot run, rare Rayleigh scattering events, whose peel-off picks
-up the narrow forward peak of the phase function, cause most of the bins between about 7 and
-100 keV in which the VOV exceeds its threshold (see Reliability in the SKIRT pilot run chapter).
-Possible remedies:
-
-- **More photon packets.** This works, but slowly, because the VOV of such a heavy-tailed
-  distribution of contributions decreases more slowly than 1 / N.
-- **Free-electron scattering.** Replacing bound-electron by free-electron scattering removes the tail
-  and changes the fluxes by less than 1% above 10 keV, but it also removes Rayleigh scattering and
-  the binding effects on Compton scattering, which matter at lower energies (3.6% at 7 to 10 keV in
-  the diagnostic runs). Bound electrons at low energies combined with free electrons at high energies
-  would require a change to SKIRT.
-- **Delta-scaling.** The narrow forward peak could be removed from the Rayleigh phase function,
-  together with the corresponding fraction of the cross section, so that nearly forward Rayleigh
-  scattering is treated as no scattering at all. Because such scattering hardly changes the
-  direction and does not change the energy, the spectra should remain nearly unchanged, while the
-  large peel-off contributions disappear. This also requires a change to SKIRT.
-- **Relaxed criterion.** Because R and the fluxes converge as expected, the VOV threshold could be
-  relaxed for the scattered light above 7 keV, accepting occasional deviations of a few percent in
-  single bins.
-
-**Table size.** With the parameter grid of UXClumpy, the table contains 135 300 spectra. A
-resolution of 0.5 eV from 0.3 to 12 keV amounts to about 23 400 energy bins, compared with 1000 in
-UXClumpy, so that a table in single precision takes about 13 GB, compared with about 540 MB for
-UXClumpy. A wider energy range, or a finer parameter grid, increases the size further. Whether
-XSPEC can handle such a table efficiently, or whether it must be split, for example by geometry
-parameters or energy range, must be tested.
-
-**Background medium.** The density of the uniform background medium is not constrained by
-observations. It could be fixed at a low value, set to zero, or become an additional parameter,
-which would multiply the number of simulations. Whether UXClumpy includes such a medium is to be
-verified.
-
-**Clump realizations.** UXClumpy uses a particular random realization of the clump distribution
-for each geometry. Using the same realizations allows a direct comparison. Using several
-realizations would show how much the spectra depend on the particular realization, at additional
-cost.
-
-**Omni component.** The angle-averaged omni component follows from the same simulations, as the
-solid-angle weighted average of the spectra of all instruments (see step 6 above).
-This requires instrument directions that cover the whole sphere, which constrains the choice of
-viewing directions. Whether the new model includes this component, and whether it keeps the
-redundant `NHLOS` and `Theta_inc` parameters for compatibility with UXClumpy, is to be decided.
+- **Production workflow.** Generate the ski files for all parameter combinations from a single template,
+  run the simulations in parallel over the parameter combinations, and verify each run for completeness
+  and noise level.
+- **Table model.** Assemble the spectra into table files in the format expected by XSPEC: the transmitted
+  and reflected components correspond to the direct and scattered flux components recorded by the
+  instruments, with the fluorescent lines in the scattered component. With 0.5 eV bins from 0.3 to 12 keV,
+  a table with the parameter grid of UXClumpy takes about 13 GB in single precision, compared with about
+  540 MB for UXClumpy. Whether XSPEC handles such a table efficiently, in particular the interpolation
+  between parameter values and the loading time, or whether it must be split, must be tested.
+- **Validation and application.** Compare fits of the new model and UXClumpy to archival X-ray spectra,
+  fit the model to XRISM/Resolve data of a nearby, obscured AGN, and explore self-consistent infrared and
+  X-ray models, using the multi-wavelength capabilities of SKIRT.
