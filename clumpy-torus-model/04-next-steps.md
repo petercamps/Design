@@ -58,6 +58,14 @@ in the Reference model chapter). There are two options:
   with low noise and at negligible extra cost. Binned by escape direction, it would also yield spectra for
   sky bins as in XARS, which allow a like-for-like comparison with UXClumpy.
 
+**Bound-electron scattering.** Decide which treatment of bound-electron scattering to use. The pilot run uses
+the `Good` treatment (`scatterBoundElectrons`), with smooth Rayleigh scattering and exact bound-Compton
+scattering. The `Exact` treatment differs only in Rayleigh scattering, for which it also uses the anomalous
+scattering factors that describe the deviation from the smooth form-factor approximation near absorption edges.
+The effect on the spectra is expected to be limited to energies near the absorption edges, and remains to be
+quantified. Both treatments include the forward peak of the Rayleigh phase function that causes the VOV tail
+(see Rayleigh peel-off noise below).
+
 **Signal-to-noise level.** Decide whether R < 0.1 suffices, or whether the spectra must be essentially free
 of noise. In the pilot run, R < 0.1 in 99% of the relevant bins for 90% of the spectra requires about
 1.4 × 10<sup>8</sup> photon packets (see Reliability in the SKIRT pilot run chapter). Because R<sup>2</sup>
