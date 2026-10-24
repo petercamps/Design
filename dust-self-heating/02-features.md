@@ -119,10 +119,14 @@ in each iteration *n*:
   equal once the solution has converged. The deficit can be negative because of noise or overshoot;
 - the **self-absorbed fraction** *p(n) = Ls(n) / Le(n)*, the fraction of the dust emission that is
   reabsorbed by dust;
-- the **secondary change** *c(n) = |Ls(n) − Ls(n−w)| / (w Ls(n))*, the mean relative change of the
-  absorbed secondary luminosity per iteration over the last *w* iterations. This is the quantity
-  monitored by the current `maxFractionOfPrevious` criterion, averaged over *w* iterations instead
-  of taken from a single iteration.
+- the **secondary change** *c(n) = |Ls(n) − Ls(n−k)| / (k Ls(n))* with *k = min(w, n − 2)*, the mean
+  relative change of the absorbed secondary luminosity per iteration over the last *w* iterations,
+  excluding the first iteration of the loop. This is the quantity monitored by the current
+  `maxFractionOfPrevious` criterion, averaged over *w* iterations instead of taken from a single
+  iteration. The first iteration is excluded because its dust emission lacks any self-heating, so
+  that the change from the first to the second iteration is large even in a model with little
+  self-heating. Including it would delay convergence by an iteration or more: a functional test that
+  reabsorbs 1.5% of its dust emission needed five instead of four iterations.
 
 ### Criteria
 
@@ -132,9 +136,12 @@ holds:
 - the absorbed secondary luminosity is smaller than the fraction `maxFractionOfPrimary` of the
   absorbed primary luminosity, which is typically the case in the first iteration of a model with
   little dust emission, as today; or
-- at least *w + 1* iterations have been performed, the mean of the luminosity deficit over the
-  last *w* iterations is at most `maxLuminosityDeficit` in absolute value, and the secondary change
-  is at most `maxSecondaryChange`.
+- at least *w + 1* iterations, and at least three, have been performed, the mean of the luminosity
+  deficit over the last *w* iterations is at most `maxLuminosityDeficit` in absolute value, and the
+  secondary change is at most `maxSecondaryChange`. The secondary change needs two iterations after
+  the first one, which matters only for *w* = 1. While the last *w* iterations would include the
+  first iteration, the secondary change is averaged over fewer iterations; the luminosity deficit
+  never includes the first iteration once *w + 1* iterations have been performed.
 
 Here *w* is the value of `numConvergenceIterations`. Averaging over several iterations suppresses
 the Monte Carlo noise in both quantities, which is about 0.5% per iteration for the deficit of the
@@ -144,7 +151,8 @@ Without the rebalance, the two conditions of the second criterion would be redun
 dust luminosity of an iteration is then the absorbed primary luminosity plus the absorbed secondary
 luminosity of the previous iteration, so that the deficit reduces to
 *δ(n) = (Ls(n) − Ls(n−1)) / Lp*, and its mean over the last *w* iterations to
-*(Ls(n) − Ls(n−w)) / (w Lp)*. This is the secondary change with the absorbed primary luminosity in
+*(Ls(n) − Ls(n−w)) / (w Lp)*. From iteration *w* + 2 on, when the secondary change no longer needs
+to skip the first iteration, this is the secondary change with the absorbed primary luminosity in
 the denominator instead of the absorbed secondary luminosity. In a strongly self-absorbing model,
 the absorbed secondary luminosity is many times the absorbed primary luminosity, so that the
 deficit is by far the stricter of the two, which is why the current criterion is misleading (see
@@ -216,8 +224,8 @@ rebalance is enabled.
   properties receive their default values. Its documentation already proved misleading: it compares
   the change with the secondary luminosity, which can be many times the primary luminosity. The
   `maxSecondaryChange` criterion monitors the same quantity, averaged over
-  `numConvergenceIterations` iterations, but it no longer suffices by itself: the luminosity
-  deficit criterion must be met as well.
+  `numConvergenceIterations` iterations excluding the first iteration of the loop, but it no longer
+  suffices by itself: the luminosity deficit criterion must be met as well.
 - Exact absorption changes the results of all simulations with dust emission (see above).
 - The rebalance and the new criteria change the number of iterations and the results of all
   simulations that iterate over secondary emission. For models that were run to convergence, the
@@ -241,10 +249,13 @@ two lines on the dust-absorbed luminosity logged today. For example, for iterati
 ```
 
 The effective factor is the ratio of the total absorbed secondary luminosity after and before the
-rebalance. If the solve fails, the rebalance line says so and reports the global factor that was
-applied instead. As long as fewer than *w + 1* iterations have been performed, the lines with the
-means are replaced by a line stating the number of iterations still needed for the criterion to
-apply.
+rebalance. If some regions fall back to the global factor, the rebalance line gives their number
+and the global factor instead of "no fallbacks"; if the solve fails, the line says so and reports
+the global factor that was applied to all regions instead. In the first iteration of a loop,
+which is not rebalanced, the rebalance line is omitted. Until the secondary change is available
+(see Criteria), the lines with the means are replaced by a line stating the number of iterations
+still needed for the criteria to apply. While the secondary change skips the first iteration, its
+line states the smaller number of iterations over which it is averaged.
 
 Each emission segment of a simulation with dust emission, whether or not it is part of an
 iteration, also logs the fraction of the dust-absorbed luminosity that was absorbed at wavelengths

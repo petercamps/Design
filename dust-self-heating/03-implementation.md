@@ -6,7 +6,8 @@
   the path segments of a photon packet to store both, provides the absorbed luminosity to the dust
   emission and the convergence test, and owns the rebalancer.
 - `SelfHeatingRebalancer`, a new helper class, partitions the cells into regions, accumulates the
-  transfer tallies, solves the rebalance system, and rescales the secondary radiation field.
+  transfer tallies, solves the rebalance system, determines the factor of each region, by which the
+  medium system rescales the secondary radiation field, and logs a summary of each rebalance.
 - `PhotonPacket` remembers the spatial cell from which a secondary photon packet was emitted, and
   `DustSecondarySource` sets it.
 - `MonteCarloSimulation` drives the rebalance from the secondary and merged iteration loops,
@@ -19,15 +20,17 @@
 ## Module
 
 The rebalancer lives in the `medium` module, next to the medium system that owns it and whose
-per-cell data it reads and rescales. It uses `PhotonPacket` from `utils`, `ProcessManager` from
-`mpi`, and `Log` from `tools`, all of which `medium` already depends on. The emission cell added to
-`PhotonPacket` is a plain integer, so `utils` gains no dependency. The changes to
+per-cell data it uses. It uses `ThreadLocalMember` from `utils`, `ProcessManager` from `mpi`, and
+`IterationHistory` and `Log` from `tools`, all of which `medium` already depends on. The emission
+cell added to `PhotonPacket` is a plain integer, so `utils` gains no dependency. The changes to
 `MonteCarloSimulation` in `simulation`, and to `Configuration` and `ConfigurationSetup` in `tools`
 and `simulation`, use existing dependencies. No new dependencies between modules arise.
 
-The rebalancer is not a simulation item. It is not configured by the user, holds no references to
-other items beyond the medium system, and needs no setup phase of its own. Its history series are
-keyed on the `DustEmissionOptions` item, which configures it.
+The rebalancer is not a simulation item. It is not configured by the user and needs no setup phase
+of its own. It does not even hold a reference to the medium system: the medium system passes it the
+absorbed luminosities and the dust mass of each cell, and applies the factors it determines. The
+rebalancer holds only the iteration history, the logger, and the `DustEmissionOptions` item, which
+configures it and on which its history series are keyed.
 
 ## Exact absorption
 
@@ -164,8 +167,8 @@ because the wavelength changes from segment to segment.
   identical on all processes after `communicateRadiationField()`, so the function no longer needs a
   parallel loop over all cells and wavelengths that evaluates the dust opacity for each, nor any
   communication.
-- A new function `dustAbsorbedLuminosity(bool primary)` returns a reference to `_labs1` or `_labs2`,
-  for the rebalancer.
+- The medium system passes `_labs1` and `_labs2` to the rebalancer directly (see Activation below),
+  so no public getter for the arrays is needed.
 - `meanIntensity()`, `dustEmissionSpectrum()`, the indicative temperatures, the cell libraries, the
   dynamic medium state updates, and the probes of the radiation field are not changed. They keep
   using the binned radiation field, for its spectral shape.
@@ -214,32 +217,47 @@ the children in proportion to their volume.
 m)` and `emissionCell()`. The `launch()` function resets it to -1, so that it is -1 for packets from
 primary sources and from secondary sources other than dust. `DustSecondarySource::launch()` sets it
 to the cell from which the packet is launched, right after launching the packet. The value survives
-scattering events, because a scattered packet carries the same emitted energy. Peel-off packets do
-not need it. The memory cost is 4 bytes per packet, and the packet objects are reused for all
-launches by a thread.
+scattering events, because a scattered packet carries the same emitted energy. The exception is a
+scattering event that emulates secondary emission, such as X-ray fluorescence in the X-ray gas
+mixes: `setEmulatedSecondaryOrigin()` resets the emission cell to -1, because the outgoing packet is
+considered to be emitted by the gas, so that the tallies no longer attribute it to dust emission.
+Peel-off packets do not need the emission cell. The memory cost is 4 bytes per packet, and the
+packet objects are reused for all launches by a thread.
 
 ## Regional rebalance
 
 ### Activation
 
 At setup, the medium system creates the rebalancer if the simulation iterates over secondary
-emission, `rebalanceSecondaryEmission` is true, and dust emission is the only secondary emission,
-and logs a message if the option is set but cannot be honored. The rebalancer is active during the
-secondary emission segment of each iteration from the second iteration on, both in the secondary
-loop and in the merged loop. It is controlled by two functions, which `MonteCarloSimulation` calls
-through the medium system:
+emission, `rebalanceSecondaryEmission` is true, and dust emission is the only secondary emission.
+The setup summary logged by the configuration mentions the rebalance, or that it is omitted because
+the simulation also has gas emission. The rebalancer is controlled by two functions, which
+`MonteCarloSimulation` calls through the medium system in every iteration, both in the secondary
+loop and in the merged loop:
 
 ```cpp
-/** Partitions the cells into regions based on the current absorbed luminosities, and clears the
-    tallies. Must be called before the secondary photon packets of an iteration are launched. */
+/** Partitions the cells into regions based on the current absorbed luminosities and dust masses,
+    and clears and activates the tallies. Must be called before the secondary photon packets of
+    each iteration are launched. If the stable absorbed secondary luminosity is zero in all cells,
+    as in the first iteration of a loop, the regions cannot be formed, and nothing is rebalanced in
+    this iteration. In any case, declares the rebalance series in the iteration history. */
 void beginRebalance();
 
-/** Reduces the tallies over threads and processes, solves the rebalance system, and rescales the
-    stable secondary radiation field and the stable absorbed secondary luminosity of each cell
-    accordingly. Records the rebalance series in the iteration history and returns a summary for
-    logging. Must be called after communicateRadiationField(false). */
-RebalanceSummary endRebalance();
+/** Unless nothing is rebalanced in this iteration, reduces the tallies over threads and processes,
+    solves the rebalance system, and rescales the stable secondary radiation field and the stable
+    absorbed secondary luminosity of each cell by the factor of its region. The rebalancer records
+    the rebalance series in the iteration history and logs a summary. Must be called after
+    communicateRadiationField(false). */
+void endRebalance();
 ```
+
+The rebalance thus starts with the second iteration of each loop, without the loop having to count
+iterations. The rebalancer declares its history series in every iteration, including the first,
+because the history probe fixes the columns of its file in the first iteration of a loop. The medium
+system passes `_labs1`, `_labs2`, and the dust mass of each cell to the rebalancer at the start of
+the iteration, and `_labs1` and `_labs2` at the end; it then multiplies the stable secondary
+radiation field and absorbed luminosity of each cell by the factor that the rebalancer returns for
+that cell (see Rescaling below).
 
 ### Region partition
 
@@ -386,20 +404,20 @@ while (true)
     _history->beginIteration();
     bool converged = true;
     {
-        // ... time logger, clear the secondary radiation field (as today)
+        // ... time logger, clear the secondary radiation field, prepare the secondary sources (as today)
 
         // record the luminosity that the dust is about to emit
         double Lemitted = hasDust ? sumOf(mediumSystem()->totalDustAbsorbedLuminosity()) : 0.;
 
-        // partition the cells and clear the tallies
-        bool rebalance = mediumSystem()->hasRebalancer() && iter > 1;
+        // partition the cells and clear the tallies (nothing is rebalanced in the first iteration)
+        bool rebalance = mediumSystem()->hasRebalancer();
         if (rebalance) mediumSystem()->beginRebalance();
 
-        // ... prepare the secondary sources, launch the packets, wait, and communicate (as today)
+        // ... launch the packets, wait, and communicate (as today)
 
         converged &= mediumSystem()->updateSecondaryDynamicMediumState();
         if (hasDust) converged &= isDustEmissionConverged(Lemitted);
-        if (rebalance) logRebalance(mediumSystem()->endRebalance());
+        if (rebalance) mediumSystem()->endRebalance();
     }
     _history->scalarSeries(this, LoopConverged, ...).set(converged ? 1. : 0.);
     probeSystem()->probeSecondary(iter);
@@ -441,6 +459,7 @@ replaced by:
 bool MonteCarloSimulation::isDustEmissionConverged(double Lemitted)
 {
     int w = _config->numConvergenceIterations();
+    bool dustOnly = _config->hasDustOnlySecondaryEmission();
     double Lp, Ls;
     std::tie(Lp, Ls) = mediumSystem()->totalDustAbsorbedLuminosity();
 
@@ -457,15 +476,17 @@ bool MonteCarloSimulation::isDustEmissionConverged(double Lemitted)
     primary.set(Lp);
     secondary.set(Ls);
     emitted.set(Lemitted);
+    if (dustOnly && Lp > 0.) deficit.set((Ls - Lemitted + Lp) / Lp);
+    if (Lemitted > 0.) fraction.set(Ls / Lemitted);
+
+    // the secondary change excludes the first iteration of the loop, whose dust emission lacks self-heating
+    int n = _history->iteration();
+    int k = min(w, n - 2);
+    if (Ls > 0. && n > w && k > 0) change.set(abs(Ls - secondary.value(k)) / (k * Ls));
 
     if (Lp <= 0. || Ls <= 0.) return true;
     if (Ls / Lp < _config->maxFractionOfPrimary()) return true;
-
-    bool dustOnly = _config->hasDustOnlySecondaryEmission();
-    if (dustOnly) deficit.set((Ls - Lemitted + Lp) / Lp);
-    if (Lemitted > 0.) fraction.set(Ls / Lemitted);
-    if (!secondary.has(w)) return false;
-    change.set(abs(Ls - secondary.value(w)) / (w * Ls));
+    if (!change.has()) return false;
 
     bool changeOk = change.value() <= _config->maxSecondaryChange();
     if (!dustOnly) return changeOk;
@@ -477,17 +498,22 @@ bool MonteCarloSimulation::isDustEmissionConverged(double Lemitted)
 ```
 
 The deficit is evaluated only if dust emission is the only secondary emission, which is the
-condition under which it is meaningful, whether or not the rebalance is enabled. The
-deficit series has a value in each of the last *w* iterations once the secondary series has *w + 1*
-values, since both are set in every iteration from the first. The logging, omitted here, is formed
-from the same series, as shown in the Features chapter.
+condition under which it is meaningful, whether or not the rebalance is enabled. All quantities are
+recorded before the tests, so that the history has a value for each of them in every iteration in
+which it is defined. The secondary change is available from iteration max(*w* + 1, 3); by then, the
+deficit series has a value in each of the last *w* iterations, since it is set in every iteration
+from the first. The logging, omitted here, is formed from the same series, as shown in the Features
+chapter.
 
 ## History series
 
 The convergence quantities are keyed on the simulation, and the rebalance quantities on the
 `DustEmissionOptions` item, which configures the rebalancer. All series have loop lifetime, so they
-are cleared at the start of the secondary or merged loop. The history probe writes all of them to its
-file for the secondary or merged loop, one column per series and one row per iteration.
+are cleared at the start of the secondary or merged loop. The history probe writes all of them to
+its file for the secondary or merged loop, one column per series and one row per iteration. Because
+the probe takes its columns from the series that exist in the first iteration of the loop, the
+rebalancer declares its series in every iteration, also in the first, which is not rebalanced; their
+values are set in the rebalanced iterations only.
 
 | Series | Keyed on | Quantity | Set in |
 | --- | --- | --- | --- |
@@ -496,7 +522,7 @@ file for the secondary or merged loop, one column per series and one row per ite
 | dust-emitted luminosity | simulation | bolometric luminosity | every iteration |
 | luminosity deficit | simulation | — | every iteration, if dust is the only secondary emission |
 | self-absorbed fraction | simulation | — | every iteration |
-| secondary change | simulation | — | from iteration *w* + 1 |
+| secondary change | simulation | — | from iteration max(*w* + 1, 3) |
 | fraction of absorbed primary luminosity outside the radiation field grid | simulation | — | iterations that calculate the primary radiation field |
 | fraction of absorbed secondary luminosity outside the radiation field grid | simulation | — | every iteration |
 | number of regions | options | — | rebalanced iterations |
@@ -564,9 +590,8 @@ emission and no gas emission, decides whether the rebalancer is created and the 
 **MediumSystem.** The per-bin `storeRadiationField()` is replaced by the per-path version; the
 absorbed luminosity arrays are added; `clearRadiationField()`, `communicateRadiationField()`,
 `totalDustAbsorbedLuminosity()`, and `dustLuminosity()` change as described; `clearRadiationField(true)`
-no longer clears the stable secondary table; and the functions `dustAbsorbedLuminosity()`,
-`dustAbsorbedFractionOutsideGrid()`, `hasRebalancer()`, `beginRebalance()`, and `endRebalance()`
-are added.
+no longer clears the stable secondary table; and the functions `dustAbsorbedFractionOutsideGrid()`,
+`hasRebalancer()`, `beginRebalance()`, and `endRebalance()` are added.
 
 **MonteCarloSimulation.** `storeRadiationField()` is removed. The iteration loops and the
 convergence test change as described, and each emission segment reports the fraction of the dust
@@ -574,8 +599,8 @@ absorption outside the radiation field wavelength grid.
 
 **PhotonPacket and DustSecondarySource.** The emission cell is added and set, as described.
 
-**SelfHeatingRebalancer.** New class in the `medium` module, with its tally objects and summary
-structure.
+**SelfHeatingRebalancer.** New class in the `medium` module, with its tally objects and the handle
+through which the medium system adds to them.
 
 **PTS.** The ski file upgrade for SKIRT 10 removes `maxFractionOfPrevious` from
 `DustEmissionOptions`.
