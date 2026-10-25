@@ -204,6 +204,49 @@ iteration.
 The scalars and the fraction serve only until the fraction has been reported at the end of the
 segment, so they are not stored in a checkpoint.
 
+### Optical depth underflow
+
+While the implementation was tested, a long-standing loss of energy came to light in the storage
+loop, which affects the radiation field as well as the absorbed luminosity. For each segment, the
+loop calculates the mean extinction over the segment as the logarithmic mean of the extinction
+factors at its beginning and end, `lnmean(e^−τend, e^−τbeg, −τend, −τbeg)`. In double precision,
+`e^−τ` underflows to zero for an optical depth above about 745, and `SpecialFunctions::lnmean()`
+returned zero as soon as one of its values was zero, even though the logarithms were available. A
+segment that takes the cumulative optical depth past 745 therefore stored nothing, although it
+absorbs nearly all of the luminosity `L e^−τbeg` that the packet still carries when it enters the
+segment. Later segments are not affected in a meaningful way, because the remaining luminosity is
+negligible. The function now returns `x2 / (ln x2 − ln x1)` when only the smaller value has
+underflowed. The transport of the photon packets itself was never affected, so the escaping
+radiation was always correct; only the radiation field and the absorbed luminosity in the cells
+concerned were too low, and with them the heating and the emission of the dust in those cells.
+
+The loss is significant only if a single segment takes the optical depth from a small value to above
+745 by itself: a cell crossing with an extinction optical depth of several hundred or more at the
+packet's wavelength, near the start of the path. This mostly concerns primary photon packets emitted
+inside, or entering after little extinction, cells that are extremely opaque at the source
+wavelengths. Dust emission is not affected in practice, because the dust opacity at infrared
+wavelengths is some hundred times smaller. The largest optical depth of a cell diagonal at 0.55 µm,
+reported by the `ConvergenceInfoProbe`, offers a quick test, keeping in mind that the extinction in
+the far ultraviolet is up to about five times the extinction at 0.55 µm, and that a segment starting
+inside a cell crosses on average less than half of its diagonal. The following thresholds are
+estimates on that basis:
+
+- below about 150, no segment can reach the threshold, and the issue cannot arise;
+- between about 150 and 500, segments can reach it in the ultraviolet, but only along the longest
+  chords of the most opaque cells, so that the effect is expected to stay well below a percent;
+- above about 500, the effect becomes significant when primary sources are embedded in these cells,
+  and the lost fraction of the source luminosity is roughly the fraction emitted inside them.
+
+The COLIBRE galaxies at redshift 4 fall in the last category, with cell diagonals up to an optical
+depth of 4600 at 0.55 µm. For ID39321, 6.6% of the source luminosity was lost: the dust absorbed
+88.6% of it instead of 95.2%, so that the absorbed primary luminosity, and thus the escaping dust
+luminosity at convergence, came out 7% too low. For ID5642, a run with the fix absorbs 2.4% more
+primary luminosity than the SKIRT 9 run of Andrea Gebek, which suggests an effect of about 3%, since
+exact absorption by itself lowers the absorbed luminosity slightly. None of the functional tests
+that existed before is affected; the test `SelfHeating/SelfHeatingOpaqueCloud`, a dusty cloud with
+an optical depth of 20 000 at 0.55 µm along its diameter, illuminated in the far ultraviolet only,
+absorbs no energy at all without the fix.
+
 ### Dynamic grid refinement
 
 If the [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md) proposal is

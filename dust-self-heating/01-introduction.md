@@ -88,6 +88,13 @@ an iteration about 25 times faster than calculating the emission spectrum of eac
 measurable effect on the emitted spectrum. The library and the rebalance are complementary: the
 library makes each iteration cheap, and the rebalance reduces the number of iterations.
 
+The experiments, and the SKIRT 9 runs by Andrea Gebek on which they built, were affected by an
+underflow of the extinction factor in extremely opaque cells, which came to light during the
+implementation (see Optical depth underflow in the Implementation chapter). For ID39321, the dust
+absorbed 6.6% of the source luminosity too little, so that the absolute dust luminosities of these
+runs are about 7% too low. The comparisons between the configurations above are not affected,
+because all of them shared the loss.
+
 ## Scope and assumptions
 
 - The note assumes that the changes proposed in the [SKIRT 10](skirt-10/01-introduction.md)
@@ -109,7 +116,8 @@ library makes each iteration cheap, and the rebalance reduces the number of iter
 ## Overview
 
 - **[Features](dust-self-heating/02-features.md)** describes the configuration, the behavior
-  of the iteration loop, the logging and probing, and the incompatibilities, as seen by the user.
+  of the iteration loop, the logging and probing, and the incompatibilities, as seen by the user,
+  and the experience with the implementation.
 - **[Implementation](dust-self-heating/03-implementation.md)** describes the absorption tally,
   the rebalance, the convergence test, and the changes to existing classes.
 - **[Open questions](dust-self-heating/04-open-questions.md)** collects the design decisions that
