@@ -55,8 +55,8 @@ in the Reference model chapter). There are two options:
 - *An escape recorder*: a new SKIRT feature that records, at each step of a photon packet with forced
   scattering, the part of its luminosity that escapes along its direction of travel, a fraction e<sup>−τ</sup>
   of its weight that SKIRT already calculates. This yields the angle-integrated escaping spectrum exactly,
-  with low noise and at negligible extra cost. Binned by escape direction, it would also yield spectra for
-  sky bins as in XARS, which allow a like-for-like comparison with UXClumpy.
+  with low noise and at negligible extra cost. The [Escape instruments](escape-instruments/01-introduction.md)
+  design note proposes an implementation.
 
 **Bound-electron scattering.** Decide which treatment of bound-electron scattering to use. The pilot run uses
 the `Good` treatment (`scatterBoundElectrons`), with smooth Rayleigh scattering and exact bound-Compton
@@ -99,8 +99,7 @@ improvements where possible.
 **Comparison with released geometries.** Run a few simulations with geometries identical or close to
 released ones, such as those with `TORsigma` = 28 and 84 and `CTKcover` = 0.6 used in the comparison of the
 pilot run, both with the full SKIRT physics and with physics reduced to match XARS (free-electron
-scattering, the XARS set of fluorescent lines, and no intrinsic line shapes), and preferably with spectra
-for sky bins ((see Omni spectrum above), to allow a like-for-like comparison with UXClumpy.
+scattering, the XARS set of fluorescent lines, and no intrinsic line shapes).
 
 ## Production tasks
 
