@@ -63,8 +63,9 @@ the `Good` treatment (`scatterBoundElectrons`), with smooth Rayleigh scattering 
 scattering. The `Exact` treatment differs only in Rayleigh scattering, for which it also uses the anomalous
 scattering factors that describe the deviation from the smooth form-factor approximation near absorption edges.
 The effect on the spectra is expected to be limited to energies near the absorption edges, and remains to be
-quantified. Both treatments include the forward peak of the Rayleigh phase function that causes the VOV tail
-(see Rayleigh peel-off noise below).
+quantified. Using `Exact` instead of `Good` has no performance cost: for the pilot configuration, both take the
+same time per photon packet. Both treatments include the forward peak of the Rayleigh phase function that causes
+the VOV tail (see Rayleigh peel-off noise below).
 
 **Signal-to-noise level.** Decide whether R < 0.1 suffices, or whether the spectra must be essentially free
 of noise. In the pilot run, R < 0.1 in 99% of the relevant bins for 90% of the spectra requires about
