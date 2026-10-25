@@ -7,6 +7,7 @@
 - [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
 - [Dust self-heating](dust-self-heating/01-introduction.md)
 - [HDF5 output](hdf5-output/01-introduction.md)
+- [Escape instruments](escape-instruments/01-introduction.md)
 - [Checkpointing](checkpointing/01-introduction.md)
 
 <br>
