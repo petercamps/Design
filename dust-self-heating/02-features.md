@@ -93,12 +93,6 @@ secondary emission. With gas emission, the dust absorbs radiation from sources t
 does not describe, so the rebalance and the luminosity deficit criterion are disabled, with a
 message in the setup log.
 
-### Cost
-
-The tallies cost about 1–2% of an iteration with 100 regions. The memory needed is one transfer
-matrix per execution thread, which is 80 kB for 100 regions and 6.5 MB for 900 regions. The linear
-system is solved by Gaussian elimination, which takes well under a second even for 900 regions.
-
 ## Convergence criteria
 
 ### Quantities
@@ -279,31 +273,35 @@ absorbed luminosity, as documented for the probe.
 
 ## Recommended settings
 
-For strongly self-absorbing models, the documentation recommends:
+For models with strong dust self-heating, the recommended settings are as follows:
 
-- a logarithmic radiation field wavelength grid with about 50 bins from 0.09 to 2000 µm, which
-  suffices with exact absorption;
+- a logarithmic radiation field wavelength grid with about 50 bins that covers both the primary
+  emission and the dust emission, for example from 0.09 to 2000 µm; with exact absorption, the grid
+  only needs to resolve the shape of the radiation field, and the logged fraction of the absorbed
+  luminosity outside the grid shows whether it covers the heating spectrum;
 - the `TemperatureWavelengthCellLibrary` with 100 temperature bins and 50 wavelength bins, which
-  makes iterations about 25 times faster without a measurable effect on the spectrum, with the
+  makes iterations much faster without a measurable effect on the spectrum of such models, with the
   advice to increase the number of temperature bins if the logged temperature range is very wide;
-- the rebalance with the default 10 × 10 regions;
-- some 30 million photon packets per iteration for the COLIBRE galaxies tested, which have a few
-  hundred thousand cells, since ten times more packets changed the global quantities by only 0.1%;
+- the rebalance with the default 10 × 10 bins; more bins hardly change the observed spectrum, and
+  they cannot make up for too few photon packets;
+- in each secondary emission iteration, at least about 20 times as many photon packets as the
+  spatial grid has cells. With fewer packets, the luminosity deficit levels off above the
+  criterion, at a level that rises as the number of packets per cell drops, while the secondary
+  change becomes small, so that the loop runs to its maximum number of iterations and ends with a
+  warning. The solution is biased as well: the absorbed secondary luminosity settles too low, and
+  the escaping dust luminosity stays short of the absorbed primary luminosity by the deficit. A
+  finer spatial grid therefore needs proportionally more photon packets;
 - a maximum of 40–60 secondary emission iterations, which leaves room for the convergence criteria
-  to stop the loop.
+  to stop the loop;
+- a history probe, which records the convergence quantities of each iteration, and thus shows which
+  criterion holds up convergence, or whether the deficit has leveled off.
 
-For other models with dust emission, the documentation points out the
-`TemperatureWavelengthCellLibrary` as an option and explains the trade-off, leaving the choice to
-the user. Andrea Gebek tested it with the same 100 × 50 entries on 300 COLIBRE galaxies at redshift
-0, with stellar masses from 10<sup>8.5</sup> to over 10<sup>11</sup> solar masses. The library made
-the simulations three times faster on average, with a gain that grows with the number of cells, to
-about five for a million cells. Part of this gain stems from the dust model of these runs, which
-has seven components. The integrated spectra changed by up to 0.015 dex, or 3.5%, with a deficit
-around 50 µm and an excess beyond 100 µm, most pronounced for stellar masses between
-10<sup>9.5</sup> and 10<sup>10.5</sup> solar masses. The error correlated only weakly with the
-range of the indicative temperatures and wavelengths, so that the log gives little warning of it.
+For other models with dust emission, the `TemperatureWavelengthCellLibrary` is an option to be
+considered. The library saves most in models with many cells and many dust components, but in models
+with less self-absorption it can change the integrated spectrum by a few percent, an error that the
+logged ranges of the indicative temperatures and wavelengths hardly reveal.
 
-## Experience with the implementation
+## The COLIBRE galaxies
 
 The proposal was implemented in the SKIRT 10 beta in October 2026. This section summarizes the
 measurements made with that implementation, which complement the prototype results in the
@@ -371,3 +369,40 @@ Compared with Andrea Gebek's runs, which stopped after 60 plain iterations:
   still far from convergence after 60 iterations, with an absorbed secondary luminosity of 18
   instead of 34 times the absorbed primary luminosity, and they also lacked the 7% lost to the
   underflow. The other two galaxies self-heat less, so that 60 plain iterations came much closer.
+
+### Background
+
+The proposal is based on a series of experiments with quick and dirty code on top of SKIRT 9, using
+two of the COLIBRE galaxies. The most extreme of these, called ID39321 in what follows, reabsorbs
+about 96.5% of its dust emission in the converged state, and its secondary radiation field holds
+about 28 times the absorbed primary luminosity. Its main results are:
+
+| Configuration | Iterations for a 1% luminosity deficit | Converged dust emission |
+| --- | --- | --- |
+| plain iteration, 50 bins (current SKIRT) | many hundreds (13% deficit after 100) | 13% too bright |
+| plain iteration, 200 bins | many hundreds | correct within 0.5% |
+| regional rebalance, 50 bins, current absorption | stalls at a deficit of 2–4% | 13% too bright |
+| regional rebalance, 200 bins, current absorption | about 11–15 | correct within 0.5% |
+| regional rebalance, 50 bins, exact absorption | about 11–15 | correct within noise |
+| regional rebalance, 200 bins, exact absorption | about 11–15 | reference |
+
+With exact absorption, the simulations with 50 and 200 bins agree to 0.2% in dust luminosity, to
+0.1 K in mass-weighted dust temperature, and within the noise of about 1% in each band between
+3.6 and 500 µm. The bias of the current code therefore stems entirely from the absorbed luminosity,
+not from the coarser spectral shape of the radiation field. The cost of exact absorption is 13% per
+iteration and 16% for the primary emission, at the same grid. Compared with the 200-bin grid that
+the current code needs for an unbiased result, exact absorption with 50 bins is 7% faster per
+iteration and needs half the memory.
+
+The experiments used the `TemperatureWavelengthCellLibrary` with 100 × 50 entries, which makes
+an iteration about 25 times faster than calculating the emission spectrum of each cell, without a
+measurable effect on the emitted spectrum. The library and the rebalance are complementary: the
+library makes each iteration cheap, and the rebalance reduces the number of iterations.
+
+The experiments, and the SKIRT 9 runs by Andrea Gebek on which they built, were affected by an
+underflow of the extinction factor in extremely opaque cells, which came to light during the
+implementation (see Optical depth underflow in the Implementation chapter). For ID39321, the dust
+absorbed 6.6% of the source luminosity too little, so that the absolute dust luminosities of these
+runs are about 7% too low. The comparisons between the configurations above are not affected,
+because all of them shared the loss.
+

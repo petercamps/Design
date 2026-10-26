@@ -59,42 +59,6 @@ This design note proposes three changes:
   become stationary, both evaluated over a few iterations to suppress Monte Carlo noise. The
   criterion based on the change relative to the previous iteration is removed.
 
-## Background
-
-The proposal is based on a series of experiments with quick and dirty code on top of SKIRT 9, using
-two of the COLIBRE galaxies. The most extreme of these, called ID39321 in what follows, reabsorbs
-about 96.5% of its dust emission in the converged state, and its secondary radiation field holds
-about 28 times the absorbed primary luminosity. Its main results are:
-
-| Configuration | Iterations for a 1% luminosity deficit | Converged dust emission |
-| --- | --- | --- |
-| plain iteration, 50 bins (current SKIRT) | many hundreds (13% deficit after 100) | 13% too bright |
-| plain iteration, 200 bins | many hundreds | correct within 0.5% |
-| regional rebalance, 50 bins, current absorption | stalls at a deficit of 2–4% | 13% too bright |
-| regional rebalance, 200 bins, current absorption | about 11–15 | correct within 0.5% |
-| regional rebalance, 50 bins, exact absorption | about 11–15 | correct within noise |
-| regional rebalance, 200 bins, exact absorption | about 11–15 | reference |
-
-With exact absorption, the simulations with 50 and 200 bins agree to 0.2% in dust luminosity, to
-0.1 K in mass-weighted dust temperature, and within the noise of about 1% in each band between
-3.6 and 500 µm. The bias of the current code therefore stems entirely from the absorbed luminosity,
-not from the coarser spectral shape of the radiation field. The cost of exact absorption is 13% per
-iteration and 16% for the primary emission, at the same grid. Compared with the 200-bin grid that
-the current code needs for an unbiased result, exact absorption with 50 bins is 7% faster per
-iteration and needs half the memory.
-
-The experiments used the `TemperatureWavelengthCellLibrary` with 100 × 50 entries, which makes
-an iteration about 25 times faster than calculating the emission spectrum of each cell, without a
-measurable effect on the emitted spectrum. The library and the rebalance are complementary: the
-library makes each iteration cheap, and the rebalance reduces the number of iterations.
-
-The experiments, and the SKIRT 9 runs by Andrea Gebek on which they built, were affected by an
-underflow of the extinction factor in extremely opaque cells, which came to light during the
-implementation (see Optical depth underflow in the Implementation chapter). For ID39321, the dust
-absorbed 6.6% of the source luminosity too little, so that the absolute dust luminosities of these
-runs are about 7% too low. The comparisons between the configurations above are not affected,
-because all of them shared the loss.
-
 ## Scope and assumptions
 
 - The note assumes that the changes proposed in the [SKIRT 10](skirt-10/01-introduction.md)

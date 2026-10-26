@@ -658,25 +658,6 @@ through which the medium system adds to them.
 **PTS.** The ski file upgrade for SKIRT 10 removes `maxFractionOfPrevious` from
 `DustEmissionOptions`.
 
-## Performance
-
-The measurements below were made with the experimental implementation, for ID39321 with about
-200 000 cells, 31.6 million photon packets per iteration, the cell library, and 20 threads on a
-laptop.
-
-| Configuration | Secondary iteration | Primary emission | Peak memory |
-| --- | --- | --- | --- |
-| current absorption, 50 bins, rebalance | 62 s | 80 s | 1.08 GB |
-| current absorption, 200 bins, rebalance | 75 s | 85 s | 1.97 GB |
-| exact absorption, 50 bins, rebalance | 70 s | 93 s | 1.02 GB |
-| exact absorption, 200 bins, rebalance | 79 s | 106 s | 1.68 GB |
-
-The experiment calculated the dust cross sections once per path, as proposed. An earlier variant
-that obtained the opacity from the medium system for every segment made iterations about three times
-slower, so this optimization is essential. The tallies of the rebalance cost about
-1–2% of an iteration with 100 regions, once accumulated per thread; with a shared table and atomic
-additions, an iteration took almost twice as long.
-
 ## Testing
 
 The functional tests of all simulations with dust emission change, and must be inspected and
