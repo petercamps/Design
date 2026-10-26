@@ -312,22 +312,32 @@ densities of the dust components times the cell volume.
 
 1. Cells with `E(m) = 0` or `M(m) = 0` receive region -1. They emit nothing, and the dust they
    contain, if any, absorbed nothing in the previous iteration. Absorption in these cells during the
-   current iteration, which is rare, is not tallied, so the transfer matrix treats it as a loss.
+   current iteration, which is rare, is not tallied, so the transfer matrix treats it as a loss. As
+   a safeguard, a cell whose `E(m)` or `M(m)` is not finite receives region -1 as well, so that the
+   coordinates of all other cells are finite.
 2. For the other cells, the coordinates are `u(m) = log10(S(m) / A(m))` and `v(m) = log10(E(m) /
    M(m))`. A cell without absorbed primary luminosity receives the largest finite value of `u` over
    all cells, and a cell without absorbed secondary luminosity the smallest one.
 3. For each axis separately, the bin borders are the weighted quantiles of the coordinate, with the
    emission `E(m)` as weight, so that each of the `N` bins on that axis holds about `1/N` of the
-   total emission. The quantiles are obtained from a fine histogram of 4096 equal bins between the
-   smallest and largest coordinate, which costs one pass over the cells, rather than from sorting
-   the cells. If all coordinates on an axis are equal, all cells go to the first bin of that axis,
-   avoiding a division by a zero range.
+   total emission. The quantiles are exact: the cells are sorted on the coordinate, with ties
+   broken by cell index so that the result does not depend on the sort implementation, and each
+   group of cells with equal coordinates goes to the bin holding the cumulative emission at the
+   center of the group. Cells with equal coordinates, such as all cells without absorbed secondary
+   luminosity, thus always share a bin, and if all coordinates on an axis are equal, all cells go
+   to a single bin of that axis. A fine histogram of the coordinates, as in the first
+   implementation, avoids the sort, but a few cells with tiny absorbed luminosities can stretch the
+   coordinate range over hundreds of decades and leave bins empty: for ID39321 on a spatial grid of
+   8.6 million cells, 20 × 20 bins gave 285 regions with a histogram of 4096 bins, and 400 with
+   exact quantiles.
 4. The region index is `iu * numHeatingRateBins + iv`. Regions that hold no cell are dropped, and the
    remaining *K* regions are numbered consecutively. The result is stored in a `vector<int>` with
    one region index per cell.
 
 The calculation is serial and deterministic. Since its inputs are identical on all processes, so is
-the partition. Its cost is a few passes over the cells, which is small compared to an iteration.
+the partition. Its cost is dominated by the two sorts: for the 8.6 million cells of ID39321, the
+partition takes about 1.6 s per iteration, against about 0.5 s with the histogram; the difference
+is about 0.3% of an iteration with 31.6 million packets.
 
 ### Tallies
 
