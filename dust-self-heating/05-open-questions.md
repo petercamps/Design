@@ -2,13 +2,6 @@
 
 ## Design decisions
 
-**Number of regions.** The proposed default of 10 × 10 regions has been tested most extensively,
-including with exact absorption. With 30 × 30 regions, the slow drift of the absorbed secondary
-luminosity that remains after the deficit has converged was smaller, and the proposed criteria would
-have stopped the loop after 20 instead of 24–26 iterations. In return, 40–50 of the 900 regions fell
-back to the global factor in later iterations, without visible effect, and the tallies need 6.5 MB
-per thread. A default of 20 × 20 is a plausible compromise, but it has not been tested.
-
 **Convergence thresholds.** The proposed defaults stop ID39321 when the absorbed secondary luminosity
 is within about 5% of its value after 40 iterations. The comparison of 100 and 900 regions suggests
 that the dust emission spectrum is much less sensitive than the absorbed secondary luminosity, but
@@ -47,13 +40,19 @@ update would let the medium state see the improved field one iteration earlier, 
 medium state, and its convergence test, depend on an extrapolated rather than a measured field. The
 proposal makes this order a fixed rule rather than an implementation detail, because it keeps the
 dust acceleration independent of the medium state iteration, including any future acceleration of
-photoionization (see below). The rebalance has not been tested in the merged loop.
+photoionization (see below).
 
 **Averaging the tallies.** The transfer fractions could be averaged over several iterations to
-reduce their noise, using an exponentially weighted or running average. With 31.6 million packets,
-the remaining noise in the deficit was about ±0.5% per iteration, without any sign of instability,
-so the proposal does not average. Averaging would add memory for an extra transfer matrix and
-would complicate the partition, which changes from one iteration to the next.
+reduce their noise, using an exponentially weighted or running average. With about 160 photon
+packets per spatial cell in each iteration (31.6 million packets on 200 000 cells), the remaining
+noise in the deficit was about ±0.5% per iteration, without any sign of instability, so the proposal
+does not average. With few packets per cell, however, the deficit levels off above the criterion:
+on a spatial grid of 8.6 million cells for the same galaxy, at 21%, 11%, and 5% for 0.4, 1.2, and
+3.7 packets per cell, while the absorbed secondary luminosity settles too low. Whether averaging the
+tallies would lower this plateau depends on its cause, which is not yet known: averaging reduces the
+noise of the transfer fractions, but not that of the radiation field in each cell, from which the
+emission spectra are calculated. Averaging would add memory for an extra transfer matrix and would
+complicate the partition, which changes from one iteration to the next.
 
 **Region coordinates.** The regions are formed from the ratio of secondary to primary absorption
 and the absorption per unit dust mass. Alternatives are the entries of the cell library, which
@@ -75,9 +74,8 @@ could rescale the spectrum of each cell to the exact total, or add a column with
 The proposal only documents the difference.
 
 **Default cell library.** For strongly self-absorbing models, the `TemperatureWavelengthCellLibrary`
-makes iterations about 25 times faster without a measurable effect on the spectrum. It could become
-the default when the simulation iterates over secondary emission. This would change many functional
-test results for a speed gain that matters only for large models, so the proposal only adds it to the
+makes iterations much faster without a measurable effect on the spectrum. It could become
+the default when the simulation iterates over secondary emission. The proposal only adds it to the
 recommended settings. In less optically thick galaxies, the library changes the spectrum by a few
 percent (see Recommended settings in the Features chapter), which is another reason to leave the
 choice to the user.

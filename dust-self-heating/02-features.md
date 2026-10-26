@@ -162,14 +162,16 @@ tells whether the solution has stopped changing.
 
 The two conditions thus address different errors. The deficit measures whether the escaping
 luminosity, and hence the dust emission seen by an observer, is right. With the rebalance, the
-deficit drops below 1% within about 10–15 iterations, even for ID39321. The secondary change
-measures whether the distribution of the emission over the cells has settled. Even with the
-rebalance, the secondary change drops toward zero more slowly than the deficit, so that this
-condition is usually the last one to be met: the radiation trapped in the self-absorbing core
-keeps building up for some time after the deficit has become small. This remaining build-up in the
-core affects the observed spectrum much less than it affects the absorbed secondary luminosity: two
-runs with 100 and 900 regions differed by 2.7% in absorbed secondary luminosity after 40
-iterations, while their dust emission spectra agreed within 0.2%.
+deficit drops below 1% within about 10–15 iterations, provided that each
+iteration launches enough photon packets per spatial cell; with too few, the deficit levels off
+above the criterion (see Recommended settings). The secondary change measures whether the
+distribution of the emission over the cells has settled. Even with the rebalance, the secondary
+change drops toward zero more slowly than the deficit, so that this condition is usually the last
+one to be met: the radiation trapped in the self-absorbing core keeps building up for some time
+after the deficit has become small. This remaining build-up in the core affects the observed
+spectrum much less than it affects the absorbed secondary luminosity: two runs with 100 and 900
+regions differed by 2.7% in absorbed secondary luminosity after 40 iterations, while their dust
+emission spectra agreed within 0.2%.
 
 As today, the loop runs for at least `minSecondaryIterations` and at most `maxSecondaryIterations`
 iterations, and a warning is issued if it ends without convergence. Without dust, the dust criteria
@@ -232,7 +234,7 @@ of the SKIRT 10 design note.
 ## Logging
 
 Each secondary emission iteration logs the convergence quantities in a fixed format, replacing the
-two lines on the dust-absorbed luminosity logged today. For example, for iteration 24 of ID39321:
+two lines on the dust-absorbed luminosity logged today. For example:
 
 ```
   Dust-absorbed luminosity: primary 2.511e12 Lsun, secondary 6.617e13 Lsun (26.35 x primary)
@@ -251,9 +253,17 @@ which is not rebalanced, the rebalance line is omitted. Until the secondary chan
 still needed for the criteria to apply. While the secondary change skips the first iteration, its
 line states the smaller number of iterations over which it is averaged.
 
-Each emission segment of a simulation with dust emission, whether or not it is part of an
-iteration, also logs the fraction of the dust-absorbed luminosity that was absorbed at wavelengths
-outside the radiation field wavelength grid. If the fraction exceeds 1%, the message is issued as
+If the absorbed secondary luminosity is smaller than the absorbed primary luminosity, the first line
+gives their ratio as a percentage, as in "(76.84% of primary)". If the loop converges because the
+absorbed secondary luminosity is smaller than the fraction `maxFractionOfPrimary` of the absorbed
+primary luminosity, a line such as "--> absorbed secondary luminosity is 0.52% of absorbed primary
+luminosity (criterion 1.00%)" takes the place of the lines with the means.
+
+Each emission segment of a simulation with dust emission that stores the radiation field, whether
+or not it is part of an iteration, also logs the fraction of the dust-absorbed luminosity that was
+absorbed at wavelengths outside the radiation field wavelength grid. The final secondary emission
+after the iterations stores the radiation field only if the `storeEmissionRadiationField` option of
+the secondary emission options is enabled. If the fraction exceeds 1%, the message is issued as
 a warning that advises extending the grid. In an iteration loop, the warning is not repeated in
 subsequent iterations.
 

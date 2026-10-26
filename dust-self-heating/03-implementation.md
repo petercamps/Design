@@ -29,8 +29,9 @@ and `simulation`, use existing dependencies. No new dependencies between modules
 The rebalancer is not a simulation item. It is not configured by the user and needs no setup phase
 of its own. It does not even hold a reference to the medium system: the medium system passes it the
 absorbed luminosities and the dust mass of each cell, and applies the factors it determines. The
-rebalancer holds only the iteration history, the logger, and the `DustEmissionOptions` item, which
-configures it and on which its history series are keyed.
+rebalancer holds only the iteration history, the logger, the numbers of bins on its two axes, which
+the medium system takes from the configuration, and the `DustEmissionOptions` item, which serves
+only as the key of its history series.
 
 ## Exact absorption
 
@@ -85,12 +86,13 @@ grid, it also adds the absorbed luminosity to a sum for the path (see Absorption
 below). The branch without kinematics becomes:
 
 ```cpp
+SelfHeatingRebalancer::Tally tally;  // see below; inactive unless rebalancing
+if (_rebalancer && !primary) tally = _rebalancer->tally(pp->emissionCell());
+if (tally && pp->numScatt() == 0) tally.launch(pp->luminosity());
 double luminosity = pp->luminosity();
 int ell = _wavelengthGrid->bin(pp->wavelength());
 DustAbsorptionOpacity dust(this, pp->wavelength(), pp);  // see below; inactive without dust emission
-RebalanceTally tally = rebalanceTally(primary, pp);      // see below; inactive unless rebalancing
 if (ell < 0 && !dust.active()) return;
-if (tally && pp->numScatt() == 0) tally.launch(luminosity);
 double lnExtBeg = 0.;
 double extBeg = 1.;
 double LabsOutside = 0.;
@@ -118,9 +120,12 @@ if (LabsOutside > 0.) LockFree::add(primary ? _labsOutside1 : _labsOutside2c, La
 if (tally) tally.escape(luminosity * extBeg);
 ```
 
-The branch with kinematics has the same structure, but calculates the perceived wavelength, the
-radiation field bin, the perceived luminosity, and the opacity for each segment, as it does today
-for the radiation field. The tally functions are described with the rebalancer below.
+The tally handle is obtained, and the launched luminosity recorded, before the choice between the
+two branches, so that both share them. An active handle implies active dust absorption, so the early
+return never skips a tallied path. The branch with kinematics has the same structure, but calculates
+the perceived wavelength, the radiation field bin, the perceived luminosity, and the opacity for
+each segment, as it does today for the radiation field. The tally functions are described with the
+rebalancer below.
 
 ### Dust absorption opacity
 
@@ -194,12 +199,14 @@ before the rebalancer rescales the stable secondary array. A new function return
 double dustAbsorbedFractionOutsideGrid(bool primary) const;
 ```
 
-`MonteCarloSimulation` reports the fraction after each emission segment of a simulation with dust
-emission, through a private helper function. The function logs the fraction, records it in the
-iteration history if it is called from an iteration loop, and issues the message as a warning if
-the fraction exceeds 1%. In an iteration loop, the warning is issued only if the previous value of
-the history series is missing or did not exceed the threshold, so that it is not repeated in every
-iteration.
+`MonteCarloSimulation` reports the fraction after each emission segment that stores the radiation
+field in a simulation with dust emission, through a private helper function. The final secondary
+emission after the iterations stores the field, and thus reports the fraction, only if the
+`storeEmissionRadiationField` option of the secondary emission options is enabled. The function
+logs the fraction, records it in the iteration history if it is called from an iteration loop, and
+issues the message as a warning if the fraction exceeds 1%. In an iteration loop, the warning is
+issued only if the previous value of the history series is missing or did not exceed the threshold,
+so that it is not repeated in every iteration.
 
 The scalars and the fraction serve only until the fraction has been reported at the end of the
 segment, so they are not stored in a checkpoint.
@@ -347,8 +354,9 @@ The rebalancer accumulates three tallies during the secondary emission segment:
 - `absorbed[r][s]`, the luminosity launched from region *s* that is absorbed by dust in region *r*;
 - `escaped[s]`, the luminosity launched from region *s* that leaves the spatial domain.
 
-`MediumSystem::storeRadiationField()` obtains a small `RebalanceTally` handle, which binds the
-tally object of the current thread to the region *s* of the packet's emission cell. The handle is
+`MediumSystem::storeRadiationField()` obtains a small `Tally` handle, a nested class of
+`SelfHeatingRebalancer`, from the rebalancer's `tally()` function, which binds the tally object of
+the current thread to the region *s* of the packet's emission cell. The handle is
 inactive, and the tallies cost nothing, unless the rebalancer is active, the packet is secondary,
 and its emission cell lies in a region. Through the handle, the function adds the packet's
 luminosity to `launched[s]` if the packet has not yet scattered, which identifies its first path,
@@ -363,15 +371,15 @@ happens in a few regions. Each thread therefore accumulates into its own tally o
 the existing `ThreadLocalMember<T>` template, which provides a separate copy of a data member for
 each thread that uses it. `FluxRecorder` already uses this template in the same way, for the
 thread-local contribution lists of its statistics. The rebalancer holds a
-`ThreadLocalMember<RebalanceTallies>` data member, where `RebalanceTallies` holds the three tallies
-and the number of regions *K* for which they are sized:
+`ThreadLocalMember<Tallies>` data member, where the nested structure `Tallies` holds the three
+tallies and the number of regions *K* for which they are sized:
 
 - `beginRebalance()` obtains the copies of all threads that used the member before through its
   `all()` function, and resizes and zeroes each of them for the new partition.
-- The `RebalanceTally` handle obtains the copy of the current thread through `local()`, once per
+- The `tally()` function obtains the copy of the current thread through `local()`, once per
   path, so that the cost of the lookup is negligible compared to the segment loop. A thread that
   uses the member for the first time after `beginRebalance()` receives a new, empty copy, which the
-  handle sizes and zeroes when it does not match the current *K*.
+  function sizes and zeroes when it does not match the current *K*.
 - `endRebalance()` sums the copies returned by `all()` serially, and then sums the result over
   processes with `ProcessManager::sumToAll()`.
 
@@ -460,7 +468,7 @@ while (true)
         // ... time logger, clear the secondary radiation field, prepare the secondary sources (as today)
 
         // record the luminosity that the dust is about to emit
-        double Lemitted = hasDust ? sumOf(mediumSystem()->totalDustAbsorbedLuminosity()) : 0.;
+        double Lemitted = hasDust ? totalLuminosity(mediumSystem()->totalDustAbsorbedLuminosity()) : 0.;
 
         // partition the cells and clear the tallies (nothing is rebalanced in the first iteration)
         bool rebalance = mediumSystem()->hasRebalancer();
