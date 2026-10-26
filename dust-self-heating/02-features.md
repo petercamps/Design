@@ -139,7 +139,9 @@ holds:
 
 Here *w* is the value of `numConvergenceIterations`. Averaging over several iterations suppresses
 the Monte Carlo noise in both quantities, which is about 0.5% per iteration for the deficit of the
-COLIBRE galaxies with 31.6 million photon packets.
+COLIBRE galaxies with 31.6 million photon packets. With the default *w* = 3, a model that does not
+meet the first condition therefore needs at least four iterations, where the removed
+`maxFractionOfPrevious` criterion often stopped after two.
 
 Without the rebalance, the two conditions of the second criterion would be redundant. The emitted
 dust luminosity of an iteration is then the absorbed primary luminosity plus the absorbed secondary
@@ -226,7 +228,10 @@ rebalance is enabled.
 - The rebalance and the new criteria change the number of iterations and the results of all
   simulations that iterate over secondary emission. For models that were run to convergence, the
   results change only within the convergence tolerance; for models that were not, the results move
-  toward the converged solution.
+  toward the converged solution. Models with little self-heating, which the removed criterion often
+  stopped after two iterations, now need at least four with the defaults, unless their absorbed
+  secondary luminosity stays below the fraction `maxFractionOfPrimary` of the absorbed primary
+  luminosity.
 
 These changes are also listed in the [Incompatibilities](skirt-10/04-incompatibilities.md) chapter
 of the SKIRT 10 design note.
@@ -294,13 +299,19 @@ For models with strong dust self-heating, the recommended settings are as follow
   advice to increase the number of temperature bins if the logged temperature range is very wide;
 - the rebalance with the default 10 × 10 bins; more bins hardly change the observed spectrum, and
   they cannot make up for too few photon packets;
-- in each secondary emission iteration, at least about 20 times as many photon packets as the
-  spatial grid has cells. With fewer packets, the luminosity deficit levels off above the
-  criterion, at a level that rises as the number of packets per cell drops, while the secondary
-  change becomes small, so that the loop runs to its maximum number of iterations and ends with a
-  warning. The solution is biased as well: the absorbed secondary luminosity settles too low, and
-  the escaping dust luminosity stays short of the absorbed primary luminosity by the deficit. A
-  finer spatial grid therefore needs proportionally more photon packets;
+- enough photon packets in each secondary emission iteration for the number of spatial cells. With
+  too few packets per cell, the luminosity deficit levels off above the criterion while the
+  secondary change becomes small, so that the loop runs to its maximum number of iterations and
+  ends with a warning. The solution is then biased: the absorbed secondary luminosity settles too
+  low, and the escaping dust luminosity stays short of the absorbed primary luminosity by the
+  deficit. In the tests, the level of the plateau fell by a factor of two or more for every
+  threefold increase of the number of packets, and the number of packets per cell needed to bring
+  it below the default criterion grew with the resolution of the grid: some 15 packets per cell
+  sufficed on a coarse grid, whereas a grid of the same model with 40 times more cells still
+  leveled off at a deficit of 1.4% with that number. A finer spatial grid therefore needs more
+  photon packets, even more than in proportion to its number of cells. Even when the deficit meets
+  the criterion, the absorbed secondary luminosity can still be several percent too low, although
+  the observed spectrum is then hardly affected;
 - a maximum of 40–60 secondary emission iterations, which leaves room for the convergence criteria
   to stop the loop;
 - a history probe, which records the convergence quantities of each iteration, and thus shows which
