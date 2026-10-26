@@ -80,12 +80,14 @@ This design note proposes three changes:
 ## Overview
 
 - **[Features](dust-self-heating/02-features.md)** describes the configuration, the behavior
-  of the iteration loop, the logging and probing, and the incompatibilities, as seen by the user,
-  and the experience with the implementation.
+  of the iteration loop, the logging and probing, the incompatibilities, and the recommended
+  settings, as seen by the user.
 - **[Implementation](dust-self-heating/03-implementation.md)** describes the absorption tally,
   the rebalance, the convergence test, and the changes to existing classes.
-- **[Open questions](dust-self-heating/04-open-questions.md)** collects the design decisions that
-  need input and the relation to photoionization and to non-LTE line transfer.
+- **[Results](dust-self-heating/04-results.md)** summarizes some measurements made with the
+  implementation for the three COLIBRE galaxies that triggered this proposal.
+- **[Open questions](dust-self-heating/05-open-questions.md)** collects the design decisions that
+  may need further consideration and the relation to photoionization and to non-LTE line transfer.
 
 ## References
 
