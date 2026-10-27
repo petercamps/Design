@@ -118,8 +118,12 @@ size for the medium state and the radiation field tables. Growing in chunks is a
 it complicates the classes that assume contiguous storage, such as the radiation field tables.
 
 **Renumbering cells.** Cells created by refinement are appended at the end of the cell list. The
-cells could be renumbered after the last iteration loop to restore spatial locality. This is not
-proposed until measurements show a performance impact.
+cells could be renumbered after the last iteration loop to restore spatial locality. Renumbering
+them level by level, as the `TopologyTreePolicy` numbers the cells of a reloaded topology, would
+also make the per-cell output at the end of the refined simulation, such as the level populations
+from which a `NonLTELineGasMix` can restart, match the reloaded grid. This is not proposed until
+measurements show a performance impact, or a use case needs per-cell output that matches a
+reloaded grid.
 
 **Coarsening.** Merging cells whose fields have become smooth is not supported. It would require
 removing cell indices, and therefore renumbering all per-cell data structures. No use case has been

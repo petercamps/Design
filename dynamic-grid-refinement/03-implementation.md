@@ -92,8 +92,10 @@ condition. The criteria and conditions themselves keep no history.
 **Accumulating and deciding.** At the end of each iteration, in any iteration loop, the refinement
 step records the number of subdivided cells, accumulates the current field values unless the
 iteration is one of those left out of the averaging after a refinement round, and evaluates the
-criteria once the windows are complete. The series and windows are declared on demand, the first
-time the function needs them:
+criteria once the windows are complete. Because declaring is idempotent, the function declares
+each series and window whenever it uses it, but it declares all of its scalar series in the first
+iteration of the loop, including those that receive a value only later (see Series for logging and
+probing below):
 
 ```cpp
 int numLeftOut = options->numIterationsAfterRefinement();
@@ -178,9 +180,12 @@ subdivided. The refinement has then settled, as defined in the Features chapter.
 
 In addition to the series described above, the refinement step records a few scalar series that
 serve only for logging and for the history probe proposed in the Iteration history design note.
-Like the subdivision series, they are declared on demand in `updateDynamicRefinement()`, with loop
-lifetime and depth 1. The global series are keyed on the `DynamicRefinementOptions` item, and the
-per-criterion series on the criterion, like the cell windows.
+Like the subdivision series, they are declared in `updateDynamicRefinement()`, with loop lifetime
+and depth 1. The global series are keyed on the `DynamicRefinementOptions` item, and the
+per-criterion series on the criterion, like the cell windows. All of them are declared in the
+first iteration of each loop in which a criterion takes part, including those that are set only in
+decision iterations: the `HistoryProbe` takes its columns from the series that exist when it is
+first performed in a loop, and leaves out, with a warning, any series declared later.
 
 | Series | Keyed on | Set in | Purpose |
 | --- | --- | --- | --- |
@@ -266,6 +271,7 @@ per-cell structures, based on the current code.
 | `MediumSystem` | cached number of cells | updated |
 | `MediumState` | state variables for each cell | parent's values for intensive and categorical variables, the child's volume fraction of them for extensive variables; volume recalculated from the grid |
 | `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values times the child's volume fraction |
+| `MediumSystem` | dust-absorbed luminosity arrays `_labs1`, `_labs2`, `_labs2c`, in a simulation with dust emission | parent's values times the child's volume fraction |
 | `MediumSystem` | material mixes per cell, if applicable | parent's mixes |
 | `IterationHistory` | cell windows, including those of the refinement criteria | parent's running sums |
 
@@ -273,18 +279,26 @@ The radiation field tables hold, for each cell, the sum of luminosity times path
 photon packets crossing the cell, and the mean intensity follows by dividing this sum by the cell
 volume. The parent's values are therefore divided among the children in proportion to their
 volume, including the first child, which keeps the parent's cell index. Each child then starts with
-the parent's mean intensity, and the total absorbed luminosity is conserved. In the primary and
-merged loops, the tables are cleared at the start of the next iteration, but probes performed after
-the refining iteration, such as the `RadiationFieldProbe`, read them. In the secondary loop, the
-primary field is never recalculated, and the secondary field of one iteration determines the
-emission of the secondary sources in the next.
+the parent's mean intensity, and the total absorbed luminosity is conserved. The dust-absorbed
+luminosity arrays hold, for each cell, the luminosity absorbed by the dust along the paths crossing
+the cell, calculated with the dust opacity at the exact wavelength of each photon packet. They set
+the luminosity of the dust emission of each cell (see the
+[Dust self-heating](dust-self-heating/02-features.md) design note), and are divided among the
+children in the same way, so that the luminosity emitted by the dust is conserved as well. In the
+primary and merged loops, the primary tables and arrays are cleared at the start of the next
+iteration, but probes performed after the refining iteration, such as the `RadiationFieldProbe`,
+read them. In the secondary loop, the primary field is never recalculated, and the secondary field
+of one iteration determines the emission of the secondary sources in the next.
 
 The iteration history grows all its cell windows in a single call to `appendCells()`, whichever
 client declared them (see Use of the iteration history above). The field windows of the
 refinement criteria and conditions are reset after each decision anyway. Other components need no
 changes: the secondary sources size their per-cell arrays and obtain the cell library mapping each
-time they prepare for launch, probes query the number of cells when they are performed, and
-instruments hold no per-cell data.
+time they prepare for launch, the self-heating rebalancer assigns the cells to its regions at the
+start of each iteration, probes query the number of cells when they are performed, and
+instruments hold no per-cell data. The per-thread caches that the secondary sources use while
+launching photon packets must not keep information about the cells, such as the number of cells,
+from one launch preparation to the next.
 
 `MediumSystem` gathers the growth of all these structures in a single function that is called for
 each refinement round, followed by a check that the size of each structure matches the new number
@@ -300,9 +314,10 @@ production runs, the cap is typically chosen to fill the available memory, and t
 reaches the cap would then fail. On most platforms, reserved capacity that has not yet been used
 occupies address space rather than physical memory, so that reserving costs little when the cap is
 not reached. The per-cell containers must therefore support a capacity beyond their size. A
-`std::vector` does; the `Array` and `Table` classes used for the medium state and the radiation
-field tables do not, so these data members need a container that does. If no cap is configured,
-the structures are reallocated and copied in each round, with a temporary increase in memory use.
+`std::vector` does; the `Array` and `Table` classes used for the medium state, the radiation field
+tables, and the dust-absorbed luminosity arrays do not, so these data members need a container that
+does. If no cap is configured, the structures are reallocated and copied in each round, with a
+temporary increase in memory use.
 
 The list of per-cell structures also yields the number of bytes held per cell, which serves two
 purposes. During the iterations, the refinement step records the memory held by the per-cell data

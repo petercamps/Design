@@ -377,11 +377,11 @@ where the secondary radiation field may change the fields further. In a simulati
 secondary iterations, the primary emission has been completed before the secondary loop starts:
 the primary radiation field is not recalculated, and the instruments have recorded the primary
 emission. A cell created in the secondary loop receives its share of the parent's primary radiation
-field, which is uniform over the parent, so that refinement in this loop resolves only structure
-caused by the secondary radiation field. For a field that depends mostly on the primary radiation
-field, the jump in value at the boundary of a subdivided cell does not diminish with further
-subdivision, so that cells along that boundary may keep asking for subdivision until a limit or
-the cell cap stops them.
+field and of the primary luminosity absorbed by the dust in the parent, which are uniform over the
+parent, so that refinement in this loop resolves only structure caused by the secondary radiation
+field. For a field that depends mostly on the primary radiation field, the jump in value at the
+boundary of a subdivided cell does not diminish with further subdivision, so that cells along that
+boundary may keep asking for subdivision until a limit or the cell cap stops them.
 
 ## Initial state of child cells
 
@@ -390,7 +390,12 @@ temperature, and all custom variables such as the iterated ionization state, as 
 parent's material mix. Only the cell volume is recalculated from the grid. The total mass of each
 medium component is therefore conserved, and the next iteration starts from the previous solution.
 The radiation field stored for the parent is divided among the children in proportion to their
-volume, so that each child starts with its parent's mean intensity.
+volume, so that each child starts with its parent's mean intensity. In a simulation with dust
+emission, the medium system also records the luminosity absorbed by the dust in each cell, which
+sets the luminosity of the dust emission of the cell (see the
+[Dust self-heating](dust-self-heating/02-features.md) design note). The parent's absorbed
+luminosity is divided among the children in the same way, so that the total luminosity absorbed,
+and thus emitted, by the dust is conserved.
 
 How the value of a state variable is passed on depends on its kind, which the material mix
 declares as proposed in the [Medium state](medium-state/03-features.md) design note. An intensive
@@ -435,6 +440,13 @@ The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option (`Setup`, `Primar
 subsequent simulation can load this topology with the `TopologyTreePolicy`. It then starts from the
 refined grid, either skipping dynamic refinement altogether, for example to calculate other
 diagnostics for the same model, or refining further.
+
+The reloaded grid has the same cells as the refined grid, but not in the same order: the
+`TopologyTreePolicy` numbers the cells level by level, as for any tree, whereas a refinement round
+keeps the existing cell indices and appends the new cells (see the Implementation chapter).
+Per-cell output of the refined simulation, such as the level populations from which a
+`NonLTELineGasMix` can restart, therefore does not match the reloaded grid (see Renumbering cells
+in the Open questions).
 
 To follow the refinement from one iteration to the next, probes offering a `Primary` or `Secondary`
 option for their `probeAfter` property can be used, such as the `CustomStateProbe`. Probes performed
