@@ -42,16 +42,60 @@ proposal makes this order a fixed rule rather than an implementation detail, bec
 dust acceleration independent of the medium state iteration, including any future acceleration of
 photoionization (see below).
 
+**The deficit stall.** With too few photon packets per spatial cell in each secondary emission
+iteration, the luminosity deficit levels off above the criterion while the secondary change becomes
+small, so that the loop runs to its maximum number of iterations (see The refined grid in the
+Results chapter). The plateau is a bias rather than slow convergence: it stays at the same level
+for dozens of iterations, and the absorbed secondary luminosity settles too low. The number of
+packets per cell sets its level, which fell by a factor of 2 to 2.4 for every threefold increase of
+the number of packets, and a grid that resolves the optical depth needs more packets per cell than
+a coarse grid of the same model. How a shortage of packets biases the solution, rather than merely
+adding noise, has not been established. A stalled run wastes time: with 150 million packets on 8.6
+million cells, the loop spent 45 of its 60 iterations, about 13 of its 17.6 hours, on the plateau.
+Moreover, the spectrum along a line of sight need not reveal the stall. Possible remedies:
+
+- *Detect the stall and end the loop.* A stall shows as a mean deficit above `maxLuminosityDeficit`
+  while the mean secondary change is below `maxSecondaryChange`, with a deficit that no longer
+  decreases: its mean over the last *w* iterations is not lower, within the noise, than over the *w*
+  iterations before. After a few such iterations, the loop could end with a warning that names the
+  cause, reports the number of packets per cell, and recommends more packets, instead of running to
+  the maximum. A warning at setup when the number of secondary packets per cell is low would be a
+  cheaper first line, but the threshold depends on the model: 16 packets per cell sufficed on the
+  original grid of ID39321, and 17 did not on the refined grid.
+- *Increase the number of packets.* Once a stall is detected, the loop could multiply the number of
+  secondary packets for the following iterations, for example by three, up to a configured maximum
+  factor, and end with the warning only when that maximum has been reached. With the measured
+  scaling, one or two such steps would bring the plateaus of the runs of ID39321 with 150 and 31.6
+  million packets below 1%. A run would spend its early iterations, in which the deficit is large
+  anyway, with few packets, and could even finish sooner than a run with the larger number from the
+  start; on the other hand, its runtime becomes harder to predict. A variant keeps the number of
+  packets and accumulates the secondary radiation field and absorbed luminosity over several
+  iterations once the solution is stationary, as averaging the tallies would do for the transfer
+  fractions (see below); whether this removes the bias depends on its mechanism.
+- *Bias the emission.* Secondary packets could be launched preferentially where the self-absorption
+  is strong. The `spatialBias` of the `SecondaryEmissionOptions` already sends half of them
+  uniformly across the spatial cells, which on a grid refined by optical depth mostly means the
+  dense regions: 98% of the cells of the refined grid of ID39321 have a diagonal optical depth
+  above 10. A launch weight per cell that also grows with the self-absorption, for example with the
+  ratio of absorbed secondary to primary luminosity that the rebalance uses as a region coordinate,
+  would move packets from cells whose emission mostly escapes to cells whose emission is trapped.
+  In an optically thick region, the packets that cross a cell were mostly launched nearby, so that
+  more launches there mean more packets per cell. Biasing the primary emission promises less: the
+  absorbed primary luminosity agreed within 0.07% between the two grids, and without primary
+  iterations the primary emission runs once, so that more primary packets cost little. Imported
+  sources can already be biased per particle with the `importBias` option.
+
 **Averaging the tallies.** The transfer fractions could be averaged over several iterations to
 reduce their noise, using an exponentially weighted or running average. With about 160 photon
 packets per spatial cell in each iteration (31.6 million packets on 200 000 cells), the remaining
 noise in the deficit was about ±0.5% per iteration, without any sign of instability, so the proposal
 does not average. With few packets per cell, however, the deficit levels off above the criterion:
 on a spatial grid of 8.6 million cells for the same galaxy, at 21%, 11%, 5%, and 1.3% for 0.4,
-1.2, 3.7, and 17 packets per cell, while the absorbed secondary luminosity settles too low. Whether
-averaging the tallies would lower this plateau depends on its cause, which is not yet known:
-averaging reduces the noise of the transfer fractions, but not that of the radiation field in each
-cell, from which the emission spectra are calculated. Averaging would add memory for an extra
+1.2, 3.7, and 17 packets per cell, while the absorbed secondary luminosity settles too low (see The
+deficit stall). Whether averaging the tallies would lower this plateau depends on how the shortage
+of packets biases the solution, which is not yet known: averaging reduces the noise of the transfer
+fractions, but not that of the radiation field in each cell, from which the emission spectra are
+calculated. Averaging would add memory for an extra
 transfer matrix and would complicate the partition, which changes from one iteration to the next.
 
 **Region coordinates.** The regions are formed from the ratio of secondary to primary absorption
