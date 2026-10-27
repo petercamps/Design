@@ -225,4 +225,30 @@ and a single secondary emission iteration. Exact absorption makes the primary em
 and a secondary emission iteration 14% slower. The final secondary emission, which stores no
 radiation field, is not slower.
 
-To be completed.
+### Comparison with SKIRT 9
+
+The three galaxies were run on the original grid with the public SKIRT 9 (commit `4c8330f`) and
+with v10beta (commit `12c1f50`), three times each, alternating between the two builds, with 20
+threads on a machine with 20 logical cores. To keep the configurations as similar as possible,
+both builds used the `TemperatureWavelengthCellLibrary` with 100 × 50 entries and performed
+exactly four secondary emission iterations; the v10beta runs included exact absorption and, from
+the second iteration on, the rebalance. The table lists the mean run time of the primary emission
+and of a secondary emission iteration, averaged over iterations 2 to 4, which v10beta
+rebalances. The repetitions agree within a few percent.
+
+| Galaxy | Primary emission, SKIRT 9 | Primary emission, v10beta | Secondary iteration, SKIRT 9 | Secondary iteration, v10beta |
+| --- | ---: | ---: | ---: | ---: |
+| ID33341 | 220 s | 140 s (−36%) | 120 s | 87 s (−28%) |
+| ID5642 | 156 s | 104 s (−33%) | 107 s | 77 s (−28%) |
+| ID39321 | 145 s | 94 s (−35%) | 93 s | 65 s (−30%) |
+
+The v10beta runs are about a third faster in both phases, despite the cost of exact absorption.
+Most of the gain comes from the restructured tree grids (see the
+[Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md) design note), helped by
+the known initial cell of a path and link-time optimization: the final secondary emission, which
+stores no radiation field and thus measures the cost of the photon paths alone, is 49–54% faster.
+Exact absorption takes back part of this gain in the phases that store the radiation field. The
+rebalance costs little: forming the regions and solving the system take less than 0.1 s per
+iteration, and the tallies along the photon paths add 1–4% to an iteration, judging from the
+difference between the first iteration, which is not rebalanced, and the later ones. The peak
+memory use is 16–24% lower, which corresponds to about 500 bytes less per node of the tree.
