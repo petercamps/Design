@@ -295,8 +295,9 @@ For models with strong dust self-heating, the recommended settings are as follow
   only needs to resolve the shape of the radiation field, and the logged fraction of the absorbed
   luminosity outside the grid shows whether it covers the heating spectrum;
 - the `TemperatureWavelengthCellLibrary` with 100 temperature bins and 50 wavelength bins, which
-  makes iterations much faster without a measurable effect on the spectrum of such models, with the
-  advice to increase the number of temperature bins if the logged temperature range is very wide;
+  makes iterations much faster without a measurable effect on the spectrum of such models; in tests
+  on COLIBRE galaxies at redshift 0, half or twice as many bins of either kind changed neither the
+  spectrum nor the run time noticeably;
 - the rebalance with the default 10 × 10 bins; more bins hardly change the observed spectrum, and
   they cannot make up for too few photon packets;
 - enough photon packets in each secondary emission iteration for the number of spatial cells. With
@@ -319,5 +320,8 @@ For models with strong dust self-heating, the recommended settings are as follow
 
 For other models with dust emission, the `TemperatureWavelengthCellLibrary` is an option to be
 considered. The library saves most in models with many cells and many dust components, but in models
-with less self-absorption it can change the integrated spectrum by a few percent, an error that the
-logged ranges of the indicative temperatures and wavelengths hardly reveal.
+with less self-absorption it can change the integrated spectrum by a few percent compared with the
+`AllCellsLibrary`. The logged ranges of the indicative temperatures and wavelengths hardly reveal
+this difference, and more bins do not reduce it. Whether the library or the `AllCellsLibrary` is
+closer to the converged spectrum is an open question (see Library or all cells in the Open
+questions chapter).

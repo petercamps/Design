@@ -121,8 +121,31 @@ The proposal only documents the difference.
 makes iterations much faster without a measurable effect on the spectrum. It could become
 the default when the simulation iterates over secondary emission. The proposal only adds it to the
 recommended settings. In less optically thick galaxies, the library changes the spectrum by a few
-percent (see Recommended settings in the Features chapter), which is another reason to leave the
-choice to the user.
+percent compared with the `AllCellsLibrary` (see Library or all cells below), which is another
+reason to leave the choice to the user.
+
+**Library or all cells.** In tests by Andrea Gebek on 300 COLIBRE galaxies at redshift 0, the
+`TemperatureWavelengthCellLibrary` with 100 × 50 entries changed the integrated spectrum by up to
+3.5% compared with the `AllCellsLibrary`, with a deficit around 50 µm and an excess beyond 100 µm,
+most pronounced for stellar masses between 10<sup>9.5</sup> and 10<sup>10.5</sup> solar masses. In
+a later test, half or twice as many temperature or wavelength bins (50 to 200 and 25 to 100) gave
+practically the same spectra, so the difference is not a resolution error of the library. It can
+have two causes:
+
+- Cells that share an indicative temperature and wavelength can still have radiation fields of
+  different shape, for example with a different ultraviolet fraction, to which stochastically
+  heated small grains are sensitive. Finer bins cannot separate such cells.
+- The `AllCellsLibrary` calculates the emission of each cell from that cell's own radiation field.
+  Since the emission depends nonlinearly on the field, the Monte Carlo noise of the field affects
+  the spectrum. A library entry averages the field over its cells and so removes most of this
+  noise. Sparsely sampled cold cells in the outskirts, which dominate the emission beyond 100 µm,
+  are the most exposed.
+
+For the COLIBRE galaxies at redshift 4, the library agreed within the noise with an
+`AllCellsLibrary` run with 316 million packets, so neither cause showed. An `AllCellsLibrary` run
+with ten times more photon packets for one of the redshift 0 galaxies with a large difference would
+tell the two apart: if its spectrum moves toward that of the library, the difference is noise in the
+all-cells result rather than an error of the library.
 
 **Final emission without the library.** An option could calculate the final secondary emission with
 a different library, such as `AllCellsLibrary`, than the iterations. The experiments did not show a
