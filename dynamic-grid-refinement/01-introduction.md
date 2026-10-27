@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: draft
+> Status: ready for implementation
 >
 > Depends on: [SKIRT 10](skirt-10/01-introduction.md),
 > [Tree-based spatial grids](tree-based-spatial-grids/01-introduction.md),
