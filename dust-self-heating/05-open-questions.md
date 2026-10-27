@@ -47,12 +47,12 @@ reduce their noise, using an exponentially weighted or running average. With abo
 packets per spatial cell in each iteration (31.6 million packets on 200 000 cells), the remaining
 noise in the deficit was about ±0.5% per iteration, without any sign of instability, so the proposal
 does not average. With few packets per cell, however, the deficit levels off above the criterion:
-on a spatial grid of 8.6 million cells for the same galaxy, at 21%, 11%, and 5% for 0.4, 1.2, and
-3.7 packets per cell, while the absorbed secondary luminosity settles too low. Whether averaging the
-tallies would lower this plateau depends on its cause, which is not yet known: averaging reduces the
-noise of the transfer fractions, but not that of the radiation field in each cell, from which the
-emission spectra are calculated. Averaging would add memory for an extra transfer matrix and would
-complicate the partition, which changes from one iteration to the next.
+on a spatial grid of 8.6 million cells for the same galaxy, at 21%, 11%, 5%, and 1.3% for 0.4,
+1.2, 3.7, and 17 packets per cell, while the absorbed secondary luminosity settles too low. Whether
+averaging the tallies would lower this plateau depends on its cause, which is not yet known:
+averaging reduces the noise of the transfer fractions, but not that of the radiation field in each
+cell, from which the emission spectra are calculated. Averaging would add memory for an extra
+transfer matrix and would complicate the partition, which changes from one iteration to the next.
 
 **Region coordinates.** The regions are formed from the ratio of secondary to primary absorption
 and the absorption per unit dust mass. Alternatives are the entries of the cell library, which

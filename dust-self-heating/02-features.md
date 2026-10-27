@@ -304,14 +304,14 @@ For models with strong dust self-heating, the recommended settings are as follow
   secondary change becomes small, so that the loop runs to its maximum number of iterations and
   ends with a warning. The solution is then biased: the absorbed secondary luminosity settles too
   low, and the escaping dust luminosity stays short of the absorbed primary luminosity by the
-  deficit. In the tests, the level of the plateau fell by a factor of two or more for every
-  threefold increase of the number of packets, and the number of packets per cell needed to bring
-  it below the default criterion grew with the resolution of the grid: some 15 packets per cell
-  sufficed on a coarse grid, whereas a grid of the same model with 40 times more cells still
-  leveled off at a deficit of 1.4% with that number. A finer spatial grid therefore needs more
-  photon packets, even more than in proportion to its number of cells. Even when the deficit meets
-  the criterion, the absorbed secondary luminosity can still be several percent too low, although
-  the observed spectrum is then hardly affected;
+  deficit. In the tests, the level of the plateau fell by a factor of 2 to 2.4 for every threefold
+  increase of the number of packets, and the number of packets per cell needed to bring it below
+  the default criterion grew with the resolution of the grid: some 15 packets per cell sufficed on
+  a coarse grid, whereas a grid of the same model with 40 times more cells still leveled off at a
+  deficit of 1.3% with that number. A finer spatial grid therefore needs more photon packets, even
+  more than in proportion to its number of cells. Even when the deficit meets the criterion, the
+  absorbed secondary luminosity can still be several percent too low, although the observed
+  spectrum is then hardly affected;
 - a maximum of 40–60 secondary emission iterations, which leaves room for the convergence criteria
   to stop the loop;
 - a history probe, which records the convergence quantities of each iteration, and thus shows which

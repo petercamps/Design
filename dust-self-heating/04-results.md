@@ -178,14 +178,18 @@ photon packets confirm that the number of packets per cell sets the level of thi
 
 With too few packets per cell, the deficit levels off while the secondary change becomes small, and
 the absorbed secondary luminosity settles too low: on the refined grid, it is still rising steeply
-with the number of packets at 150 million. On the original grid, 16 packets per cell suffice to
-converge, in 22 iterations, with an absorbed secondary luminosity 6% below that of the run with 160
-packets per cell. The refined grid needs more packets per cell than the original grid: with 17
-packets per cell, its deficit still levels off at 1.4%. The runs of ID33341 and ID5642 on the
-refined grid converge with some 9 packets per cell, but their absorbed secondary luminosity is 11%
-and 25% below that of the original grid; how much of this difference stems from the resolution
-and how much from the number of packets has not been determined. The run with 150 million packets
-was still running when this was written; its values are those of its first 34 iterations.
+with the number of packets at 150 million. The plateau is a bias rather than slow convergence:
+with 150 million packets, the mean deficit is 1.36%, 1.32%, and 1.30% over iterations 16–30, 31–45,
+and 46–60, while the absorbed secondary luminosity changes by less than 0.1% per iteration. Between
+the runs, the plateau falls by a factor of 2 to 2.4 for every threefold increase of the number of
+packets; extrapolating the last two runs, a plateau below 1% would take some 250 million packets,
+about 30 per cell. On the original grid, 16 packets per cell suffice to converge, in 22
+iterations; after 30 iterations, the absorbed secondary luminosity is 6% below that of the run
+with 160 packets per cell. The refined grid thus needs more packets per cell than the original
+grid. The runs of ID33341 and ID5642 on the refined grid converge with some 9 packets per cell,
+but their absorbed secondary luminosity is 11% and 25% below that of the original grid; how much of
+this difference stems from the resolution and how much from the number of packets has not been
+determined.
 
 ### Spectra
 
@@ -196,8 +200,20 @@ original grid, the run on the refined grid changes the spectrum between 5 and 10
 1% in total for ID33341 and ID5642, with up to 4% and 10% more emission in the mid-infrared, around
 10 µm, presumably from warm dust near the sources that the original grid averages over larger
 cells. For ID39321, the run with 31.6 million packets is 3.4% fainter between 5 and 1000 µm, mostly
-beyond 100 µm, which reflects its deficit of about 5%. The figure will be updated with the run with
-150 million packets.
+beyond 100 µm, which reflects its deficit of about 5%. The run with 150 million packets is 1.7%
+brighter: 2 to 3% brighter between 20 and 70 µm, and 1 to 4% fainter beyond 100 µm. The emission
+beyond 100 µm follows the temperature of the bulk of the dust: the mass-weighted mean of the
+indicative dust temperature is 70.9 K and 74.3 K for the runs with 31.6 and 150 million packets,
+against 76.2 K on the original grid.
+
+The spectrum of ID39321 does not reveal the deficit of the runs on the refined grid. Over all
+directions, the escaping dust luminosity of the run with 150 million packets is 1.8% below that of
+the run on the original grid, in line with the difference of their deficits, whereas the flux
+between 5 and 1000 µm along the line of sight is 1.7% higher; for the run with 31.6 million
+packets, both are lower, by 5.7% and 3.4%. The refined grid apparently sends a larger share of the
+dust emission along the z axis, the axis with the lowest optical depth of this galaxy. For ID33341
+and ID5642, the two ratios agree within 0.4%. The luminosity deficit, logged and recorded by the
+history probe, rather than the spectrum, therefore shows whether a run has converged.
 
 ## Performance
 
