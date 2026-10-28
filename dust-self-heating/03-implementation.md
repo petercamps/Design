@@ -617,7 +617,7 @@ PROPERTY_DOUBLE(maxSecondaryChange, "convergence requires the mean relative chan
                                     "of the absorbed secondary luminosity to be smaller")
 ATTRIBUTE_MIN_VALUE(maxSecondaryChange, "]0")
 ATTRIBUTE_MAX_VALUE(maxSecondaryChange, "1[")
-ATTRIBUTE_DEFAULT_VALUE(maxSecondaryChange, "0.005")
+ATTRIBUTE_DEFAULT_VALUE(maxSecondaryChange, "0.01")
 ATTRIBUTE_RELEVANT_IF(maxSecondaryChange, "IterateSecondary")
 
 PROPERTY_INT(numConvergenceIterations, "the number of iterations over which convergence is evaluated")

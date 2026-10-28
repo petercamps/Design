@@ -95,10 +95,10 @@ With the rebalance, the first rebalance multiplies the absorbed secondary lumino
 rebalances used between 55 and 100 regions, without any fallback to the global factor. As expected,
 the secondary change is the last criterion to be met: after the deficit has become small, the
 absorbed secondary luminosity still grows by 9 to 21% while the radiation trapped in the core
-builds up, and all three runs end when its mean change falls below 0.5% per iteration, while it
-still grows by 0.4 to 0.5% per iteration. Whether a stricter `maxSecondaryChange` would change the
-observed spectrum noticeably remains to be tested (see Convergence thresholds in the Open questions
-chapter).
+builds up, and all three runs end when its mean change falls below 0.5% per iteration (the default
+of `maxSecondaryChange` at the time), while it still grows by 0.4 to 0.5% per iteration. Later tests
+showed that the spectrum hardly changes when the iterations continue, which led to the current
+default of 0.01 (see Recommended settings in the Features chapter).
 
 ### Results
 

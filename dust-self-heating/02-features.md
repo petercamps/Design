@@ -191,7 +191,7 @@ that remains. All of them are relevant only if the simulation iterates over seco
 | `maxFractionOfPrimary` | 0.01 | unchanged |
 | `maxFractionOfPrevious` | — | removed |
 | `maxLuminosityDeficit` | 0.01 | the maximum absolute value of the mean luminosity deficit over the last `numConvergenceIterations` iterations |
-| `maxSecondaryChange` | 0.005 | the maximum mean relative change per iteration of the absorbed secondary luminosity over the last `numConvergenceIterations` iterations |
+| `maxSecondaryChange` | 0.01 | the maximum mean relative change per iteration of the absorbed secondary luminosity over the last `numConvergenceIterations` iterations |
 | `numConvergenceIterations` | 3 | the number of iterations over which the convergence quantities are averaged |
 | `rebalanceSecondaryEmission` | true | rescale the secondary radiation field per region after each iteration |
 | `numAbsorptionRatioBins` | 10 | the number of bins on the axis of the ratio of absorbed secondary to absorbed primary luminosity |
@@ -206,7 +206,7 @@ rebalance is enabled.
 ```xml
 <DustEmissionOptions dustEmissionType="Stochastic" includeHeatingByCMB="false"
                      maxFractionOfPrimary="0.01" maxLuminosityDeficit="0.01"
-                     maxSecondaryChange="0.005" numConvergenceIterations="3"
+                     maxSecondaryChange="0.01" numConvergenceIterations="3"
                      rebalanceSecondaryEmission="true" numAbsorptionRatioBins="10" numHeatingRateBins="10"
                      sourceWeight="1" wavelengthBias="0.5">
     <cellLibrary type="SpatialCellLibrary">
@@ -313,6 +313,11 @@ For models with strong dust self-heating, the recommended settings are as follow
   more than in proportion to its number of cells. Even when the deficit meets the criterion, the
   absorbed secondary luminosity can still be several percent too low, although the observed
   spectrum is then hardly affected;
+- the default convergence criteria, with `maxSecondaryChange` = 0.01 and
+  `numConvergenceIterations` = 3. In tests, the dust emission spectrum at the stop was then within
+  1% of the converged one; 0.02 exceeded that, and a smaller threshold or a longer average only
+  delayed the stop. The radiation field and the dust temperatures converge more slowly, so a
+  tighter value is needed when they matter in their own right, for example when they are probed;
 - a maximum of 40–60 secondary emission iterations, which leaves room for the convergence criteria
   to stop the loop;
 - a history probe, which records the convergence quantities of each iteration, and thus shows which

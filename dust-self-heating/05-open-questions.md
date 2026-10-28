@@ -2,13 +2,6 @@
 
 ## Design decisions
 
-**Convergence thresholds.** The proposed defaults stop ID39321 when the absorbed secondary luminosity
-is within about 5% of its value after 40 iterations. The comparison of 100 and 900 regions suggests
-that the dust emission spectrum is much less sensitive than the absorbed secondary luminosity, but
-the spectrum at the iteration where the loop would stop has not been compared with the final one.
-The experiments recorded the spectrum only at the end of each run. A few runs of the same model that
-stop after different numbers of iterations would settle the default of `maxSecondaryChange`.
-
 **A criterion on the spectrum.** A criterion could compare the emitted spectrum between iterations,
 which is the quantity users care about. This requires peel-off during the iterations, which SKIRT
 does not perform, or a bolometric proxy such as the luminosity escaping from each region, which the
