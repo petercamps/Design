@@ -89,11 +89,11 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 
 | Property | Description |
 | --- | --- |
-| `maxCells` | hard cap on the total number of cells (zero means no cap) |
-| `numIterationsBeforeRefinement` | number of initial iterations of each iteration loop during which refinement is not considered |
-| `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision |
+| `maxCells` | hard cap on the total number of cells (zero, the default, means no cap) |
+| `numIterationsBeforeRefinement` | number of initial iterations of each iteration loop during which refinement is not considered (the default is five) |
+| `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision (the default is three) |
 | `numIterationsAfterRefinement` | number of iterations after each refinement round that are left out of the averaging (the default is one) |
-| `maxRounds` | maximum number of refinement rounds in each iteration loop (zero means no maximum) |
+| `maxRounds` | maximum number of refinement rounds in each iteration loop (zero, the default, means no maximum) |
 | `criteria` | the list of refinement criteria |
 
 The `maxLevel` property of the grid itself limits the initial construction only. During dynamic
@@ -216,8 +216,8 @@ which the criterion applies.
 Each criterion has two limits, which tell how far it may subdivide a cell: a level limit, set by
 its `maxExtraLevels` property, and a column density limit, set by its `minColumnDensity`
 property. The limits are set on each criterion separately, and for both properties a value of
-zero means that there is no limit. A criterion never flags a cell that has reached one of its
-limits. Another criterion with wider limits can still flag that cell.
+zero, the default, means that there is no limit. A criterion never flags a cell that has reached
+one of its limits. Another criterion with wider limits can still flag that cell.
 
 With a `maxExtraLevels` value of N, the criterion does not flag a cell that has gained N or more
 levels beyond its level in the initial grid, whichever criteria caused the earlier subdivisions.
@@ -287,8 +287,13 @@ can thus serve only in a condition.
 The variable is taken from the first medium component whose material mix offers a state variable
 with the given name. Setup reports a fatal error listing the available names if no component
 offers the requested one. For the variable of a criterion, setup also reports a fatal error if
-that component has no dynamic medium state, primary or secondary, because the variable then does
-not change between iterations. The variable of a condition may be static.
+the variable does not change between iterations, that is, if that component has no dynamic medium
+state, primary or secondary, and the simulation has no dynamic medium state recipes. A recipe may
+update the state of any component in the primary and merged loops, so that in a simulation with
+recipes, the variables of all components count as changing in those loops. This allows a criterion
+on the dynamic density fraction `fdyn_f` of a `FragmentDustMixDecorator`, which has no dynamic
+medium state of its own but is updated by the `DustDestructionRecipe`, as suggested in the
+Introduction. The variable of a condition may be static.
 
 ### Dust temperature
 
@@ -317,10 +322,11 @@ Dynamic refinement can take place in each of the iteration loops: primary emissi
 secondary emission iterations, and merged primary and secondary emission iterations. In a given
 loop, only the criteria whose field changes in that loop take part. A variable of a mix with a
 primary dynamic medium state changes in the primary and merged loops, and a variable of a mix with
-a secondary dynamic medium state in the secondary and merged loops. The dust temperature changes in
-all loops, because each loop recalculates at least part of the radiation field. The conditions of
-a criterion do not influence whether it takes part. If no criterion takes part, the refinement
-step does nothing in that loop.
+a secondary dynamic medium state in the secondary and merged loops. In a simulation with dynamic
+medium state recipes, the variables of all components also change in the primary and merged loops.
+The dust temperature changes in all loops, because each loop recalculates at least part of the
+radiation field. The conditions of a criterion do not influence whether it takes part. If no
+criterion takes part, the refinement step does nothing in that loop.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
@@ -413,8 +419,8 @@ the parent cell.
 
 Each decision logs the number of candidates and, for a refinement round, the number of subdivided
 and added cells and the new total number of cells, together with the number of photon packets per
-cell launched in the iteration. Warnings report the candidates that were left unsplit, as
-described above.
+cell launched in the iteration, counting both the primary and the secondary packets in a merged
+iteration. Warnings report the candidates that were left unsplit, as described above.
 
 The number of photon packets per cell decreases as the grid grows. This increases the Monte Carlo
 noise in the medium state, and thereby in the refinement fields and in the convergence measures.
@@ -426,14 +432,6 @@ The refinement step records its progress in the iteration history, so that the `
 proposed in the Iteration history design note lists it for each iteration: the number of cells,
 candidates, and subdivided cells, the cells blocked by each limit, the number of photon packets
 per cell, and the memory held by the per-cell data.
-
-The new `RefinementCandidatesProbe` writes the cells that asked for subdivision at the most
-recent decision but were left unsplit, with for each cell its index and its priority for each
-criterion. It shows where the cell cap, or any other reason for not subdividing a candidate,
-keeps the grid coarser than the criteria ask for. The probe can be performed at the end of the
-run, or after each iteration of a loop. The cell indices match those of the other per-cell
-probes, such as the `SpatialCellPropertiesProbe`, which provides the position and size of each
-cell.
 
 The `TreeSpatialGridTopologyProbe` gains a `probeAfter` option (`Setup`, `Primary`, `Secondary`, or
 `Run`), so that it can record the topology of the refined grid at the end of the simulation. A

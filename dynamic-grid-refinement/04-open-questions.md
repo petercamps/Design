@@ -100,13 +100,25 @@ refinement.
 250 packets per iteration for each cell of the maximum number of cells. The threshold needs to be
 calibrated, and may depend on the criteria.
 
-**Candidates probe.** The `RefinementCandidatesProbe` reports the candidates that were left
-unsplit at the most recent decision, which requires keeping the outcome of that decision in a cell
-window per criterion. Alternatives are to record only the highest priority of each cell and the
-criterion that gave it, which needs two windows whatever the number of criteria, or to also
-report the cells that were subdivided or blocked by a limit. The probe could also be left out,
-since the candidates can be reconstructed approximately from the output of the existing per-cell
-probes.
+**Candidates probe.** A new `RefinementCandidatesProbe` could write the cells that asked for
+subdivision at the most recent decision but were left unsplit, with for each cell its index and its
+priority for each criterion. It would show where the cell cap, or any other reason for not
+subdividing a candidate, keeps the grid coarser than the criteria ask for. The probe could be
+performed at the end of the run, or after each iteration of a loop, and its cell indices would match
+those of the other per-cell probes, such as the `SpatialCellPropertiesProbe`, which provides the
+position and size of each cell. It would require keeping the outcome of the most recent decision in
+a second cell window per criterion. This window would hold a single value per cell rather than a
+running sum: the refinement step would reset it and then accumulate it exactly once at each
+decision, before subdividing the selected cells, storing the priority that the criterion gave to
+each candidate that is left unsplit, and zero for all other cells. The children of a subdivided cell
+would thus inherit a value of zero, and the outcome would grow with the grid and be saved in
+checkpoints like any other cell window. Alternatives are to record only the highest priority of each
+cell and the criterion that gave it, which needs two windows whatever the number of criteria, or to
+also report the cells that were subdivided or blocked by a limit. The probe is not proposed, because
+the log messages and the history series already give the number of candidates per criterion, the
+number blocked by each limit, and the number left unsplit, while the existing per-cell probes show
+where the grid was refined, from which the candidates can be reconstructed approximately. The probe
+could be added later, when a use case needs to know which cells were left unsplit.
 
 **Growing the arrays.** If a cell cap is configured, the proposal reserves capacity for that
 number of cells at setup. The alternative, reallocating and copying the per-cell arrays in each

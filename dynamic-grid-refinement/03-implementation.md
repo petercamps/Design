@@ -20,11 +20,9 @@ system orchestrates the work.
   subdivide, and grows all per-cell data structures.
 - `IterationHistory` holds all historical data of the refinement step: scalar series with the
   number of cells subdivided in each iteration and the number of refinement rounds, keyed on the
-  `DynamicRefinementOptions` item; a cell window per criterion and per condition, keyed on that
-  criterion or condition; and a second cell window per criterion with the outcome of the most
-  recent decision. `MediumSystem` keeps no refinement state of its own.
+  `DynamicRefinementOptions` item; and a cell window per criterion and per condition, keyed on that
+  criterion or condition. `MediumSystem` keeps no refinement state of its own.
 - `MonteCarloSimulation` calls the refinement step from each of the three iteration loops.
-- `RefinementCandidatesProbe` writes the outcome of the most recent decision.
 
 ## Module
 
@@ -35,8 +33,7 @@ mixes and state variables in the `material` module, and the iteration history in
 module, all of which `medium` already depends on. The changes to existing classes stay within
 their own modules or use existing dependencies: `material` gains only a self-contained addition
 (appending cells to the medium state), and the `simulation` and `probe` modules, which call the
-refinement step or report the refined grid, already depend on `medium`. The
-`RefinementCandidatesProbe` lives in the `probe` module, next to the other probes.
+refinement step or report the refined grid, already depend on `medium`.
 No new dependencies between modules arise. In particular, the `MaterialMix` base class does not
 need to know about refinement, because the criteria read the medium state from above.
 
@@ -53,10 +50,11 @@ converged &= mediumSystem()->updateDynamicRefinement(numPackets);
 ```
 
 The argument is the number of photon packets launched in the iteration, which the refinement step
-uses only to report the number of packets per cell. The `updateDynamicRefinement()` function
-returns true if the refinement has settled, as defined in the Features chapter. It first
-determines the criteria that take part in the current loop, by passing the history's `loop()` to
-each criterion. If no criterion takes part, it returns true right away.
+uses only to report the number of packets per cell. In the merged loop, it is the sum of the primary
+and the secondary packets of the iteration. The `updateDynamicRefinement()` function returns true if
+the refinement has settled, as defined in the Features chapter. It first determines the criteria
+that take part in the current loop, by passing the history's `loop()` to each criterion. If no
+criterion takes part, it returns true right away.
 
 ### Use of the iteration history
 
@@ -125,14 +123,6 @@ keeps the items independent.
 Because all these data have loop lifetime, they are cleared automatically when a loop starts, so
 that the refinement schedule starts afresh in each loop.
 
-**Outcome of a decision.** For each criterion, a second cell window holds the outcome of the most
-recent decision, for the benefit of the `RefinementCandidatesProbe`. This window holds a single
-value per cell rather than a running sum: the refinement step resets it and then accumulates it
-exactly once at each decision, so that its mean is the recorded priority. The outcome is recorded
-before the cells are subdivided, so that the children of a subdivided cell inherit a value of
-zero. Keeping the outcome in the iteration history means that it grows with the grid and is saved
-in checkpoints like any other cell window, without a separate mechanism.
-
 **Growing the grid.** When cells are subdivided, the medium system calls
 `_history->appendCells(parentCells)` along with growing its other per-cell data structures (see
 Growing per-cell data below), so that the cell windows of all clients remain consistent with the
@@ -151,11 +141,13 @@ number of rounds. Then, after the initial iterations, it proceeds as follows:
    participating criterion, and the current value of the variable of each of its conditions, into
    the corresponding cell window.
 2. If the windows are not yet complete, return false.
-3. Evaluate all cells in parallel. For each cell and each participating criterion, determine
-   whether all conditions of the criterion hold and whether its test flags the cell, both on the
-   window-averaged values. If so, check the limits of the criterion against the number of levels
-   the cell has gained and against its column density. A flagged cell that has reached a limit is
-   counted as blocked by that limit. Otherwise the cell is a candidate, with the priority defined
+3. Evaluate all cells in parallel, each cell on a single process, and sum the per-cell results over
+   the processes (see Consistency between processes below). For each cell and each participating
+   criterion, determine whether all conditions of the criterion hold and whether its test flags the
+   cell, both on the window-averaged values. If so, check the limits of the criterion against the
+   number of levels the cell has gained and against its column density. A flagged cell that has
+   reached a limit is counted as blocked by each limit it has reached, so that a cell that has
+   reached both limits counts for both. Otherwise the cell is a candidate, with the priority defined
    in the Features chapter. If several criteria flag the cell, the highest priority counts.
 4. If there are candidates, decide whether to start a refinement round. No round is started if
    `maxRounds` rounds have been performed, or if fewer than
@@ -163,11 +155,8 @@ number of rounds. Then, after the initial iterations, it proceeds as follows:
 5. If a round is started, sort the candidates by decreasing priority, breaking ties first on
    decreasing cell size and then on increasing cell index, and select as many as fit under the
    cell cap. Each subdivision adds seven cells for an octree and one cell for a binary tree.
-6. Record the outcome of the decision. For each criterion, reset its outcome window, and store in
-   it the priority that the criterion gave to each candidate that is left unsplit, and zero for
-   all other cells.
-7. Subdivide the selected cells, if any, and grow the per-cell data structures (see below).
-8. Reset all field windows, record the number of subdivided cells in the subdivision series, which
+6. Subdivide the selected cells, if any, and grow the per-cell data structures (see below).
+7. Reset all field windows, record the number of subdivided cells in the subdivision series, which
    leaves the next iterations out of the averaging, increment the number of rounds if cells were
    subdivided, record the aggregate series of the iteration history so that they reflect the
    refined grid, and log the result. If candidates were left unsplit, issue a warning with their
@@ -200,8 +189,8 @@ first performed in a loop, and leaves out, with a warning, any series declared l
 | number of cells blocked by the level limit | criterion | decision iterations | shows whether the level limit of the criterion limits the refinement |
 | number of cells blocked by the column density limit | criterion | decision iterations | shows how many of the cells flagged by the criterion have reached the target resolution |
 
-The counts are obtained during the parallel evaluation of the cells, and are identical on all
-processes because the input is. The memory series holds a value calculated from the number of
+The counts are obtained from the summed results of the parallel evaluation of the cells, and are
+therefore identical on all processes. The memory series holds a value calculated from the number of
 cells, rather than the measured memory use of the process, for the same reason. Series that are
 set only in decision iterations have no value in other iterations, so that the decision points
 stand out in the output of the history probe. If no criterion takes part in a loop, the refinement
@@ -210,14 +199,19 @@ from the same values.
 
 ### Consistency between processes
 
-The refinement decisions are made independently by each MPI process, without communication. This
-is valid because the fields are derived from the medium state and the radiation field after both
-have been synchronized between processes, so all processes see identical input and make identical
-decisions. The same holds for
-the cell windows, which the history accumulates in a single serial pass over all cells. Any data
-that is local to a process, such as a radiation field before it has been communicated, must not
-enter the decision. The explicit tie-breaking in the sort guarantees that the selection does not
-depend on the sort implementation.
+All MPI processes must make identical refinement decisions. The fields are derived from the medium
+state and the radiation field after both have been synchronized between processes, so all processes
+see identical input. The same holds for the cell windows, which the history accumulates in a single
+serial pass over all cells. The evaluation of the cells in the decision step is distributed over the
+processes with `parallelDistributed()`, as for the construction of the tree, so that each cell is
+evaluated by exactly one process. The per-cell results, which are the highest priority of each cell
+and the outcome of each criterion (candidate, or blocked by one or both limits), are then summed
+over the processes. Because each cell contributes on a single process, the sums are exact, and all
+processes continue with identical results: they rank the candidates, select the cells to subdivide,
+and grow the per-cell data independently, without further communication. Any data that is local to a
+process, such as a radiation field before it has been communicated, must not enter the decision. The
+explicit tie-breaking in the sort guarantees that the selection does not depend on the sort
+implementation.
 
 ## Grid operations
 
@@ -328,8 +322,9 @@ which is its current memory use plus the number of bytes per cell times the numb
 can still be added, exceeds the physical memory reported by `System::availableMemory()`.
 
 At the end of setup, the medium system also calculates the number of photon packets per cell for a
-grid with `maxCells` cells, from the number of packets configured for each iteration loop in which
-a criterion takes part, and issues a warning if that number is below 100.
+grid with `maxCells` cells, from the number of packets configured for each iteration loop in which a
+criterion takes part (for the merged loop, the primary plus the secondary packets of an iteration),
+and issues a warning if that number is below 100.
 
 ## Criterion fields
 
@@ -342,8 +337,10 @@ to a medium component and a state variable index, through the variable list of e
 taking the first component whose mix declares a variable with that name. During the refinement
 step, it reads the value directly from the medium state. The loop in which the variable of a
 criterion changes follows from whether the component's mix has a primary or secondary dynamic
-medium state. The number density for the column density limit of a medium state criterion is that
-of the same component, as returned by `MediumSystem::numberDensity()`.
+medium state, and from `Configuration::hasDynamicStateRecipes()`: in a simulation with recipes, the
+variable also changes in the primary and merged loops, whatever the component. The number density
+for the column density limit of a medium state criterion is that of the same component, as
+returned by `MediumSystem::numberDensity()`.
 
 The `DustTemperatureGradientCriterion` calls `MediumSystem::indicativeDustTemperature()`, which also
 serves the `TemperatureProbe`. It takes part in all loops. The number density for its column
@@ -351,24 +348,23 @@ density limit is the sum over the dust components.
 
 A ski file cannot express an infinite value, so an omitted bound of a value criterion or a
 condition is represented by the default value of the property, which is the lowest value the
-property accepts for `minValue` and the highest for `maxValue`. The same holds for the `minValue`
-floor of a gradient criterion. The bounds, the floor, and the `maxChange` threshold are plain
-numbers in the units of the field, which are the internal units of SKIRT, because the schema
-cannot know the quantity of a variable that is selected by name.
+property accepts for `minValue` (-1e300) and the highest for `maxValue` (1e300). The same holds
+for the `minValue` floor of a gradient criterion. The bounds, the floor, and the `maxChange`
+threshold are plain numbers in the units of the field, which are the internal units of SKIRT,
+because the schema cannot know the quantity of a variable that is selected by name.
 
 ## Performance
 
-The decision step is proportional to the number of cells times the average number of face
-neighbors, and runs in parallel over the cells. It is performed once per window, so its cost is
-small compared to the photon packet transport of an iteration. Accumulating the fields into the cell
-windows costs one serial pass over the cells per window and per iteration. This is cheap for
-medium state variables, but the indicative dust temperature requires solving an energy balance
-equation for each dust component in each cell. For that criterion, the values can first be
-calculated in parallel into a temporary array, which the serial pass then accumulates. The windows
-need one number per cell for each criterion and each condition, plus one per criterion for the
-outcome of the most recent decision. For the example in the Features chapter, this amounts to
-eleven numbers per cell, which is small compared to the medium state of the
-`DiffuseIonizedGasMix`.
+The decision step is proportional to the number of cells times the average number of face neighbors,
+and runs in parallel over the cells, distributed over the processes. It is performed once per
+window, so its cost is small compared to the photon packet transport of an iteration. Accumulating
+the fields into the cell windows costs one serial pass over the cells per window and per iteration.
+This is cheap for medium state variables, but the indicative dust temperature requires solving an
+energy balance equation for each dust component in each cell. For that criterion, the values are
+first calculated in parallel into a temporary array, distributed over the processes in the same way
+and summed over them, after which the serial pass accumulates them. The windows need one number per
+cell for each criterion and each condition. For the example in the Features chapter, this amounts to
+eight numbers per cell, which is small compared to the medium state of the `DiffuseIonizedGasMix`.
 
 Appended cells lose their spatial locality in the cell list. If this turns out to affect
 performance, the cells could be renumbered once the last iteration loop has finished, which
