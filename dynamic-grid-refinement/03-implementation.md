@@ -8,11 +8,13 @@ system orchestrates the work.
 
 - `DynamicRefinementOptions` and the `RefinementCriterion` and `RefinementCondition` subclasses
   hold the configuration. A criterion tells whether its field changes in a given iteration loop,
-  provides the current value of its field in a given cell, and, given the window-averaged field,
-  tells whether it flags a given cell and with which excess. A condition provides the current
-  value of its variable in a given cell, and tells whether a window-averaged value lies in its
-  range. Neither keeps per-cell data of its own. `GradientCriterion` implements the measure and
-  the floor, and `ValueCriterion` implements the range test; their subclasses implement the field.
+  prepares information shared by all cells once per iteration (`prepareValues()`, which does
+  nothing by default), provides the current value of its field in a given cell, and, given the
+  window-averaged field, tells whether it flags a given cell and with which excess. A condition
+  provides the current value of its variable in a given cell, and tells whether a window-averaged
+  value lies in its range. Neither keeps per-cell data of its own. `GradientCriterion` implements
+  the measure and the floor, and `ValueCriterion` implements the range test; their subclasses
+  implement the field. The `DustLuminosityCriterion` implements both its test and its field.
 - `BinTreeSpatialGrid` and `OctTreeSpatialGrid` subdivide leaf cells in their flat node array and
   answer geometric queries: cell level, initial level, bounding box, and face neighbors.
 - `MediumSystem` performs the refinement step: it accumulates the fields of the criteria and
@@ -55,6 +57,12 @@ and the secondary packets of the iteration. The `updateDynamicRefinement()` func
 the refinement has settled, as defined in the Features chapter. It first determines the criteria
 that take part in the current loop, by passing the history's `loop()` to each criterion. If no
 criterion takes part, it returns true right away.
+
+`ConfigurationSetup` normally requires a primary dynamic medium state, through media or recipes,
+in a simulation that iterates over primary emission. It also accepts a `TreeSpatialGrid` with
+dynamic refinement options instead, so that the primary iterations can serve to refine the grid
+(see the Features chapter). The `simulation` module already depends on `medium`, which holds the
+grid.
 
 ### Use of the iteration history
 
@@ -137,9 +145,9 @@ they describe the refined grid.
 Each iteration, the function first records a zero in the subdivision series, and carries over the
 number of rounds. Then, after the initial iterations, it proceeds as follows:
 
-1. Unless this iteration is left out of the averaging, accumulate the current field value of each
-   participating criterion, and the current value of the variable of each of its conditions, into
-   the corresponding cell window.
+1. Unless this iteration is left out of the averaging, call `prepareValues()` on each participating
+   criterion, and accumulate its current field value, and the current value of the variable of
+   each of its conditions, into the corresponding cell window.
 2. If the windows are not yet complete, return false.
 3. Evaluate all cells in parallel, each cell on a single process, and sum the per-cell results over
    the processes (see Consistency between processes below). For each cell and each participating
@@ -149,14 +157,23 @@ number of rounds. Then, after the initial iterations, it proceeds as follows:
    reached a limit is counted as blocked by each limit it has reached, so that a cell that has
    reached both limits counts for both. Otherwise the cell is a candidate, with the priority defined
    in the Features chapter. If several criteria flag the cell, the highest priority counts.
-4. If there are candidates, decide whether to start a refinement round. No round is started if
+4. Determine for each candidate the number of levels k by which a round may subdivide it:
+   `levelsPerRound`, or fewer if the level limit of each criterion that flags the candidate leaves
+   fewer levels, but at least one. For a criterion without a level limit, `levelsPerRound` applies.
+5. If there are candidates, decide whether to start a refinement round. No round is started if
    `maxRounds` rounds have been performed, or if fewer than
    `numIterationsAfterRefinement + numAveragedIterations` iterations remain in the loop.
-5. If a round is started, sort the candidates by decreasing priority, breaking ties first on
-   decreasing cell size and then on increasing cell index, and select as many as fit under the
-   cell cap. Each subdivision adds seven cells for an octree and one cell for a binary tree.
-6. Subdivide the selected cells, if any, and grow the per-cell data structures (see below).
-7. Reset all field windows, record the number of subdivided cells in the subdivision series, which
+6. If a round is started and a cell cap is configured, add up the cells that the subdivisions would
+   add, which is c^k − 1 for each candidate, with c the number of children of a tree node (8 for an
+   octree, 2 for a binary tree). If this exceeds the room left under the cap, sort the candidates by
+   decreasing priority, breaking ties first on decreasing cell size and then on increasing cell
+   index, and select them in that order until the next one no longer fits. The counts use 64-bit
+   integers, because c^k − 1 can be large.
+7. Subdivide the selected cells, if any, one level at a time: subdivide the cells, grow the
+   per-cell data structures (see below), and repeat for the children of the cells that have levels
+   left. The first child keeps the cell index of its parent, and the other children are appended in
+   the order of their parents, so that each pass knows which cells it created.
+8. Reset all field windows, record the number of subdivided cells in the subdivision series, which
    leaves the next iterations out of the averaging, increment the number of rounds if cells were
    subdivided, record the aggregate series of the iteration history so that they reflect the
    refined grid, and log the result. If candidates were left unsplit, issue a warning with their
@@ -210,8 +227,11 @@ over the processes. Because each cell contributes on a single process, the sums 
 processes continue with identical results: they rank the candidates, select the cells to subdivide,
 and grow the per-cell data independently, without further communication. Any data that is local to a
 process, such as a radiation field before it has been communicated, must not enter the decision. The
-explicit tie-breaking in the sort guarantees that the selection does not depend on the sort
-implementation.
+same holds for the information that a criterion prepares in `prepareValues()`: the total
+dust-absorbed luminosity of the dust luminosity criterion, for example, is obtained from the absorbed
+luminosity arrays after they have been summed over the processes. The number of levels of each
+candidate follows from the summed results as well. The explicit tie-breaking in the sort guarantees
+that the selection does not depend on the sort implementation.
 
 ## Grid operations
 
@@ -295,8 +315,10 @@ launching photon packets must not keep information about the cells, such as the 
 from one launch preparation to the next.
 
 `MediumSystem` gathers the growth of all these structures in a single function that is called for
-each refinement round, followed by a check that the size of each structure matches the new number
-of cells. Forgetting to grow one of the structures is the most likely bug in this area, and the
+each level of a refinement round, followed by a check that the size of each structure matches the
+new number of cells. A cell created at a deeper level of the round thus starts from its own parent,
+which is itself a new cell, so that the volume fractions compound to the fraction of the original
+cell. Forgetting to grow one of the structures is the most likely bug in this area, and the
 check turns it into an immediate fatal error rather than memory corruption. If the number of
 per-cell structures grows in the future, a registration mechanism can replace the explicit list.
 
@@ -346,6 +368,18 @@ The `DustTemperatureGradientCriterion` calls `MediumSystem::indicativeDustTemper
 serves the `TemperatureProbe`. It takes part in all loops. The number density for its column
 density limit is the sum over the dust components.
 
+The `DustLuminosityCriterion` obtains the total dust-absorbed luminosity from
+`MediumSystem::totalDustAbsorbedLuminosity()` in `prepareValues()`, as the sum of the primary and
+the secondary luminosity, or the primary luminosity alone with `primaryOnly`. Its field in a cell
+is `MediumSystem::dustLuminosity(m)`, or the new `MediumSystem::primaryDustLuminosity(m)`, which
+returns the primary part only, divided by that total, or zero if the total is zero. Both read the
+exact absorbed luminosity arrays `_labs1` and `_labs2` (see the
+[Dust self-heating](dust-self-heating/02-features.md) design note), so the field is cheap and needs
+neither the face neighbors nor a parallel pass. The criterion takes part in all loops, or with
+`primaryOnly` in the primary and merged loops only. The number density for its column density
+limit is the sum over the dust components. Its test returns the ratio of the window-averaged field
+to `maxFraction` as the excess if that ratio exceeds one.
+
 A ski file cannot express an infinite value, so an omitted bound of a value criterion or a
 condition is represented by the default value of the property, which is the lowest value the
 property accepts for `minValue` (-1e300) and the highest for `maxValue` (1e300). The same holds
@@ -366,6 +400,12 @@ and summed over them, after which the serial pass accumulates them. The windows 
 cell for each criterion and each condition. For the example in the Features chapter, this amounts to
 eight numbers per cell, which is small compared to the medium state of the `DiffuseIonizedGasMix`.
 
+Code that runs serially over all cells in each iteration becomes more costly on a refined grid.
+The `TemperatureWavelengthCellLibrary` of the dust emission, which calculates the indicative
+temperature and wavelength of every cell in each launch preparation, took 47 s per iteration in a
+serial loop on a grid of 3.5 million cells. It now calculates them in parallel, distributed over
+the processes and summed over them, as the decision step does.
+
 Appended cells lose their spatial locality in the cell list. If this turns out to affect
 performance, the cells could be renumbered once the last iteration loop has finished, which
 requires permuting all per-cell structures, including the node array's cell indices. This is not
@@ -384,4 +424,6 @@ is a simple starting point for testing the subdivision of leaves. A test-only cr
 deterministically refines the cells inside a given box, in the spirit of the existing
 `TrivialGasMix`, allows testing the mechanics without Monte Carlo noise affecting the refinement
 decisions. Because the conditions, the limits, and the priorities are deterministic functions of
-the fields, the same approach verifies them, including the selection under the cell cap.
+the fields, the same approach verifies them, including the selection under the cell cap. The dust
+luminosity criterion and rounds of several levels are tested on a small dust model that refines in
+primary iterations before the secondary iterations.

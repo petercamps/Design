@@ -28,14 +28,20 @@ is the conservative choice; the cube root of the volume and the diagonal are alt
 dust temperature criterion, a limit on the optical depth of the cell, as used by the
 `OpticalDepthTreePolicy`, may be more natural than a number column density.
 
-**Levels per round.** Each refinement round subdivides a candidate by one level, so that a cell
-that needs several levels takes as many rounds, each costing at least
+**Levels per round.** By default, each refinement round subdivides a candidate by one level, so
+that a cell that needs several levels takes as many rounds, each costing at least
 `numIterationsAfterRefinement + numAveragedIterations` iterations. In the production runs of the
 reference implementation, the finest grid reached its cell cap in the fourth round, while part of
-its cells needed a fifth. For a criterion with a column density limit, the number of levels that a
-cell needs is known in advance, so that a round could subdivide such a cell by several levels at
-once. This would refine all descendants of the cell, although many of them may turn out to lie
-outside the layer being resolved once their state has been calculated.
+its cells needed a fifth. The `levelsPerRound` option lets a round subdivide each candidate by a
+fixed number of levels instead, reduced only by the level limits of the criteria that flag it. In
+the [Results](dynamic-grid-refinement/04-results.md), three levels per round on a binary tree,
+which split a cell along all three axes as an octree level does, worked well for the dust
+luminosity criterion. A fixed number of levels is a blunt instrument, however. It refines all
+descendants of a cell, although many of them may turn out to lie outside the layer being resolved
+once their state has been calculated, and because the column density limit is checked only before
+the round, it may take a cell beyond that limit. For a criterion with a column density limit, the
+number of levels that a cell needs to reach the limit is known in advance, so that a round could
+instead subdivide each cell by exactly that number, perhaps capped by `levelsPerRound`.
 
 **Media with multiple components.** A medium state variable can be taken from the first
 medium component that offers it, or from a component selected explicitly by index. The

@@ -94,6 +94,7 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 | `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision (the default is three) |
 | `numIterationsAfterRefinement` | number of iterations after each refinement round that are left out of the averaging (the default is one) |
 | `maxRounds` | maximum number of refinement rounds in each iteration loop (zero, the default, means no maximum) |
+| `levelsPerRound` | number of tree levels by which a refinement round subdivides each candidate (the default is one; displayed at the expert user level) |
 | `criteria` | the list of refinement criteria |
 
 The `maxLevel` property of the grid itself limits the initial construction only. During dynamic
@@ -101,9 +102,21 @@ refinement, the limits of each criterion tell how far that criterion may subdivi
 Limits below). If no limit applies to a criterion, only the `maxCells` cap and the `maxRounds`
 maximum end the refinement of the cells it keeps flagging.
 
+A refinement round subdivides each selected cell by `levelsPerRound` levels, or by fewer levels
+if the level limits of all criteria that flag the cell allow fewer. The cell is split into its
+children, the children into theirs, and so on, so that a round turns the cell into up to c^k
+cells, where c is the number of children of a tree node (8 for an octree, 2 for a binary tree)
+and k the number of levels. With three levels, a binary tree thus splits a cell along all three
+axes, as an octree does in a single level. More levels per round let a criterion that keeps
+flagging the same cells, such as the dust luminosity criterion described below, reach a given
+resolution in fewer rounds, and thus in fewer iterations. The column density limit and the cell
+cap are applied to each cell before the round, so that a round of several levels may take a cell
+beyond its column density limit.
+
 When the `maxCells` cap prevents subdividing all cells that ask for it, the cells with the highest
 priority are subdivided first (see Priority below), and a warning reports how many cells were left
-unsplit.
+unsplit. The cap counts the cells that each subdivision adds, which is c^k − 1 for a subdivision
+by k levels, and the selection stops at the first candidate that no longer fits.
 
 ### Refinement criteria
 
@@ -130,9 +143,11 @@ The concrete criteria combine a test with a field:
 | `MediumStateGradientCriterion` | the field differs strongly between the cell and a neighboring cell | a medium state variable |
 | `MediumStateValueCriterion` | the field lies in a given range | a medium state variable |
 | `DustTemperatureGradientCriterion` | the field differs strongly between the cell and a neighboring cell | the indicative dust temperature |
+| `DustLuminosityCriterion` | the field exceeds a given fraction | the fraction of the dust-absorbed luminosity that is absorbed in the cell |
 
-The tests are implemented by the abstract subclasses `GradientCriterion` and `ValueCriterion`. All
-criteria offer the following properties.
+The gradient and value tests are implemented by the abstract subclasses `GradientCriterion` and
+`ValueCriterion`. The `DustLuminosityCriterion` derives directly from `RefinementCriterion` and
+implements its own test. All criteria offer the following properties.
 
 | Property | Description |
 | --- | --- |
@@ -229,10 +244,10 @@ below that value. The column density of a cell is its number density multiplied 
 defined as follows:
 
 - The number density is the one stored in the medium state for the medium component that provides
-  the variable of the criterion or, for the dust temperature criterion, the sum over the dust
-  components. Its meaning depends on the material mix. For the `DiffuseIonizedGasMix`, it counts
-  hydrogen plus helium nuclei, so that a limit intended as a hydrogen column density must be
-  multiplied by one plus the helium abundance.
+  the variable of the criterion or, for the dust temperature and dust luminosity criteria, the sum
+  over the dust components. Its meaning depends on the material mix. For the
+  `DiffuseIonizedGasMix`, it counts hydrogen plus helium nuclei, so that a limit intended as a
+  hydrogen column density must be multiplied by one plus the helium abundance.
 - The size is the largest extent of the cell along the coordinate axes.
 
 Because child cells inherit their parent's number density, each octree subdivision halves the
@@ -251,7 +266,8 @@ by priority. For each criterion that flags a candidate, the priority is the prod
 factors:
 
 - the excess, which is the ratio of the measure to the `maxChange` threshold for a gradient
-  criterion, and one for a value criterion;
+  criterion, one for a value criterion, and the ratio of the field to the `maxFraction` threshold
+  for the dust luminosity criterion;
 - the ratio of the cell's column density to the column density limit of the criterion, or one if
   the criterion has no such limit.
 
@@ -305,16 +321,49 @@ stored in the medium state, but calculated from the radiation field when needed.
 no properties beyond those of all gradient criteria. Setup reports a fatal error if the simulation
 has no dust or does not store the radiation field.
 
+### Dust-absorbed luminosity
+
+The `DustLuminosityCriterion` flags the cells that absorb more than a given fraction of the total
+luminosity absorbed by dust, so that no cell emits more than that fraction of the dust emission.
+It resolves the regions that dominate the dust emission, such as the dust near embedded sources or
+the self-absorbing core of an optically thick galaxy, without resolving dust that hardly emits. It
+is the counterpart, for the absorbed luminosity, of the `DensityTreePolicy`, which limits the
+fraction of the dust mass in each cell when the grid is constructed.
+
+| Property | Description |
+| --- | --- |
+| `maxFraction` | the maximum fraction of the dust-absorbed luminosity in each cell; a cell is flagged if its window-averaged fraction exceeds this value (the default is 10^−5) |
+| `primaryOnly` | if true, the field is the fraction of the luminosity absorbed from the primary sources only (the default is false) |
+
+The field is the luminosity absorbed by the dust in the cell divided by the total luminosity
+absorbed by the dust, both as accumulated at the exact wavelength of each photon packet (see the
+[Dust self-heating](dust-self-heating/02-features.md) design note), and includes the luminosity
+absorbed during primary and secondary emission. With `primaryOnly`, both are limited to the
+primary emission, so that the criterion resolves the regions where the radiation of the primary
+sources is absorbed, without subdividing the cells that mostly absorb the radiation emitted by the
+dust itself. The excess of a flagged cell is the ratio of its field to `maxFraction`.
+
+Because a subdivided cell divides its absorbed luminosity among its children, the criterion limits
+itself: it stops flagging a cell once the cell absorbs less than the threshold, and it therefore
+needs neither a level limit nor a column density limit. In an optically thick cell, however, most
+of the luminosity is absorbed by the children facing the radiation, so that these continue to be
+subdivided, and around a bright source embedded in very opaque material the refinement follows the
+absorbing layer to ever smaller cells. Monte Carlo noise also lets cells close to the threshold
+cross it in later windows. In practice, a level limit or the `maxRounds` option therefore bounds
+the refinement. Setup reports a fatal error if the simulation does not accumulate the luminosity
+absorbed by dust, which requires dust emission and a dust medium.
+
 ### Other criteria
 
 A value criterion and a condition based on the indicative dust temperature would follow the same
 pattern as their medium state counterparts. They are not part of this proposal, because no use
 case has been identified.
 
-Other quantities derived from the radiation field, such as the mean intensity integrated over a
-given wavelength range, or the ratio of two such integrals, could drive refinement through a
-radiation field criterion. Such a criterion is not part of this proposal, because the
-properties that select the quantity need further thought.
+The dust luminosity criterion is one criterion on a quantity derived from the radiation field.
+Other such quantities, such as the mean intensity integrated over a given wavelength range, or the
+ratio of two such integrals, could drive refinement through a more general radiation field
+criterion. Such a criterion is not part of this proposal, because the properties that select the
+quantity need further thought.
 
 ## Iteration and convergence
 
@@ -325,8 +374,16 @@ primary dynamic medium state changes in the primary and merged loops, and a vari
 a secondary dynamic medium state in the secondary and merged loops. In a simulation with dynamic
 medium state recipes, the variables of all components also change in the primary and merged loops.
 The dust temperature changes in all loops, because each loop recalculates at least part of the
-radiation field. The conditions of a criterion do not influence whether it takes part. If no
-criterion takes part, the refinement step does nothing in that loop.
+radiation field, and so does the dust-absorbed luminosity. With `primaryOnly`, the dust luminosity
+criterion takes part only in the primary and merged loops, which recalculate the primary radiation
+field. The conditions of a criterion do not influence whether it takes part. If no criterion takes
+part, the refinement step does nothing in that loop.
+
+A simulation may iterate over primary emission if the grid has dynamic refinement options, even if
+it has no dynamic medium state. The primary iterations then serve only to refine the grid on the
+primary radiation field, for example with the dust luminosity criterion and `primaryOnly`, before
+the secondary emission starts. Because the primary radiation field is recalculated from scratch in
+each iteration, these iterations may use fewer photon packets than the final primary emission.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
@@ -357,7 +414,8 @@ A decision does not lead to a refinement round, even though cells ask for subdiv
 following cases:
 
 - The loop has already performed `maxRounds` refinement rounds.
-- The `maxCells` cap leaves no room for subdividing even a single cell.
+- The `maxCells` cap leaves no room for subdividing even the candidate with the highest priority,
+  by its number of levels.
 - Fewer than `numIterationsAfterRefinement + numAveragedIterations` iterations remain before the
   loop reaches its maximum number of iterations. The loop would then end before the new cells
   have been evaluated, and possibly before their state has adjusted to the changed grid.
@@ -387,7 +445,9 @@ field and of the primary luminosity absorbed by the dust in the parent, which ar
 parent, so that refinement in this loop resolves only structure caused by the secondary radiation
 field. For a field that depends mostly on the primary radiation field, the jump in value at the
 boundary of a subdivided cell does not diminish with further subdivision, so that cells along that
-boundary may keep asking for subdivision until a limit or the cell cap stops them.
+boundary may keep asking for subdivision until a limit or the cell cap stops them. Structure caused
+by the primary radiation field is therefore best resolved in primary iterations before the
+secondary loop, as described above.
 
 ## Initial state of child cells
 
@@ -418,9 +478,10 @@ the parent cell.
 ## Output and reuse
 
 Each decision logs the number of candidates and, for a refinement round, the number of subdivided
-and added cells and the new total number of cells, together with the number of photon packets per
-cell launched in the iteration, counting both the primary and the secondary packets in a merged
-iteration. Warnings report the candidates that were left unsplit, as described above.
+cells, the number of levels per round if it is more than one, the number of added cells, and the
+new total number of cells, together with the number of photon packets per cell launched in the
+iteration, counting both the primary and the secondary packets in a merged iteration. Warnings
+report the candidates that were left unsplit, as described above.
 
 The number of photon packets per cell decreases as the grid grows. This increases the Monte Carlo
 noise in the medium state, and thereby in the refinement fields and in the convergence measures.

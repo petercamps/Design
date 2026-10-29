@@ -76,8 +76,9 @@ structure.
   secondary emission iterations.
 - The mechanism is generic: refinement can be driven by any changes in the medium state or the
   radiation field. At present, however, only the `DiffuseIonizedGasMix` offers medium state
-  variables that are useful to drive refinement, and the indicative dust temperature is the
-  only quantity derived from the radiation field that can drive refinement.
+  variables that are useful to drive refinement, and the indicative dust temperature and the
+  dust-absorbed luminosity are the only quantities derived from the radiation field that can
+  drive refinement.
 
 ## Overview
 
@@ -86,5 +87,9 @@ structure.
 - **[Implementation](dynamic-grid-refinement/03-implementation.md)** describes the refinement
   step and its use of the iteration history, the grid operations, and the growth of the per-cell
   data structures.
-- **[Open questions](dynamic-grid-refinement/04-open-questions.md)** collects the design
+- **[Results](dynamic-grid-refinement/04-results.md)** reports long-running tests with realistic
+  models, one section per application, and recommends settings for each. So far, it covers dust
+  radiative transfer in three galaxies dominated by dust self-heating; the sections on dust
+  destruction and photoionization are still empty.
+- **[Open questions](dynamic-grid-refinement/05-open-questions.md)** collects the design
   decisions that may need further consideration in the future.
