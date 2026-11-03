@@ -127,6 +127,21 @@ which affect existing ski files and simulation results as follows:
   simulations, which increases the dust emission of models that absorb a substantial part
   of their own dust emission.
 
+### Convergence of dynamic medium state recipes
+
+The `maxNotConvergedCells` property of the dynamic medium state recipes (`DynamicStateRecipe`, and thus the
+`ClearDensityRecipe` and the `LinearDustDestructionRecipe`), the number of cells allowed to not converge, is replaced
+by `maxFractionNotConvergedCells`, the fraction of the number of cells in the spatial grid allowed to not converge
+(from 0 to 1, with default 0). With [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md), the number
+of cells grows during the run, so that no fixed count suits a grid whose final resolution is not known in advance,
+while a fraction grows with the grid. The new name matches the corresponding properties of the `NonLTELineGasMix` and
+the `DiffuseIonizedGasMix`, which also hold a fraction of the number of cells.
+
+A ski file with the default value 0 is upgraded exactly. A nonzero count cannot be converted automatically, because
+the number of cells is in general not known from the ski file (for a tree grid, only once the grid has been built),
+so it must be replaced by hand by the count divided by the number of cells. With such an equivalent fraction, the
+results for a fixed grid do not change.
+
 ### Binary column format
 
 Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative to regular
@@ -216,3 +231,8 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
 
 - Remove the `maxFractionOfPrevious` property from `DustEmissionOptions`. The new dust
   emission convergence and rebalance properties receive their default values.
+
+- Rename the `maxNotConvergedCells` property of the dynamic medium state recipes to
+  `maxFractionNotConvergedCells` if its value is zero. A nonzero count is left in place and
+  reported, so that SKIRT rejects the ski file until the count has been replaced by a fraction
+  by hand.
