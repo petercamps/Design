@@ -9,22 +9,29 @@ system orchestrates the work.
 - `DynamicRefinementOptions` and the `RefinementCriterion` and `RefinementCondition` subclasses
   hold the configuration. A criterion tells whether its field changes in a given iteration loop,
   prepares information shared by all cells once per iteration (`prepareValues()`, which does
-  nothing by default), provides the current value of its field in a given cell, and, given the
-  window-averaged field, tells whether it flags a given cell and with which excess. A condition
-  provides the current value of its variable in a given cell, and tells whether a window-averaged
-  value lies in its range. Neither keeps per-cell data of its own. `GradientCriterion` implements
-  the measure and the floor, and `ValueCriterion` implements the range test; their subclasses
-  implement the field. The `DustLuminosityCriterion` implements both its test and its field.
+  nothing by default), provides the current value of its field in a given cell and, if it uses the
+  noise test (`usesNoise()`), an estimate of the noise of that value (`noise()`), and, given the
+  window-averaged field and noise, tells whether it flags a given cell and with which excess. A
+  condition provides the current value of its variable in a given cell, and tells whether a
+  window-averaged value lies in its range. Neither keeps per-cell data of its own.
+  `GradientCriterion` implements the measure, the logarithmic option, the noise test, and the
+  floor, and `ValueCriterion` implements the range test; their subclasses implement the field and
+  its noise. The `DustLuminosityCriterion` implements both its test and its field.
 - `BinTreeSpatialGrid` and `OctTreeSpatialGrid` subdivide leaf cells in their flat node array and
   answer geometric queries: cell level, initial level, bounding box, and face neighbors.
 - `MediumSystem` performs the refinement step: it accumulates the fields of the criteria and
-  conditions, evaluates the criteria with their conditions and limits, selects the cells to
-  subdivide, and grows all per-cell data structures.
+  conditions, and the noise of the fields of the criteria that use it, evaluates the criteria with
+  their conditions and limits, selects the cells to subdivide, and grows all per-cell data
+  structures. It also estimates the noise of the radiation field in each cell, for the criteria
+  and the dust destruction recipes (see Noise estimate below).
 - `IterationHistory` holds all historical data of the refinement step: scalar series with the
   number of cells subdivided in each iteration and the number of refinement rounds, keyed on the
   `DynamicRefinementOptions` item; and a cell window per criterion and per condition, keyed on that
-  criterion or condition. `MediumSystem` keeps no refinement state of its own.
-- `MonteCarloSimulation` calls the refinement step from each of the three iteration loops.
+  criterion or condition, plus a second cell window for the noise of each criterion that uses the
+  noise test. `MediumSystem` keeps no refinement state of its own.
+- `MonteCarloSimulation` calls the refinement step from each of the three iteration loops, and
+  scales the number of photon packets of each primary iteration with the number of cells if
+  `primaryIterationPacketsPerCell` is nonzero.
 
 ## Module
 
@@ -64,6 +71,14 @@ dynamic refinement options instead, so that the primary iterations can serve to 
 (see the Features chapter). The `simulation` module already depends on `medium`, which holds the
 grid.
 
+In the primary loop, `runPrimaryEmissionIterations()` determines the number of photon packets of
+each iteration before launching them. If `primaryIterationPacketsPerCell` is nonzero, the number
+is that value times the current number of cells, as returned by the medium system, bounded below by
+the number for the first iteration and above by the full number of iteration packets; otherwise,
+it follows the geometric ramp. Because the refinement step is the last step of an iteration, the
+next iteration sees the refined grid. The number is recorded in a scalar series of the iteration
+history, keyed on the simulation, so that the `HistoryProbe` lists it.
+
 ### Use of the iteration history
 
 The refinement step is a client of the iteration history proposed in the
@@ -91,9 +106,10 @@ condition. The criteria and conditions themselves keep no history.
 - A second **scalar series** with loop lifetime holds the number of refinement rounds performed so
   far in the loop, carried over from one iteration to the next, for comparison with `maxRounds`.
 - A **cell window** with loop lifetime holds the running sums of the field of each participating
-  criterion, and of the variable of each of its conditions. All windows are accumulated and reset
-  together, so they share a single schedule, and the windows are complete when `numIterations()`
-  reaches `numAveragedIterations`.
+  criterion, and of the variable of each of its conditions. For a criterion that uses the noise
+  test, a second cell window holds the running sums of the squared noise of its field. All windows
+  are accumulated and reset together, so they share a single schedule, and the windows are
+  complete when `numIterations()` reaches `numAveragedIterations`.
 
 **Accumulating and deciding.** At the end of each iteration, in any iteration loop, the refinement
 step records the number of subdivided cells, accumulates the current field values unless the
@@ -146,14 +162,16 @@ Each iteration, the function first records a zero in the subdivision series, and
 number of rounds. Then, after the initial iterations, it proceeds as follows:
 
 1. Unless this iteration is left out of the averaging, call `prepareValues()` on each participating
-   criterion, and accumulate its current field value, and the current value of the variable of
-   each of its conditions, into the corresponding cell window.
+   criterion, and accumulate its current field value, the square of the noise of that value if
+   the criterion uses the noise test, and the current value of the variable of each of its
+   conditions, into the corresponding cell windows.
 2. If the windows are not yet complete, return false.
 3. Evaluate all cells in parallel, each cell on a single process, and sum the per-cell results over
    the processes (see Consistency between processes below). For each cell and each participating
    criterion, determine whether all conditions of the criterion hold and whether its test flags the
-   cell, both on the window-averaged values. If so, check the limits of the criterion against the
-   number of levels the cell has gained and against its column density. A flagged cell that has
+   cell, both on the window-averaged values; the test of a gradient criterion also receives the
+   noise window, if any (see Noise estimate below). If so, check the limits of the criterion against
+   the number of levels the cell has gained and against its column density. A flagged cell that has
    reached a limit is counted as blocked by each limit it has reached, so that a cell that has
    reached both limits counts for both. Otherwise the cell is a candidate, with the priority defined
    in the Features chapter. If several criteria flag the cell, the highest priority counts.
@@ -161,6 +179,7 @@ number of rounds. Then, after the initial iterations, it proceeds as follows:
    `levelsPerRound`, or fewer if the level limit of each criterion that flags the candidate leaves
    fewer levels, but at least one. For a criterion without a level limit, `levelsPerRound` applies.
 5. If there are candidates, decide whether to start a refinement round. No round is started if
+   the number of candidates is below `minCandidateFraction` times the number of cells, if
    `maxRounds` rounds have been performed, or if fewer than
    `numIterationsAfterRefinement + numAveragedIterations` iterations remain in the loop.
 6. If a round is started and a cell cap is configured, add up the cells that the subdivisions would
@@ -177,7 +196,7 @@ number of rounds. Then, after the initial iterations, it proceeds as follows:
    leaves the next iterations out of the averaging, increment the number of rounds if cells were
    subdivided, record the aggregate series of the iteration history so that they reflect the
    refined grid, and log the result. If candidates were left unsplit, issue a warning with their
-   number.
+   number, or an informational message if they were left unsplit because of `minCandidateFraction`.
 
 The function returns true only in an iteration in which a decision was taken and no cells were
 subdivided. The refinement has then settled, as defined in the Features chapter.
@@ -286,6 +305,7 @@ per-cell structures, based on the current code.
 | `MediumState` | state variables for each cell | parent's values for intensive and categorical variables, the child's volume fraction of them for extensive variables; volume recalculated from the grid |
 | `MediumSystem` | radiation field tables `_rf1`, `_rf2`, `_rf2c` | parent's values times the child's volume fraction |
 | `MediumSystem` | dust-absorbed luminosity arrays `_labs1`, `_labs2`, `_labs2c`, in a simulation with dust emission | parent's values times the child's volume fraction |
+| `MediumSystem` | noise batch arrays `_rfb1`, `_rfb2`, `_rfb2c`, if a criterion or a recipe uses the noise of the radiation field | parent's values times the child's volume fraction |
 | `MediumSystem` | material mixes per cell, if applicable | parent's mixes |
 | `IterationHistory` | cell windows, including those of the refinement criteria | parent's running sums |
 
@@ -298,7 +318,9 @@ luminosity arrays hold, for each cell, the luminosity absorbed by the dust along
 the cell, calculated with the dust opacity at the exact wavelength of each photon packet. They set
 the luminosity of the dust emission of each cell (see the
 [Dust self-heating](dust-self-heating/02-features.md) design note), and are divided among the
-children in the same way, so that the luminosity emitted by the dust is conserved as well. In the
+children in the same way, so that the luminosity emitted by the dust is conserved as well. The
+noise batch arrays hold partial sums of the radiation field tables (see Noise estimate below) and
+are divided in the same way, so that a child starts with the relative noise of its parent. In the
 primary and merged loops, the primary tables and arrays are cleared at the start of the next
 iteration, but probes performed after the refining iteration, such as the `RadiationFieldProbe`,
 read them. In the secondary loop, the primary field is never recalculated, and the secondary field
@@ -387,6 +409,52 @@ for the `minValue` floor of a gradient criterion. The bounds, the floor, and the
 threshold are plain numbers in the units of the field, which are the internal units of SKIRT,
 because the schema cannot know the quantity of a variable that is selected by name.
 
+The `RadiationFieldGradientCriterion` determines at setup the bins of the radiation field
+wavelength grid whose characteristic wavelength lies in its range. Its field in a cell is the sum
+of `MediumSystem::meanIntensity(m)` times the bin width over these bins, so the field is cheap and
+needs no parallel pass. The number density for its column density limit is the sum over all medium
+components.
+
+## Noise estimate
+
+The medium system estimates the noise of the radiation field only if a refinement criterion or a
+dynamic medium state recipe asks for it, through `RefinementCriterion::usesNoise()`, which is true
+for a gradient criterion with a nonzero `significance` other than a `MediumStateGradientCriterion`,
+or `DynamicStateRecipe::usesNoise()`, which is true for a dust destruction recipe with a nonzero
+`significance`. It then allocates the batch array `_rfb1` and, if the simulation stores a secondary
+radiation field, `_rfb2` and `_rfb2c`, each with 8 values per cell. These arrays follow the life
+cycle of the radiation field tables `_rf1`, `_rf2`, and `_rf2c`: `storeRadiationField()` adds each
+contribution of a path segment, the luminosity times the path length, also to the batch of the
+photon packet, which is its history index modulo 8, regardless of its wavelength;
+`communicateRadiationField()` sums the arrays over the processes and copies `_rfb2c` to `_rfb2` when
+it does so for the tables; and `clearRadiationField()` clears them with the tables. Because the
+arrays are summed over the processes before they are used, the noise is identical on all
+processes, as the refinement decisions require.
+
+`MediumSystem::radiationFieldNoise(m)` adds the primary and the stable secondary batch sums S_b of
+cell m, and returns the relative standard error of their total S, which is the square root of
+B/(B − 1) times the sum of (S_b − S/B)², divided by S, with B = 8. It returns infinity if one of
+the batch sums is zero, and zero if the noise is not tracked.
+
+Each criterion that uses the noise test converts this relative noise σ into the noise of its field
+in `noise(m)`. The `DustTemperatureGradientCriterion` calls `indicativeDustTemperature(m, 1 + σ)`, a
+variant of the indicative dust temperature that multiplies the mean intensity of the cell by the
+given factor, and returns the absolute difference with the plain indicative temperature. The
+`RadiationFieldGradientCriterion` returns its field value times σ. The refinement step accumulates
+the squared noise of each iteration in the noise window of the criterion, in the same way as the
+field, and in parallel for a costly field such as the dust temperature. Then,
+`GradientCriterion::excess()` obtains the variance of the window-averaged field of a cell as the
+window mean of the squared noise divided by the number of iterations in the window, divided by the
+square of the window-averaged field for the logarithmic measure, and subtracts `significance` times
+the square root of the sum of the variances of the cell and of the neighbor from their difference.
+
+The `DustDestructionRecipe` obtains σ for the cell from the medium system in its `update()`
+function. For each fragment whose density fraction changes, it calculates the fractions for the
+mean intensity of the cell multiplied by max(0, 1 − kσ) and by 1 + kσ, with k its `significance`,
+from the equilibrium temperatures of the fragment in these scaled fields, and adds the absolute
+difference between them to the tolerance. For an infinite σ, the allowance is 1, so that a change
+never counts against convergence.
+
 ## Performance
 
 The decision step is proportional to the number of cells times the average number of face neighbors,
@@ -399,6 +467,13 @@ first calculated in parallel into a temporary array, distributed over the proces
 and summed over them, after which the serial pass accumulates them. The windows need one number per
 cell for each criterion and each condition. For the example in the Features chapter, this amounts to
 eight numbers per cell, which is small compared to the medium state of the `DiffuseIonizedGasMix`.
+
+The noise test adds one window per criterion that uses it, and the noise estimate 8 numbers per
+cell for the primary radiation field and 16 for the secondary one, all included in the number of
+bytes per cell and in the capacity reserved for `maxCells`. The noise of the dust temperature
+requires a second energy balance solution per dust component and cell, calculated in parallel like
+the field itself, which roughly doubles the cost of accumulating that field. Accumulating the
+batches costs one atomic addition per path segment, next to those for the radiation field table.
 
 Code that runs serially over all cells in each iteration becomes more costly on a refined grid.
 The `TemperatureWavelengthCellLibrary` of the dust emission, which calculates the indicative
@@ -427,3 +502,15 @@ decisions. Because the conditions, the limits, and the priorities are determinis
 the fields, the same approach verifies them, including the selection under the cell cap. The dust
 luminosity criterion and rounds of several levels are tested on a small dust model that refines in
 primary iterations before the secondary iterations.
+
+The noise features are tested on small Monte Carlo models that depend on them, so that a regression
+changes their outcome rather than merely their noise. A scaled-down version of the slab of the
+Results chapter, refined from a level-2 octree by the dust temperature criterion with the
+`logarithmic` flag and the noise test, with `primaryIterationPacketsPerCell` and
+`minCandidateFraction`, settles after 7 iterations; without the noise test it runs away to the
+cell cap, and without the guard it keeps refining up to the maximum number of iterations. The same
+model with the radiation field criterion runs away without the noise test as well. A point source
+in a dust shell with a silicate destruction front, without refinement, converges after 3
+iterations with the noise allowance of the recipe, and not in 10 without it. The warning of the
+`MediumStateGradientCriterion` for a nonzero `significance` appears only in the log, which the
+functional tests do not compare.

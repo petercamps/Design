@@ -94,13 +94,15 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 | `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision (the default is three) |
 | `numIterationsAfterRefinement` | number of iterations after each refinement round that are left out of the averaging (the default is one) |
 | `maxRounds` | maximum number of refinement rounds in each iteration loop (zero, the default, means no maximum) |
+| `minCandidateFraction` | fraction of the number of cells below which the candidates do not lead to a refinement round (the default is zero; displayed at the expert user level; see Monte Carlo noise below) |
 | `levelsPerRound` | number of tree levels by which a refinement round subdivides each candidate (the default is one; displayed at the expert user level) |
 | `criteria` | the list of refinement criteria |
 
 The `maxLevel` property of the grid itself limits the initial construction only. During dynamic
 refinement, the limits of each criterion tell how far that criterion may subdivide a cell (see
 Limits below). If no limit applies to a criterion, only the `maxCells` cap and the `maxRounds`
-maximum end the refinement of the cells it keeps flagging.
+maximum end the refinement of the cells it keeps flagging, unless the noise test of a gradient
+criterion stops it where the field becomes too noisy to resolve (see Monte Carlo noise below).
 
 A refinement round subdivides each selected cell by `levelsPerRound` levels, or by fewer levels
 if the level limits of all criteria that flag the cell allow fewer. The cell is split into its
@@ -143,6 +145,7 @@ The concrete criteria combine a test with a field:
 | `MediumStateGradientCriterion` | the field differs strongly between the cell and a neighboring cell | a medium state variable |
 | `MediumStateValueCriterion` | the field lies in a given range | a medium state variable |
 | `DustTemperatureGradientCriterion` | the field differs strongly between the cell and a neighboring cell | the indicative dust temperature |
+| `RadiationFieldGradientCriterion` | the field differs strongly between the cell and a neighboring cell | the mean intensity of the radiation field integrated over a wavelength range |
 | `DustLuminosityCriterion` | the field exceeds a given fraction | the fraction of the dust-absorbed luminosity that is absorbed in the cell |
 
 The gradient and value tests are implemented by the abstract subclasses `GradientCriterion` and
@@ -162,7 +165,9 @@ criteria offer the following properties.
 
 | Property | Description |
 | --- | --- |
+| `logarithmic` | if true, the measure compares the natural logarithms of the field values rather than the values themselves (the default is false) |
 | `maxChange` | the maximum difference in field value between a cell and a neighboring cell; a cell is flagged if its measure exceeds this value (see below) |
+| `significance` | the number of standard errors by which a difference must exceed `maxChange` for the cell to be flagged (zero, the default, means no noise test; displayed from the regular user level on; see Monte Carlo noise below) |
 | `minValue` | cells with a field value below this floor are never flagged (by default, there is no floor) |
 
 The measure of a cell is the largest absolute difference between the window-averaged field value
@@ -172,6 +177,16 @@ of a wall, with it. A wall on the edge of the domain has no neighbors.
 The measure, the `maxChange` threshold, and the `minValue` floor are expressed in the units of the
 field. Fields with different peak values therefore need different values for `maxChange` and
 `minValue`.
+
+With the `logarithmic` flag, the measure is instead the largest absolute difference between the
+natural logarithms of the window-averaged field values. For small differences, this is the
+relative difference, so that the threshold is dimensionless (a value of 0.04 allows a change of
+about 4% between neighboring cells) and serves fields with any peak value, such as a temperature
+that varies by a large factor across the domain, or a mean intensity that varies by orders of
+magnitude. The `minValue` floor is still expressed in the units of the field. A cell with a field
+value that is not positive is then never flagged, and a neighbor with such a value is ignored. An
+absolute threshold treats a jump from 20 to 25 K like one from 80 to 85 K, although the former
+matters much more for the dust emission.
 
 ### Value criteria
 
@@ -321,6 +336,42 @@ stored in the medium state, but calculated from the radiation field when needed.
 no properties beyond those of all gradient criteria. Setup reports a fatal error if the simulation
 has no dust or does not store the radiation field.
 
+For a fragmented dust mix, the indicative temperature is the mean of the temperatures of the
+fragments, each weighted by its weight factor times its dynamic density fraction (a plain mean for
+a geometric medium without destruction), so that it changes where a dust destruction recipe
+removes a fragment.
+
+### Radiation field
+
+The `RadiationFieldGradientCriterion` uses the mean intensity of the radiation field integrated over
+a wavelength range as its field: the sum of the mean intensity times the bin width over the bins
+of the radiation field wavelength grid whose characteristic wavelength lies in the range. Unlike
+the dust temperature criterion, it does not involve the properties of the material, and its field
+is cheap to calculate, so that it applies to any medium.
+
+| Property | Description |
+| --- | --- |
+| `minWavelength` | the shortest wavelength of the integration range (by default, the range includes all bins) |
+| `maxWavelength` | the longest wavelength of the integration range |
+
+The field is expressed in the internal units of SKIRT (W m^−2 sr^−1). Because the mean intensity
+varies by orders of magnitude, the criterion is normally used with the `logarithmic` flag. A
+temperature in equilibrium with the radiation field varies roughly as the fourth to sixth root of
+the absorbed intensity, so that a relative threshold on the mean intensity corresponds to a four to
+six times smaller relative threshold on such a temperature, to the extent that the spectral shape
+of the radiation field does not change between the cells. In tests, a threshold of 0.16 to 0.2 on
+the bolometric mean intensity gave grids as accurate as a threshold of 0.04 on the indicative dust
+temperature.
+
+The criterion takes part in all iteration loops, as the dust temperature criterion does, and the
+number density for its column density limit is the sum over all medium components. Setup reports a
+fatal error if the simulation does not store the radiation field, or if the wavelength range
+contains no bin of the radiation field wavelength grid. A narrow range has a drawback for the noise
+test: the noise of the field is estimated from the radiation field summed over all wavelengths
+(see Monte Carlo noise below), which underestimates the noise of a narrow range. In a test with a
+range of 0.08 to 0.4 µm in an optically thick medium, the noise test did not prevent runaway
+refinement, whereas a range up to 1 µm worked.
+
 ### Dust-absorbed luminosity
 
 The `DustLuminosityCriterion` flags the cells that absorb more than a given fraction of the total
@@ -359,11 +410,10 @@ A value criterion and a condition based on the indicative dust temperature would
 pattern as their medium state counterparts. They are not part of this proposal, because no use
 case has been identified.
 
-The dust luminosity criterion is one criterion on a quantity derived from the radiation field.
-Other such quantities, such as the mean intensity integrated over a given wavelength range, or the
-ratio of two such integrals, could drive refinement through a more general radiation field
-criterion. Such a criterion is not part of this proposal, because the properties that select the
-quantity need further thought.
+The radiation field criterion covers the mean intensity integrated over a wavelength range. Other
+quantities derived from the radiation field, such as the ratio of two such integrals, could drive
+refinement through further criteria. They are not part of this proposal, because no use case has
+been identified.
 
 ## Iteration and convergence
 
@@ -384,6 +434,17 @@ it has no dynamic medium state. The primary iterations then serve only to refine
 primary radiation field, for example with the dust luminosity criterion and `primaryOnly`, before
 the secondary emission starts. Because the primary radiation field is recalculated from scratch in
 each iteration, these iterations may use fewer photon packets than the final primary emission.
+
+The number of photon packets of a primary iteration can follow the growth of the grid. The
+`IterationOptions` offer the `primaryIterationPacketsPerCell` property (zero by default, displayed
+at the expert user level): if it is nonzero, each primary iteration launches that number of
+packets per cell of the current grid, bounded below by the number for the first iteration (set by
+`primaryIterationInitialPacketsFraction`) and above by the full number (set by
+`primaryIterationPacketsMultiplier`), instead of following the geometric ramp. The noise per cell
+then stays about constant while the grid grows, and the early iterations on a coarse grid cost
+little. In tests, a refinement starting from 64 cells performed its
+first rounds within seconds, and about 1000 packets per cell sufficed: more did not change the
+grid. The option applies to the primary loop only, not to the merged loop.
 
 In each loop, the refinement step starts afresh and goes through the following phases:
 
@@ -419,8 +480,12 @@ following cases:
 - Fewer than `numIterationsAfterRefinement + numAveragedIterations` iterations remain before the
   loop reaches its maximum number of iterations. The loop would then end before the new cells
   have been evaluated, and possibly before their state has adjusted to the changed grid.
+- The number of candidates is below the fraction `minCandidateFraction` of the number of cells
+  (see Monte Carlo noise below).
 
-In each of these cases, a warning reports the number of candidates that were left unsplit.
+In each of the first three cases, a warning reports the number of candidates that were left
+unsplit. In the last case, an informational message reports it, because a few remaining candidates
+are expected once the refinement has done its work.
 
 The iteration loop is considered converged only if the medium state has converged and the
 refinement has settled. The refinement has settled in an iteration if a decision was taken in
@@ -448,6 +513,122 @@ boundary of a subdivided cell does not diminish with further subdivision, so tha
 boundary may keep asking for subdivision until a limit or the cell cap stops them. Structure caused
 by the primary radiation field is therefore best resolved in primary iterations before the
 secondary loop, as described above.
+
+## Monte Carlo noise
+
+The fields that drive refinement are calculated from the radiation field, directly or through the
+medium state, and therefore carry Monte Carlo noise. The noise in a cell grows as the cell gets
+smaller, because fewer photon packets cross it. Without precautions, the noise affects the
+refinement in three ways:
+
+- **Runaway refinement.** Noise pushes the measure of the many cells whose difference is just
+  below the threshold of a gradient criterion over it. Subdividing such a cell reduces its true
+  difference with its neighbors but increases its noise, so that its children are flagged even more
+  often, and so on, down to cells that hardly receive any photon packets.
+- **Creep.** Even if the refinement does not run away, a few cells cross the threshold in nearly
+  every decision, so that small rounds follow each other, each costing at least one iteration for
+  little gain.
+- **Recipe convergence.** At a dust destruction front, for example, the cells whose temperature
+  lies within the noise of the destruction temperature change their density fraction in every
+  iteration, so that the dust destruction recipe never converges. The number of such cells grows
+  with the resolution of the front.
+
+A level limit on each criterion prevents the runaway, but it requires knowing the needed depth in
+advance, which is what dynamic refinement is meant to find out. The following features address
+these effects instead: an estimate of the noise of the radiation field in each cell, the noise test
+of the gradient criteria and the noise allowance of the dust destruction recipes, which use that
+estimate, and the candidate guard.
+
+### Noise estimate
+
+The noise of the radiation field in a cell is estimated by dividing the photon packets of each
+emission segment into 8 interleaved batches, by their history index, and accumulating the
+radiation field of the cell, summed over all wavelengths, separately for each batch. All
+contributions of a photon packet, including those of its paths after each scattering event, belong
+to the same batch, so that the 8 batch sums are independent estimates of the radiation field of
+the cell. If one of the batches received no contributions, the estimate is unreliable, and the cell
+counts as infinitely noisy.
+
+The number of batches is a trade-off. The figure shows its effect from statistics alone, assuming
+that each batch sum is roughly Gaussian, so that the estimate has one degree of freedom less than
+the number of batches.
+
+![Noise estimate with 8 and 16 batches](figures/features-batches.png ':size=100%')
+
+- Panel (a): in 90% of the cells, a single estimate lies between 0.56 and 1.42 times the true
+  standard error with 8 batches, and between 0.70 and 1.29 times with 16 batches.
+- Panel (b): because of this spread, noise alone exceeds k estimated standard errors more often
+  than k true standard errors. For the criteria, a significance of 3 stays well clear of the
+  cascade limit with either number of batches (48 times the one-sided probability equals one
+  there; see Noise test below). The recipe needs a significance of 5 with 8 batches, where 16
+  batches would reach the same rate at 3.85.
+- Panel (c): each batch receives a share of the photon packets that cross the cell, so that more
+  batches leave more cells with an empty batch, and thus without a usable estimate: with 40
+  packets crossing a cell, 5% of the cells with 8 batches, but 75% with 16.
+
+Doubling the number of batches would mainly allow a lower significance for the recipe, at the
+cost of about twice as many photon packets per cell for a usable estimate and twice the memory for
+the batches. Using 8 batches thus seems a fair middle ground. For the criteria, the tails
+are moreover lighter than shown, because the noise test combines the estimates of two cells over
+the iterations of the averaging window.
+
+An important caveat is that the estimate refers to the radiation field summed over all wavelengths.
+For a quantity that depends on a narrow wavelength range, it is too low (see Radiation field above).
+
+### Noise test
+
+A gradient criterion with a nonzero `significance` k reduces the difference between a cell and each
+face neighbor by k times its estimated standard error before comparing it with the threshold. The
+standard error combines the noise of the window-averaged field values of both cells. Each criterion
+converts the relative noise of the radiation field into the noise of its field, and the noise of a
+window average is the root mean square of the noise of its iterations divided by the square root
+of their number; with the `logarithmic` flag, the noise is taken relative to the field value. A cell
+is thus flagged only if its difference exceeds the threshold with a confidence set by k. Where the
+noise is small compared with the threshold, the test changes little; where it is not, the effective
+threshold rises, so that a cell that is too noisy to resolve the gradient is not subdivided
+further. The test thereby makes the trade-off between photon packets and resolution explicit: with
+fewer packets, the refinement stops at coarser cells.
+
+| Criterion | Noise of the field |
+| --- | --- |
+| `DustTemperatureGradientCriterion` | the change of the indicative dust temperature when the radiation field is multiplied by one plus its relative noise |
+| `RadiationFieldGradientCriterion` | the field value times the relative noise of the radiation field |
+| `MediumStateGradientCriterion` | not known: the criterion ignores its `significance` property, and setup issues a warning if it is nonzero |
+
+A value of 3 is the natural choice. A cell has six face neighbors, each of which can push it over
+the threshold by noise, and each flagged cell becomes eight children, so that a cascade dies out
+only if 48 times the one-sided Gaussian tail probability beyond k is below one, which requires k
+above 2. With 3, the refinement settled in all tests.
+
+### Noise allowance of dust destruction recipes
+
+The `DustDestructionRecipe`, and thus the `LinearDustDestructionRecipe`, has a `significance`
+property as well (zero by default). A cell counts as not converged if the density fraction of a
+fragment changes by more than the `densityFractionTolerance`. With a nonzero significance k, the
+recipe widens this tolerance in each cell by the change that the noise could cause: the difference
+between the density fractions for the radiation field of the cell multiplied by 1 − kσ and by
+1 + kσ, where σ is the relative noise of the radiation field in the cell. This assumes that the
+fraction varies monotonically with the strength of the radiation field. The solution does not
+change, since every cell is still updated in every iteration; only the convergence test ignores the
+changes that the noise explains. Because the noise estimate has heavy tails, a value of 5 is
+needed. In tests with 3, a significant fraction of cells at a refined front still changed in every
+iteration.
+
+The recipes allow a fraction of the number of cells to remain not converged
+(`maxFractionNotConvergedCells`), rather than a number of cells as in SKIRT 9 (see the
+[Incompatibilities](skirt-10/04-incompatibilities.md) chapter of the SKIRT 10 note), so that the
+allowance grows with a refined grid.
+
+### Candidate guard
+
+The `minCandidateFraction` option ends the creep: a decision with fewer candidates than this
+fraction of the number of cells does not lead to a refinement round, and the refinement counts as
+settled. It guards against the trickle of noise candidates and small rounds near the end of the
+refinement, not against a cascade: once a cascade has started, each decision finds many candidates.
+In tests, the creep remained even when the number of packets per cell was fixed, so it is not
+caused by the decreasing number of packets per cell alone. Presumably, each round creates finer
+cells whose values differ more from those of the coarser cells next to them, which moves the
+refined region on by a few cells per round. A guard of 1% ended the creep.
 
 ## Initial state of child cells
 
@@ -487,7 +668,9 @@ The number of photon packets per cell decreases as the grid grows. This increase
 noise in the medium state, and thereby in the refinement fields and in the convergence measures.
 At setup, the number of packets per cell is therefore also calculated for a grid with `maxCells`
 cells, for each iteration loop in which refinement takes place, and a warning is issued if it is
-below 100.
+below 100. In primary iterations, the `primaryIterationPacketsPerCell` option keeps the number of
+packets per cell constant as the grid grows, within the bounds of the configured numbers (see
+Iteration and convergence above).
 
 The refinement step records its progress in the iteration history, so that the `HistoryProbe`
 proposed in the Iteration history design note lists it for each iteration: the number of cells,
@@ -521,6 +704,11 @@ state variables, and on the number of bins of the radiation field wavelength gri
 reference production runs, with the `DiffuseIonizedGasMix` and a radiation field wavelength grid
 of 75 bins, each process used about 4.4 GB per million cells, in addition to about 30 GB that
 does not depend on the number of cells.
+
+If a criterion or a dust destruction recipe uses the noise of the radiation field, the medium
+system keeps 8 values per cell for the batches of the primary radiation field, and 16 more in a
+simulation with a secondary radiation field. Each criterion with the noise test also keeps a
+second cell window, which holds the squared noise of its field.
 
 If a cell cap is configured, the memory for `maxCells` cells is reserved at setup, so that the
 memory need of the run is fixed from the start, and refinement rounds do not need additional

@@ -84,15 +84,15 @@ number of rounds rules out any further round, the decisions serve only the diagn
 refinement could then be reported as settled in every iteration after those left out of the
 averaging, which lets the loop converge up to one window earlier.
 
-**Settling.** In the proposal, a single candidate causes a refinement round. A few cells that
-Monte Carlo noise moves in and out of a criterion can thus cause one round after another, each
-costing at least `numIterationsAfterRefinement + numAveragedIterations` iterations. The `maxRounds`
-property bounds this, but its default of zero means no maximum. A nonzero default would bound the
-loop automatically, at the risk of silently cutting off the refinement of a model that needs more
-rounds. A tolerance, which considers the refinement settled as long as no more than a given number
-of cells ask for subdivision, was considered and rejected. Such a number has no natural scale, it
-cannot tell noise from a small structure that really needs refinement, and the cells within the
-tolerance are still subdivided as soon as a later decision exceeds it.
+**Settling.** By default, a single candidate causes a refinement round. A few cells that Monte Carlo
+noise moves in and out of a criterion can thus cause one round after another, each costing at
+least `numIterationsAfterRefinement + numAveragedIterations` iterations. The `maxRounds` property
+bounds this, but its default of zero means no maximum. A nonzero default would bound the loop
+automatically, at the risk of silently cutting off the refinement of a model that needs more
+rounds. The `minCandidateFraction` option offers a tolerance defined as a fraction of the number
+of cells. In the tests, a fraction of 1% ended a creep of small rounds whose mechanism
+is not verified (see Monte Carlo noise in the Features chapter); a nonzero default may be worth
+considering.
 
 **Rounds near the end of a loop.** The proposal starts no round when fewer than
 `numIterationsAfterRefinement + numAveragedIterations` iterations remain in the loop, so that the
@@ -103,8 +103,71 @@ refinement.
 
 **Packets per cell.** The warning for a low number of photon packets per cell uses a threshold of
 100, which is a placeholder. The production runs of the reference implementation use a budget of
-250 packets per iteration for each cell of the maximum number of cells. The threshold needs to be
-calibrated, and may depend on the criteria.
+250 packets per iteration for each cell of the maximum number of cells, the galaxies of the Results
+chapter needed 10 to 40 packets per cell in their secondary iterations, and the gradient criteria
+with the noise test on the slab about 1 000 in their primary iterations. The threshold thus
+depends on the criteria and on what the iterations must converge, and a single value may not
+serve. Below about 40 packets per cell, the noise estimate itself becomes unreliable, because a
+batch then receives only a few packets. The `primaryIterationPacketsPerCell` option scales the
+packets of primary iterations with the number of cells; the secondary and merged iterations have no
+such option yet.
+
+**Noise estimate.** The estimate refers to the
+radiation field summed over all wavelengths, which underestimates the noise of a quantity that
+depends on part of the spectrum: the dust temperature depends mostly on the ultraviolet, and the
+noise test of a radiation field criterion over the ultraviolet alone did not prevent runaway
+refinement. Batches per wavelength range, or batches of the luminosity absorbed by the dust, would
+be more faithful, at a further cost in memory.
+
+**Noise of medium state variables.** A medium state variable has no noise estimate, so that the
+`MediumStateGradientCriterion` ignores its `significance` property. For a variable that a material
+mix or a recipe calculates from the radiation field of the cell, such as an ionization fraction,
+the noise could be propagated from the noise of the radiation field, as the dust destruction recipe
+does for its density fractions, if the mix offered a way to evaluate its update for a scaled
+radiation field. A density fraction of a fragmented dust mix at a sharp destruction front changes
+from 0 to 1 at every level, so that a noise test would not stop the refinement there; a level limit
+does (see Resolution of a front below).
+
+**Resolution of a front.** The level limit of a criterion on a destruction front had to be chosen by
+hand, at the level where the cells become smaller than the distance over which noise blurs the
+front. A criterion that stops by itself at that scale, for example where the noise allowance of the
+recipe in a cell exceeds one half, would set the limit automatically.
+
+**Recipe convergence.** A dust destruction recipe allows a fraction of the number of cells to remain
+not converged. In the tests, the cells that remain not converged lie at the front, and their number
+grows by a factor of 4 per level of the front, while the rest of the grid stays the same, so that
+the fraction still grows with the resolution of the front (0.04% at level 8, 0.17% at level 9). A
+fraction weighted by the dust mass would not depend on the resolution, since the mass of the
+layer at the front halves with each level, and it measures the material whose opacity is still
+uncertain. It requires a weight per cell in the count of cells that are not converged, and for a
+recipe that clears a cell, the mass before the update.
+
+**Image-driven refinement.** Images that see the whole volume of a model, such as the edge-on
+images of the optically thin emission of the slab in the Results chapter, resolve the steps between
+the large cells of the bulk, and converge slowly with a constant threshold. During the tests, an
+option that lets the threshold of a gradient criterion grow by a given factor per level beyond the
+initial level was tried: with a factor of √2, it shifted cells from the top layer to the bulk, and
+brought the edge-on images close to the noise with 658 000 cells, as close as a Cartesian grid with
+1 million cells, where a constant threshold left them 1.4 to 2 times above the noise with 1.07
+million cells. The option was removed again, because it
+targets the images only indirectly. A criterion that targets the pixel scale of the instruments
+would make this explicit.
+
+**Anisotropic refinement.** An octree ties the height of a cell to its width, so that resolving a
+thin layer in one direction also refines it in the other two, which limits the gain of refinement
+for a nearly one-dimensional structure: on the slab of the Results chapter, Cartesian grids with a
+mesh fitted to the gradient needed 2.5 to 3 times fewer cells. A binary tree that splits a cell
+along the axis of its largest gradient, rather than cycling through the axes, would avoid most of
+this. It requires a split axis per node in the tree, in the path segment generator, and in the
+topology input and output.
+
+**Defaults.** The defaults of `numIterationsBeforeRefinement` (5) and `numAveragedIterations` (3)
+suit a medium state that evolves over the iterations, as in photoionization, but not a field that
+each iteration recalculates from scratch, for which a decision in every iteration works better. The
+`logarithmic` flag, the noise test, and the candidate guard are off by default, so that existing
+configurations keep their behavior, although the tests suggest `logarithmic` with a significance of
+3 for a temperature or a mean intensity, and a guard of 1%. Defaults that depend on the criteria are
+possible, but make the configuration harder to understand.
 
 **Candidates probe.** A new `RefinementCandidatesProbe` could write the cells that asked for
 subdivision at the most recent decision but were left unsplit, with for each cell its index and its

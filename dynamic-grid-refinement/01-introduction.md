@@ -30,13 +30,16 @@ production. The mechanism is not specific to it, however. Possible future use ca
 - **Dust destruction.** A dust destruction recipe lowers the density of the grain populations of a
   fragmented dust mix where the radiation field is strong enough. The boundary of the region in
   which grains are destroyed, for example around a hot star or an active nucleus, again emerges
-  only from the radiation field. It could be resolved by a criterion on the density fraction of a
-  fragment, which the `FragmentDustMixDecorator` names `fdyn_f` for fragment f (e.g. `fdyn_0`).
+  only from the radiation field. It can be resolved by a criterion on the density fraction of a
+  fragment, which the `FragmentDustMixDecorator` names `fdyn_f` for fragment f (e.g. `fdyn_0`), or
+  by the dust temperature criterion, which sees the jump of the indicative dust temperature at the
+  front. The Results chapter reports a test on a slab heated from outside.
 - **Dust radiative transfer.** In a simulation that iterates over dust emission, the grid could
   adapt to the radiation field instead of being built from the density distribution alone, for
-  example by subdividing cells where the indicative dust temperature changes steeply, near
-  embedded sources or at the edge of an optically thick region. The
-  `DustTemperatureGradientCriterion` proposed in this note could serve as a step in this direction.
+  example by subdividing cells where the indicative dust temperature or the mean intensity changes
+  steeply, near embedded sources or at the edge of an optically thick region. The
+  `DustTemperatureGradientCriterion` and the `RadiationFieldGradientCriterion` proposed in this note
+  serve this purpose; the Results chapter reports tests on galaxies and on a slab.
 
 ## Background
 
@@ -75,21 +78,27 @@ structure.
 - Refinement can happen in each of the iteration loops: primary, secondary, and merged primary and
   secondary emission iterations.
 - The mechanism is generic: refinement can be driven by any changes in the medium state or the
-  radiation field. At present, however, only the `DiffuseIonizedGasMix` offers medium state
-  variables that are useful to drive refinement, and the indicative dust temperature and the
-  dust-absorbed luminosity are the only quantities derived from the radiation field that can
-  drive refinement.
+  radiation field. At present, however, the only medium state variables that are useful to drive
+  refinement are those of the `DiffuseIonizedGasMix` and the dynamic density fractions of a
+  fragmented dust mix. The only quantities derived from the radiation field that can drive
+  refinement are the indicative dust temperature, the mean intensity integrated over a wavelength
+  range, and the dust-absorbed luminosity.
+- The fields that drive refinement carry Monte Carlo noise, which grows as cells get smaller. The
+  noise of the radiation field is estimated in each cell, so that the gradient criteria and the
+  convergence test of a dust destruction recipe can tell noise from structure.
 
 ## Overview
 
 - **[Features](dynamic-grid-refinement/02-features.md)** describes the configuration, the
-  refinement criteria, and the behavior of the iteration loop, as seen by the user.
+  refinement criteria, the behavior of the iteration loop, and the handling of Monte Carlo noise,
+  as seen by the user.
 - **[Implementation](dynamic-grid-refinement/03-implementation.md)** describes the refinement
-  step and its use of the iteration history, the grid operations, and the growth of the per-cell
-  data structures.
+  step and its use of the iteration history, the grid operations, the growth of the per-cell
+  data structures, and the noise estimate.
 - **[Results](dynamic-grid-refinement/04-results.md)** reports long-running tests with realistic
   models, one section per application, and recommends settings for each. So far, it covers dust
-  radiative transfer in three galaxies dominated by dust self-heating; the sections on dust
-  destruction and photoionization are still empty.
+  radiative transfer in three galaxies dominated by dust self-heating, and a slab heated from
+  outside, refined on its temperature field and on a dust destruction front; the section on
+  photoionization is still empty.
 - **[Open questions](dynamic-grid-refinement/05-open-questions.md)** collects the design
   decisions that may need further consideration in the future.
