@@ -10,116 +10,19 @@ chapters.
 
 The first long-running test outside photoionization concerns the dust radiative transfer of the three COLIBRE
 galaxies of the [Dust self-heating](dust-self-heating/04-results.md) design note, which are dominated by dust
-self-heating. The goal was to find the settings — the grid built at setup, the dynamic refinement options, the
-iteration options, and the number of photon packets — that produce converged results in the least run time, and in
-the process to determine the converged results as well as possible. The main findings are:
+self-heating. The Results chapter of that note describes these galaxies and, in its section Grid resolution and photon
+packets, the settings that matter most for them: the resolution of the dust density in the dense core, which is known
+at setup, and the number of photon packets per iteration. This section reports what dynamic refinement adds to those
+settings. In short, refinement driven by the radiation field changes the spectrum by 1 to 2% at most. It cannot
+replace the resolution of the dense core, because the cells that matter absorb little luminosity and hardly stand out
+in temperature.
 
-- The resolution that matters most for these galaxies is that of the dust density in their dense cores, which is
-  known at setup. The original grid stops subdividing the core at its maximum level, long before each cell holds less
-  than the requested fraction of the dust mass. Lifting that limit raises the emission at 5–10 µm by 1 to 10% and at
-  10–20 µm by up to 8%, and a finer mass resolution raises it further: the mid-infrared emission of these galaxies is
-  not converged at the resolutions that fit in a few million cells. The emission beyond 40 µm, which carries most of
-  the dust luminosity, changes by 1 to 2% at most.
-- Dynamic refinement driven by the radiation field changes the spectrum by 1 to 2% at most. It cannot replace the
-  resolution of the dense core, because the cells that matter absorb little luminosity and hardly stand out in
-  temperature.
-- The largest savings in run time come from a coarser grid outside the core and from launching fewer photon packets
-  in the iterations than in the final emission segments: together, these make a run about four times faster than in
-  the original configuration, with the same results.
-
-### Test case
-
-The three galaxies, ID33341, ID5642, and ID39321, are described in the Results chapter of the dust self-heating note.
-They are compact and dusty, with V-band optical depths along the axes of the domain of up to several thousand, and the
-dust absorbs 6, 9, and 34 times more of its own emission than of the radiation of the primary sources. Their dust
-half-mass radii are 528, 294, and 219 pc. All runs used the input files and the settings of the original runs by
-Andrea Gebek, as summarized in that note, with the following exceptions:
-
-- three SED instruments viewing along the x, y, and z axes instead of one along z;
-- the default convergence criteria of the SKIRT 10 beta (`maxSecondaryChange` 0.01);
-- the spatial grid, the iteration scheme, the dynamic refinement options, and the number of photon packets, as
-  described below.
-
-The results are compared through the SED summed over the three instruments, integrated over the wavelength bands
-5–10, 10–20, 20–40, 40–80, 80–160, 160–400, and 400–2000 µm, and over 5–1000 µm as a whole. The emission below 5 µm
-hardly depends on any of the settings studied here: it agrees within 0.5% between all runs. Unless stated otherwise,
-differences are quoted relative to a run on the coarse grid described below, with 100 million photon packets for the
-primary emission and the final secondary emission, and 10 million per secondary iteration. Run times are compared
-only between runs on the same computer with the same number of threads, and are quoted relative to each other.
-
-### The setup grid
-
-#### The outskirts
-
-Andrea's grid is a binary tree subdivided from level 15 to at most level 36 until each cell holds less than 10^−6 of
-the dust mass. For ID33341, a quarter of its cells lie more than 4 kpc from the center, where they hold 4% of the dust
-mass. The coarse grid used in the rest of this section subdivides the whole domain until each cell holds less than
-10^−5 of the dust mass, and the cube of 2 kpc around the center (with a `BoxTreePolicy`) until each cell holds less
-than 10^−6, as before:
-
-| Galaxy | Cells, original grid | Cells, coarse grid | Dust mass within the box |
-| --- | ---: | ---: | ---: |
-| ID33341 | 402 341 | 265 742 (−34%) | 89% |
-| ID5642 | 316 954 | 295 700 (−7%) | 98% |
-| ID39321 | 197 895 | 162 021 (−18%) | 97% |
-
-For ID33341, the SED on the coarse grid agrees with that on the original grid within 0.6% in all bands, and the run
-with 31.6 million packets is 22% faster, because both the photon paths and the per-cell work shrink with the number
-of cells.
-
-#### The maximum level
-
-Both grids stop at level 36, where a cell measures 12.6 pc. In the dense core, many cells at that level hold far more
-than 10^−6 of the dust mass, so that the density structure within them is not resolved, and their diagonal optical
-depth at 0.55 µm reaches several thousand. Raising the maximum level to 40 or 60 lets the mass criterion continue: the
-deepest cells are at level 47 or 48, about 1 pc, and the largest optical depth of a cell falls to 500 to 800. Relative
-to the coarse grid at level 36:
-
-| Galaxy | Cells, level 36 | Cells, level 40 | Cells, level 60 | 5–10 µm, level 40 | 5–10 µm, level 60 | 10–20 µm, level 40 | 10–20 µm, level 60 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| ID33341 | 265 742 | 706 046 | 1 341 783 | +2.2% | +3.2% | +1.0% | +1.2% |
-| ID5642 | 295 700 | 958 003 | 1 458 781 | +9.0% | +10.3% | +4.9% | +7.8% |
-| ID39321 | 162 021 | 615 941 | 1 445 346 | +1.1% | +1.4% | +1.5% | +0.6% |
-
-For ID39321, the values are the mean of the comparisons of two runs at each level with two runs at level 36;
-individual runs of this galaxy scatter by 1 to 2% in the mid-infrared, as much as the effect itself. The emission
-beyond 40 µm changes by less than 1%, except for ID39321, where it rises by about 1% at level 40 and falls by up to 2%
-at level 60. Both runs at level 60, with 30 and 32 packets per cell, converged to a lower self-absorption, which
-suggests that they had too few packets per cell for this galaxy (see Photon packets). The effect is largest for
-ID5642, the galaxy with the most compact dust. Level 40 (5 pc) captures most of the change at 5–10 µm, but only part
-of it at 10–20 µm. A grid with an additional `OpticalDepthTreePolicy` limiting the diagonal optical depth to 100, as
-in the refined grid of the dust self-heating note, yields the same mid-infrared emission as the grid at level 60
-without it: along the z axis of ID33341, both are 3.0% and 2.1% brighter at 5–10 and 10–20 µm. The differences
-reported in that note for its refined grid thus stem from the resolution of the density structure, not from the
-optical depth limit itself, nor from the low number of packets per cell of those runs.
-
-![Spectrum of ID5642 relative to the coarse grid at level 36](figures/results-levels.png ':size=90%')
-
-### Photon packets
-
-The noise in the SED comes from the final primary and secondary emission segments, which feed the instruments, rather
-than from the iterations, which only determine the dust temperatures. Two runs of ID33341 that differ only in the
-random seed, with 3.16 million packets per iteration and 31.6 million packets in the final segments, agree within 0.3%
-in all bands except 10–20 µm (0.8%), whereas two runs with 3.16 million packets throughout differ by up to 2.7%.
-
-The iterations therefore need far fewer packets than the final segments, as long as each cell receives enough of them.
-The `secondaryIterationPacketsMultiplier` (and `primaryIterationPacketsMultiplier` for primary or merged iterations)
-sets the number of packets per iteration relative to the final segments. For ID33341 on the coarse grid:
-
-| Packets per iteration | Packets per cell | Iterations | 5–10 µm | 40–80 µm | 160–400 µm | 5–1000 µm |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 31.6 million | 119 | 14 | +0.5% | +0.1% | +0.2% | +0.1% |
-| 3.16 million | 12 | 14–15 | +0.4…0.5% | 0.0…+0.1% | −0.2% | 0.0% |
-| 1 million | 3.8 | 14 | 0.0% | −0.6% | −0.8% | −0.6% |
-| 0.32 million | 1.2 | 50 | −0.1% | −3.1% | −2.4% | −2.8% |
-
-With about 10 packets per cell or more, the iterations converge to the same SED within the noise, in the same number
-of iterations. With fewer, the far-infrared emission settles too low, as the luminosity deficit levels off above zero,
-and the iterations take longer. The mid-infrared emission hardly depends on the number of packets per cell. The galaxy
-with the strongest self-absorption needs more: on a grid with 250 000 cells, ID39321 needed 41 iterations with 13
-packets per cell, and its far-infrared emission came out 4% low, whereas with 40 packets per cell it converged in 23
-iterations. With 5 packets per cell on 1.4 million cells, its luminosity deficit was still 8% after 25 iterations,
-and even its emission at 10–20 µm came out 10% low.
+The runs use the settings of that section. The original grid is that of the SKIRT 9 runs by Andrea Gebek, a binary
+tree subdivided up to level 36 until each cell holds less than 10^−6 of the dust mass; the coarse grid subdivides the
+whole domain to 10^−5 and the central 2 kpc to 10^−6, also up to level 36. Unless stated otherwise, differences are
+quoted relative to a run on the coarse grid, with 100 million photon packets for the primary emission and the final
+secondary emission and 10 million per secondary iteration, for the SED summed over three instruments viewing along
+the x, y, and z axes.
 
 ### Dynamic refinement
 
@@ -171,11 +74,12 @@ the primary luminosity gives the same result: for ID5642, a grid refined on the 
 refinement adds only about 20 000 cells and changes the emission by less than 1.5% (ID33341 and ID5642).
 
 The refinement thus cannot replace the resolution of the dense core: for ID5642, it adds 1.3 to 1.6% at 5–10 µm,
-where raising the maximum level adds 9 to 10%. Presumably, the dense clumps that the mass criterion resolves matter
-as absorbers rather than as emitters: on a coarse grid, the dust of a clump is spread over a cell of 12.6 pc, which
-then blocks the mid-infrared radiation over its whole cross section, whereas the resolved clump covers only part of it.
-Such clumps absorb little luminosity, and their temperature hardly stands out from that of their neighbors, so that
-neither the luminosity criterion nor the temperature gradient criterion selects them.
+where raising the maximum level adds 9 to 10% (see the dust self-heating note). Presumably, the dense clumps that the
+mass criterion resolves matter as absorbers rather than as emitters: on a coarse grid, the dust of a clump is spread
+over a cell of 12.6 pc, which then blocks the mid-infrared radiation over its whole cross section, whereas the
+resolved clump covers only part of it. Such clumps absorb little luminosity, and their temperature hardly stands out
+from that of their neighbors, so that neither the luminosity criterion nor the temperature gradient criterion selects
+them.
 
 ![Spectrum of ID33341 on refined grids, relative to the coarse grid](figures/results-refined.png ':size=90%')
 
