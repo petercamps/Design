@@ -2,9 +2,10 @@
 
 The proposal was implemented in the SKIRT 10 beta in October 2026. This chapter reports how the
 implementation performs for the three COLIBRE galaxies that triggered the proposal: first on the
-spatial grid of the SKIRT 9 runs by Andrea Gebek, compared with those runs, and then on a refined
-grid that resolves the optical depth of the cells. All v10beta runs used the default convergence
-criteria and the rebalance with 10 × 10 bins.
+spatial grid of the SKIRT 9 runs by Andrea Gebek, compared with those runs, then on a refined grid
+that resolves the optical depth of the cells, and finally with the grid resolution and the number
+of photon packets that produce converged results in the least run time. All v10beta runs used the
+default convergence criteria and the rebalance with 10 × 10 bins.
 
 ## The COLIBRE galaxies
 
@@ -188,8 +189,11 @@ iterations; after 30 iterations, the absorbed secondary luminosity is 6% below t
 with 160 packets per cell. The refined grid thus needs more packets per cell than the original
 grid. The runs of ID33341 and ID5642 on the refined grid converge with some 9 packets per cell,
 but their absorbed secondary luminosity is 11% and 25% below that of the original grid; how much of
-this difference stems from the resolution and how much from the number of packets has not been
-determined.
+this difference stems from the resolution and how much from the number of packets was not
+determined in these runs. For the spectrum, the later runs described in Grid resolution and photon
+packets below separate the two effects: the extra mid-infrared emission on the refined grid stems
+from the resolution of the dense core, whereas too few packets per cell lower the far-infrared
+emission.
 
 ### Spectra
 
@@ -214,6 +218,123 @@ packets, both are lower, by 5.7% and 3.4%. The refined grid apparently sends a l
 dust emission along the z axis, the axis with the lowest optical depth of this galaxy. For ID33341
 and ID5642, the two ratios agree within 0.4%. The luminosity deficit, logged and recorded by the
 history probe, rather than the spectrum, therefore shows whether a run has converged.
+
+## Grid resolution and photon packets
+
+The runs above leave open which grid and how many photon packets produce converged results in the
+least run time. A later series of runs looked for the settings that do so — the grid built at setup,
+the iteration options, and the number of photon packets — and in the process determined the
+converged results as well as possible. The main findings are:
+
+- The resolution that matters most for these galaxies is that of the dust density in their dense
+  cores, which is known at setup. The original grid stops subdividing the core at its maximum
+  level, long before each cell holds less than the requested fraction of the dust mass. Lifting
+  that limit raises the emission at 5–10 µm by 1 to 10% and at 10–20 µm by up to 8%, and a finer
+  mass resolution raises it further: the mid-infrared emission of these galaxies is not converged
+  at the resolutions that fit in a few million cells. The emission beyond 40 µm, which carries
+  most of the dust luminosity, changes by 1 to 2% at most.
+- The largest savings in run time come from a coarser grid outside the core and from launching
+  fewer photon packets in the iterations than in the final emission segments: together, these make
+  a run about four times faster than in the original configuration, with the same results.
+
+### Setup
+
+The runs used the input files and the settings described above, with the following exceptions:
+
+- three SED instruments viewing along the x, y, and z axes instead of one along z;
+- a `maxSecondaryChange` of 0.01, the current default, rather than 0.005 (see Convergence on the
+  original grid);
+- the spatial grid, the iteration options, and the number of photon packets, as described below.
+
+The results are compared through the SED summed over the three instruments, integrated over the
+wavelength bands 5–10, 10–20, 20–40, 40–80, 80–160, 160–400, and 400–2000 µm, and over 5–1000 µm
+as a whole. The emission below 5 µm hardly depends on any of the settings studied here: it agrees
+within 0.5% between all runs. Unless stated otherwise, differences are quoted relative to a run on
+the coarse grid described below, with 100 million photon packets for the primary emission and the
+final secondary emission, and 10 million per secondary iteration. Run times are compared only
+between runs on the same computer with the same number of threads, and are quoted relative to each
+other.
+
+### The outskirts
+
+On the original grid, a quarter of the cells of ID33341 lie more than 4 kpc from the center, where
+they hold 4% of the dust mass. The coarse grid used in the rest of this section subdivides the
+whole domain until each cell holds less than 10<sup>−5</sup> of the dust mass, and the cube of
+2 kpc around the center (with a `BoxTreePolicy`) until each cell holds less than 10<sup>−6</sup>,
+as the original grid does everywhere:
+
+| Galaxy | Cells, original grid | Cells, coarse grid | Dust mass within the box |
+| --- | ---: | ---: | ---: |
+| ID33341 | 402 341 | 265 742 (−34%) | 89% |
+| ID5642 | 316 954 | 295 700 (−7%) | 98% |
+| ID39321 | 197 895 | 162 021 (−18%) | 97% |
+
+For ID33341, the SED on the coarse grid agrees with that on the original grid within 0.6% in all
+bands, and the run with 31.6 million packets is 22% faster, because both the photon paths and the
+per-cell work shrink with the number of cells.
+
+### The maximum level
+
+Both grids stop at level 36, where a cell measures 12.6 pc. In the dense core, many cells at that
+level hold far more than 10<sup>−6</sup> of the dust mass, so that the density structure within
+them is not resolved, and their diagonal optical depth at 0.55 µm reaches several thousand (see The
+optical depth of the cells). Raising the maximum level to 40 or 60 lets the mass criterion
+continue: the deepest cells are at level 47 or 48, about 1 pc, and the largest optical depth of a
+cell falls to 500 to 800. Relative to the coarse grid at level 36:
+
+| Galaxy | Cells, level 36 | Cells, level 40 | Cells, level 60 | 5–10 µm, level 40 | 5–10 µm, level 60 | 10–20 µm, level 40 | 10–20 µm, level 60 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ID33341 | 265 742 | 706 046 | 1 341 783 | +2.2% | +3.2% | +1.0% | +1.2% |
+| ID5642 | 295 700 | 958 003 | 1 458 781 | +9.0% | +10.3% | +4.9% | +7.8% |
+| ID39321 | 162 021 | 615 941 | 1 445 346 | +1.1% | +1.4% | +1.5% | +0.6% |
+
+For ID39321, the values are the mean of the comparisons of two runs at each level with two runs at
+level 36; individual runs of this galaxy scatter by 1 to 2% in the mid-infrared, as much as the
+effect itself. The emission beyond 40 µm changes by less than 1%, except for ID39321, where it
+rises by about 1% at level 40 and falls by up to 2% at level 60. Both runs at level 60, with 30 and
+32 packets per cell, converged to a lower self-absorption, which suggests that they had too few
+packets per cell for this galaxy (see Photon packets below). The effect is largest for ID5642, the
+galaxy with the most compact dust. Level 40 (5 pc) captures most of the change at 5–10 µm, but only
+part of it at 10–20 µm.
+
+A grid with an additional `OpticalDepthTreePolicy` limiting the diagonal optical depth to 100, as
+in the refined grid above, yields the same mid-infrared emission as the grid at level 60 without
+it: along the z axis of ID33341, both are 3.0% and 2.1% brighter at 5–10 and 10–20 µm. The extra
+mid-infrared emission on the refined grid (see Spectra above) thus stems from the resolution of the
+density structure, not from the optical depth limit itself, nor from the low number of packets per
+cell of those runs.
+
+![Spectrum of ID5642 relative to the coarse grid at level 36](figures/results-levels.png ':size=90%')
+
+### Photon packets
+
+The noise in the SED comes from the final primary and secondary emission segments, which feed the
+instruments, rather than from the iterations, which only determine the dust temperatures. Two runs
+of ID33341 that differ only in the random seed, with 3.16 million packets per iteration and 31.6
+million packets in the final segments, agree within 0.3% in all bands except 10–20 µm (0.8%),
+whereas two runs with 3.16 million packets throughout differ by up to 2.7%.
+
+The iterations therefore need far fewer packets than the final segments, as long as each cell
+receives enough of them. The `secondaryIterationPacketsMultiplier` (and
+`primaryIterationPacketsMultiplier` for primary or merged iterations) sets the number of packets per
+iteration relative to the final segments. For ID33341 on the coarse grid:
+
+| Packets per iteration | Packets per cell | Iterations | 5–10 µm | 40–80 µm | 160–400 µm | 5–1000 µm |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 31.6 million | 119 | 14 | +0.5% | +0.1% | +0.2% | +0.1% |
+| 3.16 million | 12 | 14–15 | +0.4…0.5% | 0.0…+0.1% | −0.2% | 0.0% |
+| 1 million | 3.8 | 14 | 0.0% | −0.6% | −0.8% | −0.6% |
+| 0.32 million | 1.2 | 50 | −0.1% | −3.1% | −2.4% | −2.8% |
+
+With about 10 packets per cell or more, the iterations converge to the same SED within the noise,
+in the same number of iterations. With fewer, the far-infrared emission settles too low, as the
+luminosity deficit levels off above zero, and the iterations take longer, as on the refined grid
+above. The mid-infrared emission hardly depends on the number of packets per cell. The galaxy with
+the strongest self-absorption needs more: on a grid with 250 000 cells, ID39321 needed 41
+iterations with 13 packets per cell, and its far-infrared emission came out 4% low, whereas with 40
+packets per cell it converged in 23 iterations. With 5 packets per cell on 1.4 million cells, its
+luminosity deficit was still 8% after 25 iterations, and even its emission at 10–20 µm came out 10%
+low.
 
 ## Performance
 
