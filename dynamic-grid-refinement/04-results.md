@@ -71,7 +71,7 @@ of cells.
 
 Both grids stop at level 36, where a cell measures 12.6 pc. In the dense core, many cells at that level hold far more
 than 10^−6 of the dust mass, so that the density structure within them is not resolved, and their diagonal optical
-depth at 0.55 µm reaches several thousand. Raising the maximum level lets the mass criterion continue: at level 60, the
+depth at 0.55 µm reaches several thousand. Raising the maximum level to 40 or 60 lets the mass criterion continue: the
 deepest cells are at level 47 or 48, about 1 pc, and the largest optical depth of a cell falls to 500 to 800. Relative
 to the coarse grid at level 36:
 
@@ -84,7 +84,7 @@ to the coarse grid at level 36:
 For ID39321, the values are the mean of the comparisons of two runs at each level with two runs at level 36;
 individual runs of this galaxy scatter by 1 to 2% in the mid-infrared, as much as the effect itself. The emission
 beyond 40 µm changes by less than 1%, except for ID39321, where it rises by about 1% at level 40 and falls by up to 2%
-at level 60; both runs at level 60, with 30 and 32 packets per cell, converged to a lower self-absorption, which
+at level 60. Both runs at level 60, with 30 and 32 packets per cell, converged to a lower self-absorption, which
 suggests that they had too few packets per cell for this galaxy (see Photon packets). The effect is largest for
 ID5642, the galaxy with the most compact dust. Level 40 (5 pc) captures most of the change at 5–10 µm, but only part
 of it at 10–20 µm. A grid with an additional `OpticalDepthTreePolicy` limiting the diagonal optical depth to 100, as

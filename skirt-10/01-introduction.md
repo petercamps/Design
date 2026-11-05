@@ -60,16 +60,18 @@ implemented. A note may build on earlier ones in this list, as stated at its sta
   restructuring of the hierarchical tree classes and their subdivision policies.
 - **[HDF5 input](hdf5-input/01-introduction.md)** proposes optional HDF5 support for
   simulation input.
+- **[HDF5 output](hdf5-output/01-introduction.md)** proposes optional HDF5 support for
+  simulation output.
 - **[Medium state](medium-state/01-introduction.md)** proposes a uniform way to import and
   describe the quantities stored for each spatial cell, and changes to how they are updated
   and accessed.
 - **[Iteration history](iteration-history/01-introduction.md)** proposes a central object that
   holds the historical data of the iteration loops.
-- **[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)** proposes refining a
-  tree-based spatial grid between iterations, driven by the evolving medium state.
 - **[Dust self-heating](dust-self-heating/01-introduction.md)** proposes changes to the
   calculation of dust emission and to the secondary emission iterations.
-- **[HDF5 output](hdf5-output/01-introduction.md)** proposes optional HDF5 support for
-  simulation output.
+- **[Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)** proposes refining a
+  tree-based spatial grid between iterations, driven by the evolving medium state.
+- **[Escape instruments](escape-instruments/01-introduction.md)** proposes instruments that
+  record the radiation escaping from the model, binned by direction and wavelength.
 - **[Checkpointing](checkpointing/01-introduction.md)** proposes saving the internal state of a
   running simulation, so that it can be resumed or reused.
