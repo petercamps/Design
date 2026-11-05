@@ -147,12 +147,14 @@ Without the rebalance, the two conditions of the second criterion would be redun
 dust luminosity of an iteration is then the absorbed primary luminosity plus the absorbed secondary
 luminosity of the previous iteration, so that the deficit reduces to
 *δ(n) = (Ls(n) − Ls(n−1)) / Lp*, and its mean over the last *w* iterations to
-*(Ls(n) − Ls(n−w)) / (w Lp)*. From iteration *w* + 2 on, when the secondary change no longer needs
-to skip the first iteration, this is the secondary change with the absorbed primary luminosity in
-the denominator instead of the absorbed secondary luminosity. In a strongly self-absorbing model,
-the absorbed secondary luminosity is many times the absorbed primary luminosity, so that the
-deficit is by far the stricter of the two, which is why the current criterion is misleading (see
-the Introduction).
+*(Ls(n) − Ls(n−w)) / (w Lp)*, since the differences between consecutive iterations cancel in pairs.
+From iteration *w* + 2 on, when the secondary change no longer needs to skip the first iteration,
+the secondary change is *|Ls(n) − Ls(n−w)| / (w Ls(n))*. Both quantities then measure the same
+change of the absorbed secondary luminosity, but relative to different luminosities: the size of
+the mean deficit equals the secondary change multiplied by *Ls(n) / Lp*. In a strongly
+self-absorbing model, the absorbed secondary luminosity is many times the absorbed primary
+luminosity, so that the deficit is by far the stricter of the two, which is why the current
+criterion is misleading (see the Introduction).
 
 The rebalance removes this redundancy. It rescales the secondary radiation field after each
 iteration so that the energy budget closes for the transfer fractions measured in that iteration.
