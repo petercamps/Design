@@ -24,9 +24,8 @@ modeling choice, so there is no reason to keep it.
 - **Energy conservation.** Up to Monte Carlo noise, the total luminosity absorbed by dust equals
   the luminosity lost by the photon packets to dust, for any radiation field wavelength grid.
 - **Radiation field wavelength grid.** The grid only needs to resolve the shape of the radiation
-  field. For the COLIBRE galaxies, a logarithmic grid with 50 bins from 0.09 to 2000 µm gives the
-  same result as a grid with 200 bins over the same range. The documentation advice for strongly
-  self-absorbing models changes accordingly.
+  field. In tests with strongly self-absorbing models, a logarithmic grid with 50 bins from 0.09
+  to 2000 µm gives the same result as a grid with 200 bins over the same range.
 - **Absorption outside the grid.** Photon packets with a wavelength outside the radiation field
   wavelength grid are not recorded in the radiation field, but their absorption by dust is counted.
   The emitted energy is therefore correct even if the grid misses part of the heating spectrum. The
@@ -138,8 +137,7 @@ holds:
   never includes the first iteration once *w + 1* iterations have been performed.
 
 Here *w* is the value of `numConvergenceIterations`. Averaging over several iterations suppresses
-the Monte Carlo noise in both quantities, which is about 0.5% per iteration for the deficit of the
-COLIBRE galaxies with 31.6 million photon packets. With the default *w* = 3, a model that does not
+the Monte Carlo noise in both quantities. With the default *w* = 3, a model that does not
 meet the first condition therefore needs at least four iterations, where the removed
 `maxFractionOfPrevious` criterion often stopped after two.
 
@@ -180,6 +178,33 @@ emission spectra agreed within 0.2%.
 As today, the loop runs for at least `minSecondaryIterations` and at most `maxSecondaryIterations`
 iterations, and a warning is issued if it ends without convergence. Without dust, the dust criteria
 are skipped, and convergence is determined by the dynamic medium state alone, as today.
+
+## Cell library mapping
+
+### Behavior
+
+A cell library groups the spatial cells into entries. The cells of an entry share the mean intensity
+of the radiation field averaged over these cells, while the emission of each cell is still
+calculated for the dust in that cell and normalized to the luminosity that this dust absorbs. The
+`TemperatureWavelengthCellLibrary` maps a cell to an entry by two properties of its radiation field:
+an indicative dust temperature, the equilibrium temperature of the dust in the field, and an
+indicative dust wavelength, the mean wavelength of the field weighted by the dust absorption
+opacity.
+
+In SKIRT 9, both properties are calculated for the dust in the cell: the temperatures of the dust
+components are weighted by their density in the cell, and the wavelength by the opacity of the dust
+in the cell. With several dust components that have different spatial distributions, the composition
+varies from cell to cell, and the properties depend on it. Cells with different radiation fields
+then share an entry, and the averaged radiation field misrepresents the field in each of them. More
+entries do not remove this error, because it does not originate from the width of the bins.
+
+In SKIRT 10, both properties are calculated for the dust in the simulation as a whole: each dust
+component is weighted by its total mass in the simulation rather than by its density in the cell, so
+that the properties depend on the radiation field only. If the dust has the same composition in
+every cell, for example with a single dust component, the mapping is unchanged. Within a single
+component, the composition cannot vary, because SKIRT does not allow a cell library in combination
+with a material mix family or with a mix that keeps extra state per cell, such as a fragmented dust
+mix.
 
 ## Configuration
 
@@ -297,9 +322,7 @@ For models with strong dust self-heating, the recommended settings are as follow
   only needs to resolve the shape of the radiation field, and the logged fraction of the absorbed
   luminosity outside the grid shows whether it covers the heating spectrum;
 - the `TemperatureWavelengthCellLibrary` with 100 temperature bins and 50 wavelength bins, which
-  makes iterations much faster without a measurable effect on the spectrum of such models; in tests
-  on COLIBRE galaxies at redshift 0, half or twice as many bins of either kind changed neither the
-  spectrum nor the run time noticeably;
+  makes iterations much faster without a measurable effect on the spectrum of such models;
 - the rebalance with the default 10 × 10 bins; more bins hardly change the observed spectrum, and
   they cannot make up for too few photon packets;
 - enough photon packets in each secondary emission iteration for the number of spatial cells. With
@@ -326,9 +349,4 @@ For models with strong dust self-heating, the recommended settings are as follow
   criterion holds up convergence, or whether the deficit has leveled off.
 
 For other models with dust emission, the `TemperatureWavelengthCellLibrary` is an option to be
-considered. The library saves most in models with many cells and many dust components, but in models
-with less self-absorption it can change the integrated spectrum by a few percent compared with the
-`AllCellsLibrary`. The logged ranges of the indicative temperatures and wavelengths hardly reveal
-this difference, and more bins do not reduce it. Whether the library or the `AllCellsLibrary` is
-closer to the converged spectrum is an open question (see Library or all cells in the Open
-questions chapter).
+considered. The library saves most in models with many cells and many dust components.

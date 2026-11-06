@@ -119,9 +119,9 @@ brighter. Several effects contribute, partly in opposite directions:
 - **Binned absorption.** In SKIRT 9, this excess of the absorbed luminosity recurs in every pass and
   is amplified by the self-absorption, which makes the dust emission brighter.
   In the unconverged SKIRT 9 runs, this partly offsets the two effects above.
-- **Cell library.** The `TemperatureWavelengthCellLibrary` had no measurable effect for ID39321 in
-  other experiments, but it can change the spectrum of less self-absorbing galaxies by a few
-  percent. Its effect has not been separated in this comparison.
+- **Cell library.** The `TemperatureWavelengthCellLibrary` agrees with the `AllCellsLibrary` within
+  about 1% for ID39321 (see Cell library below). Its effect has not been separated in this
+  comparison.
 
 ### The optical depth of the cells
 
@@ -335,6 +335,58 @@ iterations with 13 packets per cell, and its far-infrared emission came out 4% l
 packets per cell it converged in 23 iterations. With 5 packets per cell on 1.4 million cells, its
 luminosity deficit was still 8% after 25 iterations, and even its emission at 10–20 µm came out 10%
 low.
+
+## Cell library
+
+In tests by Andrea Gebek on 300 COLIBRE galaxies at redshift 0, the
+`TemperatureWavelengthCellLibrary` with 100 × 50 entries changed the integrated spectrum by up to
+3.5% compared with the `AllCellsLibrary`, with a deficit around 50 µm and an excess beyond 100 µm,
+most pronounced for stellar masses between 10<sup>9.5</sup> and 10<sup>10.5</sup> solar masses. Half
+or twice as many temperature or wavelength bins gave practically the same spectra, and ten times
+more photon packets did not change the difference either.
+
+The comparison was repeated for one of these galaxies, ID4981185 (997 000 cells, with the input
+files and spatial grid of Andrea Gebek and 10<sup>8</sup> photon packets), and for ID39321 (197 895
+cells, with 3.16 × 10<sup>7</sup> photon packets). To isolate the library, the dust emission was
+calculated once from the primary radiation field, without iterations. The difference between the two
+libraries reproduces with the v10beta code. In ID4981185, small grains hold 5.5 to 41% of the dust
+mass between the 10th and 90th percentiles of the particles, weighted by dust mass, against 0.6 to
+3.5% in ID39321. A copy of each galaxy in which every particle has the average composition of the
+galaxy tested the hypothesis that the dependence of the mapping on the composition causes the
+difference.
+
+The table gives the logarithm of the ratio of the dust emission with the library to that with all
+cells, for the mapping with the dust in each cell (as in SKIRT 9), with a fixed
+`MeanInterstellarDustMix` as reference, and with the dust components weighted by their total mass
+(see Cell library mapping in the Features chapter), each with the galaxy's own composition or with
+the uniform copy:
+
+| Galaxy | Mapping | Composition | 40 µm | 160 µm | 250 µm | 1000 µm |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| ID4981185 | dust in the cell | galaxy | −0.024 | +0.017 | +0.021 | +0.025 |
+| ID4981185 | dust in the cell, 500 × 250 entries | galaxy | −0.021 | +0.016 | +0.021 | +0.024 |
+| ID4981185 | dust in the cell | uniform | −0.004 | +0.002 | +0.001 | −0.002 |
+| ID4981185 | `MeanInterstellarDustMix` | galaxy | +0.002 | −0.001 | −0.003 | −0.005 |
+| ID4981185 | component weights | galaxy | +0.002 | −0.001 | −0.004 | −0.004 |
+| ID39321 | dust in the cell | galaxy | 0.000 | +0.005 | +0.005 | +0.003 |
+| ID39321 | `MeanInterstellarDustMix` | galaxy | 0.000 | −0.022 | −0.031 | −0.037 |
+| ID39321 | `MeanInterstellarDustMix` | uniform | +0.001 | −0.011 | −0.016 | −0.019 |
+| ID39321 | component weights | galaxy | −0.002 | −0.003 | −0.006 | −0.008 |
+
+- **The composition causes the difference.** With uniform composition, the mapping with the dust in
+  each cell agrees with all cells within the noise, whereas more entries leave the difference
+  unchanged. Two other possible causes, the shape of the radiation field within an entry and the
+  Monte Carlo noise of the all-cells result, play no role, because they would persist with uniform
+  composition.
+- **A fixed reference mix is not good enough.** The `MeanInterstellarDustMix` removes the difference
+  for ID4981185, but lowers the far-infrared emission of ID39321 by up to 8%, and by up to 4% even
+  with uniform composition, whereas the original mapping is accurate for this galaxy. Its absorption
+  curve is close to that of the COLIBRE dust in the near-infrared, so the reason remains unclear.
+- **The component weights work for both galaxies.** Beyond 3 µm, the library agrees with all cells
+  within 0.005 dex for ID4981185 and within 0.008 dex for ID39321.
+
+Below 3 µm, where the dust emission is weak compared with the starlight, an excess of 0.01 to 0.05
+dex remains in all variants.
 
 ## Performance
 

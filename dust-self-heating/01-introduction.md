@@ -41,7 +41,7 @@ Two further problems surfaced while investigating this:
 
 ## Proposal
 
-This design note proposes three changes:
+This design note proposes four changes:
 
 - **Exact absorption.** The luminosity absorbed by the dust in each cell is accumulated along the
   path of each photon packet, using the dust absorption opacity at the packet's exact wavelength.
@@ -58,6 +58,10 @@ This design note proposes three changes:
   luminosity balances the absorbed primary luminosity, and the absorbed secondary luminosity has
   become stationary, both evaluated over a few iterations to suppress Monte Carlo noise. The
   criterion based on the change relative to the previous iteration is removed.
+- **Cell library mapping.** The `TemperatureWavelengthCellLibrary` groups the cells by an indicative
+  temperature and wavelength calculated for the dust in the simulation as a whole, rather than for
+  the dust in each cell. Cells with different radiation fields then no longer share a library entry
+  when several dust components have different spatial distributions.
 
 ## Scope and assumptions
 

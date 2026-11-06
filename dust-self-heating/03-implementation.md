@@ -16,6 +16,8 @@
 - `DustEmissionOptions` holds the new properties, and `Configuration` offers the corresponding
   getters, plus a flag that tells whether the dust absorption cross sections are constant along a
   path.
+- `TemperatureWavelengthCellLibrary` weights the dust components by their total mass in the
+  simulation when it maps the cells to library entries.
 
 ## Module
 
@@ -666,6 +668,20 @@ through which the medium system adds to them.
 **PTS.** The ski file upgrade for SKIRT 10 removes `maxFractionOfPrevious` from
 `DustEmissionOptions`.
 
+## Cell library mapping
+
+The change is confined to `TemperatureWavelengthCellLibrary::mapping()`. Each time it is called, the
+function determines the total mass of each dust component from the mass density and volume of every
+cell, so that the weights follow a dynamic medium state or a refined grid, and normalizes these
+masses to weights that add up to one; if the total dust mass is zero, all components receive the
+same weight. It tabulates the weighted absorption mass coefficient of the components on the
+radiation field wavelength grid once, and then calculates both properties for each cell from its
+mean intensity, using the indicative temperature of the material mix of each component. A dust mix
+does not use the material state of the cell for its indicative temperature, and the configuration
+excludes the mixes that would, as described in the Features chapter. The calculation per cell
+remains distributed over the processes, and the weights are identical on all processes, because the
+medium state is. No new dependencies between modules arise.
+
 ## Testing
 
 The functional tests of all simulations with dust emission change, and must be inspected and
@@ -691,7 +707,10 @@ New functional tests cover the cases that the experiments did not:
 - a model with a material mix family and a model with aligned spheroidal grains, to exercise the
   variable cross sections;
 - a model with dust and gas emission, to verify that the rebalance is disabled and the deficit is
-  not evaluated.
+  not evaluated;
+- a disk with two dust components that have different spatial distributions and mixes, with the
+  `TemperatureWavelengthCellLibrary`, to exercise the mapping with component weights
+  (`Emission/EmissionLibTwoComp`).
 
 For the sphere, a converged reference follows from a long run with plain iteration, since its
 self-heating can be kept moderate. The rebalanced run must reproduce it within the noise, and
