@@ -1,184 +1,116 @@
 # Results
 
 Dynamic grid refinement was implemented in the SKIRT 10 beta in October 2026. This chapter reports long-running tests
-of the implementation with realistic models, one section per application: the settings that produce converged
-results in the least run time, the effect of the refinement on the results, and the recommended settings. The
-additions to the implementation that resulted from these tests are described in the Features and Implementation
-chapters.
+with realistic models, one section per application. Each section shows which refinement settings work and why, what the
+refinement changes in the results, and which settings are recommended. The tests use the features described in the
+Features chapter.
 
 ## Dust self-heating
 
-The first long-running test outside photoionization concerns the dust radiative transfer of the three COLIBRE
-galaxies of the [Dust self-heating](dust-self-heating/04-results.md) design note, which are dominated by dust
-self-heating. The Results chapter of that note describes these galaxies and, in its section Grid resolution and photon
-packets, the settings that matter most for them: the resolution of the dust density in the dense core, which is known
-at setup, and the number of photon packets per iteration. This section reports what dynamic refinement adds to those
-settings. In short, refinement driven by the radiation field changes the spectrum by 1 to 2% at most. It cannot
-replace the resolution of the dense core, because the cells that matter absorb little luminosity and hardly stand out
-in temperature. The dust temperature gradient criterion does not settle on these galaxies, even with the noise test.
+The first long-running test outside photoionization concerns the three COLIBRE galaxies of the
+[Dust self-heating](dust-self-heating/04-results.md) design note, which are dominated by dust self-heating. The Results
+chapter of that note shows that the SED of these galaxies depends mostly on the resolution of the dust density in their
+dense cores and on the number of photon packets per cell, and it recommends a setup grid that is coarse in the outskirts
+and resolves the dust mass in the core. The idea behind the current test is to start from a coarse setup grid, and to
+let dynamic refinement decide where the grid must be finer. For the SED, this does not work: the refinement changes it
+by 2% at most, whereas resolving the core at setup changes it by up to 10%, because no refinement criterion selects the
+cells that matter. The refinement does resolve the radiation field near the sources, which should benefit maps of the
+dust temperature.
 
-The runs use the settings of the section Grid resolution and photon packets in the dust self-heating note. The original
-grid is that of the SKIRT 9 runs by Andrea Gebek, a binary tree subdivided up to level 36 until each cell holds less
-than 10^−6 of the dust mass; the coarse grid subdivides the whole domain to 10^−5 and the central 2 kpc to 10^−6, also
-up to level 36. Unless stated otherwise, differences are quoted relative to a run on the coarse grid, with 100 million
-photon packets for the primary emission and the final secondary emission and 10 million per secondary iteration, for
-the SED summed over three instruments viewing along the x, y, and z axes.
+### Setup
 
-### Dynamic refinement
+The setup grid is the coarse grid of the dust self-heating note: a binary tree, subdivided up to level 36 until each
+cell holds less than 10^−5 of the dust mass, and less than 10^−6 in the central 2 kpc, with 265 742, 295 700, and
+162 021 cells for ID33341, ID5642, and ID39321. Its maximum level stops the mass criterion in the dense core, so that it
+does not resolve the dust mass there. The other settings are those of that note. The refinement takes place in primary
+emission iterations, followed by secondary emission iterations on the refined grid, or in merged iterations; both give
+the same grid and the same SED at about the same cost. Unless stated otherwise, differences are quoted relative to a run
+on the setup grid without refinement, with 100 million photon packets for the primary emission and the final secondary
+emission and 10 million per iteration, for the SED summed over three instruments viewing along the x, y, and z axes.
 
-#### Dust temperature gradient
+### Refinement criteria
 
-The `DustTemperatureGradientCriterion` compares the indicative dust temperature of a cell with that of its face
-neighbors. With an absolute threshold of 5 K, the refinement of ID33341 did not settle: each round flagged more cells
-than the previous one, while the SED did not change measurably. The `logarithmic` flag and the noise test
-(`significance`), added after this test, stop such runaway refinement on the slab of the Dust destruction section
-below, but not on ID33341. In merged iterations with 100 million primary and 10 million secondary photon packets each,
-a `maxChange` of 0.04 with the `logarithmic` flag, a `significance` of 3, and a candidate guard of 1% (see below)
-flagged 19%, 12%, and 12% of the cells in three successive decisions, so that the grid grew from 266 000 to 620 000 and
-1.16 million cells, and then to the cap of 2 million, where the run was stopped. The noise test did not slow the
-refinement, although the number of photon packets per cell fell from 414 to 95.
-
-Two causes were possible. A change of 4% between neighbors is a fine resolution for a clumpy galaxy with dust
-temperatures from about 20 to 100 K. Moreover, the indicative temperature depends on the dust composition, which
-varies between cells: it is the mean of the temperatures of the seven dust components weighted by their mass, and in
-ID33341 the mass fraction of the small grains, which are hotter than the large grains in the same radiation field,
-ranges from 1 to 10% (10th and 90th percentiles of the particles, weighted by dust mass). Neighbors that differ in
-composition then differ in indicative temperature in the same radiation field, a jump that no subdivision removes.
-
-A run with the `RadiationFieldGradientCriterion`, which does not depend on the dust properties, points to the
-composition. It used the `logarithmic` flag and a `maxChange` of 0.16, which gave as many cells on the slab of the
-Dust destruction section as 0.04 on the temperature, with otherwise the same settings. The first two decisions flagged
-5.8% and 2.9% of the cells, so that the grid grew from 266 000 to 374 000 and 450 000 cells; the seven decisions that
-followed flagged 0.8 to 0.9% each, which the candidate guard left unsplit. The run converged after 19 iterations, and
-its SED differs from that on the coarse grid by at most 0.8% in all bands (+0.3% at 5–10 µm), close to the noise of
-these runs. Unlike the luminosity criterion (see below), it does not raise the mid-infrared emission. The equivalence
-of the two thresholds was established on the slab only, so the comparison does not exclude that the first cause
-contributes.
-
-#### Dust-absorbed luminosity
-
-The absorbed luminosity is highly concentrated. On the original grid of ID33341, 137 cells each absorb more than 10^−3
-of the total, together 42%, and 1 000 cells absorb 63%. These are the opaque cells of the core: cells with a diagonal
-optical depth above 100 absorb 31% of the primary and 85% of the secondary luminosity. The `DustLuminosityCriterion`
-targets these cells, and its behavior depends on which luminosity it considers:
+The luminosity absorbed by the dust is highly concentrated. On the grid of the SKIRT 9 runs of ID33341, 137 cells each
+absorb more than 10^−3 of the total, together 42%, and cells with a diagonal optical depth above 100 absorb 31% of the
+primary and 85% of the secondary luminosity. The `DustLuminosityCriterion` targets these cells, and its behavior depends
+on which luminosity it counts:
 
 - Counting all absorbed luminosity, it mostly subdivides the self-absorbing core, where the dust absorbs its own
-  emission. With a threshold of 10^−5 in merged iterations, the grid of ID33341 grew from 266 000 to 655 000 cells in
-  11 rounds and had not settled after 40 iterations.
-- Counting only the primary luminosity, it subdivides the layers in which the radiation of the sources is absorbed.
-  With a threshold of 10^−5, the first round adds 160 000 cells and the following rounds fewer and fewer, but the
-  refinement does not stop: around bright sources embedded in very opaque dust, it follows the absorbing layer to cells
-  of 0.4 pc, and Monte Carlo noise lets a few hundred cells near the threshold cross it in every averaging window.
+  emission, and it does not settle: with a threshold of 10^−5, the grid of ID33341 grew from 266 000 to 655 000 cells in
+  11 rounds.
+- Counting only the primary luminosity (`primaryOnly`), it subdivides the layers in which the radiation of the sources
+  is absorbed. With a threshold of 3·10^−5, the first decision flags 2.0 to 4.4% of the cells, the second 0.6 to 1.7%,
+  and later decisions 0.1 to 0.5%, a trickle of cells close to the threshold that cross it by noise. A candidate guard
+  of 1% therefore ends the refinement after one round for ID33341 and ID5642 and after two for ID39321, adding 43 000,
+  42 000, and 75 000 cells. Without a guard, the refinement does not stop: with a threshold of 10^−5, it follows the
+  absorbing layer around bright sources embedded in very opaque dust to cells of 0.4 pc.
 
-With a threshold of 3·10^−5, at most four rounds (`maxRounds`), and three levels per round, the primary-only criterion
-adds 66 000, 61 000, and 87 000 cells to the coarse grids of ID33341, ID5642, and ID39321. The averaging window can be
-short (one iteration before the first decision, two averaged iterations, none left out after a round), because the
-primary field does not drift as a dynamic medium state does: each iteration recalculates it from scratch. Refining in
-11 primary iterations with a tenth of the packets, followed by the secondary iterations on the refined grid, costs
-about as much as refining in merged iterations, which recalculate the primary field in every iteration while the
-self-heating builds up: for ID33341, the run with primary iterations took 6% less time, with the same grid and the
-same SED.
+The `RadiationFieldGradientCriterion` settles as well. With the `logarithmic` flag, a `maxChange` of 0.16, a
+`significance` of 3, and a candidate guard of 1%, the first two decisions flagged 5.8% and 2.9% of the cells of ID33341,
+so that the grid grew from 266 000 to 374 000 and 450 000 cells; the seven decisions that followed flagged 0.8 to 0.9%
+each, which the guard left unsplit.
 
-The candidate guard (`minCandidateFraction`), added after this test, ends the refinement without a fixed number of
-rounds. The decisions of these runs flag 2.0 to 4.4% of the cells in the first round, 0.6 to 1.7% in the second, and
-0.1 to 0.5% from the third on, the trickle of noise candidates. With a guard of 1% instead of `maxRounds`, the
-refinement stops after one round for ID33341 and ID5642 and after two for ID39321, adds 43 000, 42 000, and 75 000
-cells, and the runs take 15 to 18% less time.
+The `DustTemperatureGradientCriterion` does not settle. With the `logarithmic` flag, a `maxChange` of 0.04, a
+`significance` of 3, and a candidate guard of 1%, it flagged 19%, 12%, and 12% of the cells of ID33341 in three
+successive decisions, so that the grid grew from 266 000 to 620 000 and 1.16 million cells, and then to the cap of
+2 million. The noise test did not slow the refinement, although the number of photon packets per cell fell from 414 to
+95, so the flagged differences are not noise. The likely cause is the dust composition, which varies between cells. The
+indicative temperature is the mean of the temperatures of the seven dust components weighted by their mass in the cell,
+and in ID33341 the mass fraction of the small grains, which are hotter than the large grains in the same radiation
+field, ranges from 1 to 10% (10th and 90th percentiles of the particles, weighted by dust mass). Neighbors that differ
+in composition then differ in indicative temperature in the same radiation field. Because child cells inherit their
+parent's composition, subdivision does not remove such a jump: it recurs between the children on either side of the
+common wall, which the criterion flags again in the next round. The radiation field criterion, which does not depend on
+the dust properties, settles with a threshold of 0.16 on the mean intensity, which corresponds to 2.5 to 4% on a
+temperature in equilibrium with the radiation field (see Radiation field in the Features chapter). This correspondence
+assumes that neighboring cells have radiation fields of the same spectral shape, so a threshold that is too fine for a
+clumpy galaxy may contribute as well.
 
-#### Effect on the spectrum
+### Effect on the spectrum
 
-Relative to the coarse grid at level 36, the refinement raises the emission at 5–10 µm by 1.5 to 2.0% for ID33341,
-1.1 to 1.3% for ID5642, and 1.4% for ID39321, and changes the other bands by about 1% at most. The result hardly
-depends on the threshold: for ID33341, a grid refined with 10^−5 to 712 000 cells and run with 44 packets per cell
-gives +1.95% at 5–10 µm, and the grid refined with 3·10^−5 to 332 000 cells +1.55%. Refining on the total instead of
-the primary luminosity gives the same result: for ID5642, a grid refined on the total luminosity with a threshold of
-10^−5, to 591 000 cells, gives +1.6% at 5–10 µm. On a setup grid at level 40, which already resolves the core, the
-refinement adds only about 20 000 cells and changes the emission by less than 1.5% (ID33341 and ID5642). The
-candidate guard, which ends the refinement earlier, keeps about half of the effect: in reruns with 31.6 million photon
-packets and the same code, the emission at 5–10 µm rises by 0.7 to 0.9% with a guard of 1%, against 1.2 to 1.5% with
-four rounds, while the other bands differ by less than 0.75% between the two, about the noise of these runs.
-
-The refinement thus cannot replace the resolution of the dense core: for ID5642, it adds 1.3 to 1.6% at 5–10 µm,
-where raising the maximum level adds 9 to 10% (see the dust self-heating note). Presumably, the dense clumps that the
-mass criterion resolves matter as absorbers rather than as emitters: on a coarse grid, the dust of a clump is spread
-over a cell of 12.6 pc, which then blocks the mid-infrared radiation over its whole cross section, whereas the
-resolved clump covers only part of it. Such clumps absorb little luminosity, and their temperature hardly stands out
-from that of their neighbors, so that neither the luminosity criterion nor the temperature gradient criterion selects
-them.
+The luminosity criterion raises the emission at 5–10 µm by 1 to 2% and changes the other bands by about 1% at most,
+regardless of the threshold, of the luminosity it counts, and of the number of rounds: for ID33341, grids refined to
+332 000 and 712 000 cells give +1.55% and +1.95% at 5–10 µm, and for ID5642, refinement on the total luminosity to
+591 000 cells gives +1.6%. The candidate guard, which ends the refinement after one or two rounds, keeps about half of
+this rise. The radiation field criterion changes no band of ID33341 by more than 0.8% (+0.3% at 5–10 µm), close to the
+noise of these runs. On a setup grid at level 40, which already resolves the core, the luminosity criterion adds only
+about 20 000 cells and changes the emission by less than 1.5%.
 
 ![Spectrum of ID33341 on refined grids, relative to the coarse grid](figures/results-refined.png ':size=90%')
 
-### Converged results
+Resolving the core at setup, in contrast, raises the emission of ID5642 at 5–10 µm by 9 to 10% (see the dust
+self-heating note), so dynamic refinement cannot replace it. The dust self-heating note attributes this emission to the
+density structure of the core, presumably to dense clumps that act as absorbers of the mid-infrared radiation. Dynamic
+refinement misses these clumps for two reasons. A child cell inherits the density of its parent (see Initial state of
+child cells in the Features chapter), so that subdividing a cell adds no density structure. Moreover, the clumps absorb
+little luminosity, and their temperature and radiation field hardly stand out from those of their neighbors, so that no
+criterion selects them in the first place.
 
-The emission beyond 40 µm, which carries most of the dust luminosity, is converged to about 1% on the coarse grid at
-level 36, provided that the iterations launch at least 10 photon packets per cell (30 to 40 for ID39321) and that the
-convergence criteria are met: neither the maximum level, nor a finer mass resolution, nor dynamic refinement changes it
-by more than 1 to 2%.
+### Temperature maps
 
-The emission at 5–40 µm is not converged, because it depends on the resolution of the dust density in the dense core,
-down to scales well within the smoothing kernels of the dust particles. Raising the maximum level until each cell of
-the core holds less than 10^−6 of the dust mass (61 solar masses for ID5642, a fiftieth of the mean dust mass of a
-particle) is not enough: for ID5642, a mass resolution of 3·10^−7 (4.8 million cells) raises the emission at 5–10 µm
-by another 2.6% and at 10–20 µm by another 4.1%; for ID33341 (4.4 million cells), the increase is 2.4% and 0.9%.
-Relative to the coarse grid at level 36:
-
-| Galaxy | Resolution of the core | Cells | 5–10 µm | 10–20 µm | 20–40 µm | 40–2000 µm |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| ID33341 | 10^−6, level 40 | 706 046 | +2.2% | +1.0% | −0.1% | within 0.5% |
-| ID33341 | 10^−6, level 60 | 1 341 783 | +3.2% | +1.2% | +0.3% | within 0.2% |
-| ID33341 | 3·10^−7, level 60 | 4 355 630 | about +6% | about +2% | about +0.4% | about 0% |
-| ID5642 | 10^−6, level 40 | 958 003 | +9.0% | +4.9% | +0.6% | −0.6…−0.3% |
-| ID5642 | 10^−6, level 60 | 1 458 781 | +10.3% | +7.8% | +1.5% | −0.7…+0.2% |
-| ID5642 | 3·10^−7, level 60 | 4 766 656 | about +13% | about +12% | about +3% | about 0% |
-| ID39321 | 10^−6, level 40 | 615 941 | +1.1% | +1.5% | 0.0% | +0.7…1.2% |
-| ID39321 | 10^−6, level 60 | 1 445 346 | +1.4% | +0.6% | +0.8% | −2.0…+0.8% |
-
-The mid-infrared emission of these galaxies thus reflects how the particles' smoothing kernels distribute the dust
-mass at scales of a few parsec, a structure that the hydrodynamical simulation does not resolve. Converging it further
-would require grids of 10 million cells or more; whether that is meaningful depends on the science question.
-
-The rows for a mass resolution of 3·10^−7 combine the run at 10^−6 with the difference between two runs at the two
-resolutions with about 4 packets per cell, since runs with enough packets per cell on more than 4 million cells did
-not fit in the time available. The mid-infrared emission hardly depends on the number of packets per cell: at
-10^−6 and level 60, the run of ID33341 with 5 packets per cell agrees with that with 24 within 0.3% at 5–20 µm.
+The luminosity criterion with `primaryOnly` resolves the layers in which the radiation of the sources is absorbed, where
+the dust is hottest and its temperature changes over the shortest distances. These tests did not examine maps of the
+dust temperature, but such maps, and other results that depend on the local radiation field near the sources, are
+expected to benefit from this refinement, even though the SED does not.
 
 ### Recommended settings
 
-For dust radiative transfer in compact, self-absorbing galaxies like these, the test suggests the following settings:
+For the SED of compact, self-absorbing galaxies like these, dynamic refinement is not needed; the setup grid recommended
+in the dust self-heating note, which resolves the dust mass in the core, matters far more. To resolve the radiation
+field near the sources, for example for maps of the dust temperature, the following settings refine the grid in one or
+two rounds at a modest cost:
 
-| Aspect | Setting |
-| --- | --- |
-| Setup grid, outskirts | A `DensityTreePolicy` with `maxFraction` 10^−5 for the whole domain. |
-| Setup grid, core | A `BoxTreePolicy` around the region holding most of the dust (here the central 2 kpc, 89–98% of the dust mass) with a nested `DensityTreePolicy` with `maxFraction` 10^−6. |
-| Maximum level | High enough that it does not stop the mass criterion in the core: at least 40 for a binary tree here (5 pc), 48 or more to let the criterion run its course. |
-| Iterations | Primary emission once, followed by secondary emission iterations with the default convergence criteria. |
-| Photon packets | `numPackets` of about 30 million for an SED noise of about 0.5% per band; `secondaryIterationPacketsMultiplier` such that each iteration launches at least 10 packets per cell, or 30 to 40 for a galaxy with self-absorption as strong as in ID39321. |
-| Dynamic refinement | Not needed for the SED. To resolve the radiation field near the sources, for example for maps of the dust temperature, use the `DustLuminosityCriterion` described below. |
+- a `DustLuminosityCriterion` with `maxFraction` 3·10^−5 and the `primaryOnly` flag;
+- a `minCandidateFraction` of 0.01 (or `maxRounds` 4, which refines somewhat further) and `levelsPerRound` 3 (for a
+  binary tree);
+- one iteration before refinement, two averaged iterations, and none left out after a round; the window can be short
+  because each iteration recalculates the primary radiation field from scratch, so that it does not drift as a dynamic
+  medium state does;
+- primary emission iterations (`iteratePrimaryEmission`) with a `primaryIterationPacketsMultiplier` of 0.1, followed by
+  the secondary emission iterations on the refined grid; merged iterations work as well and cost about the same.
 
-For dynamic refinement in such simulations, the following settings worked well: a `DustLuminosityCriterion` with
-`maxFraction` 3·10^−5 and the `primaryOnly` flag; a `minCandidateFraction` of 0.01 (or `maxRounds` 4, which refines
-somewhat further) and `levelsPerRound` 3 (for a binary tree); one iteration before refinement, two averaged
-iterations, and none left out after a round; primary emission iterations (`iteratePrimaryEmission`) with a
-`primaryIterationPacketsMultiplier` of 0.1, followed by the secondary emission iterations. Merged iterations work as
-well and cost about the same. The dust temperature gradient criterion is not recommended for these galaxies because
-it does not settle.
-
-The following table compares the run time of the original configuration with that of the coarse grid at level 36 and
-at level 40, each with 31.6 million packets in the final segments and 3.16 million (level 36) or 10 to 19 million
-(level 40) per iteration, as a fraction of the run time of the original configuration. The original runs of ID5642
-and ID39321 date from the dust self-heating note and used a stricter convergence criterion (`maxSecondaryChange`
-0.005), which added a few iterations.
-
-| Galaxy | Original grid, 31.6 million packets throughout | Coarse grid, level 36 | Coarse grid, level 40 |
-| --- | ---: | ---: | ---: |
-| ID33341 | 100% (14 iterations) | 27% (14 iterations) | 66% (18 iterations) |
-| ID5642 | 100% (21 iterations) | 23% (17 iterations) | 68% (23 iterations) |
-| ID39321 | 100% (26 iterations) | 22% (22 iterations) | 99% (27 iterations) |
-
-On the coarse grid at level 36, the SED of ID33341 and ID5642 agrees with the reference within 0.4% in all bands, at a
-quarter of the run time of the original configuration. The grid at level 40 takes 2.4 to 4.5 times as long as the
-coarse grid at level 36, because it has 2.7 to 3.8 times as many cells and needs more packets per iteration, and it
-raises the mid-infrared emission as described above.
+The dust temperature gradient criterion is not recommended when the dust composition varies between cells, because it
+does not settle.
 
 ## Dust destruction
 
