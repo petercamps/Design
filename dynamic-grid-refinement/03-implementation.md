@@ -419,17 +419,17 @@ components.
 
 The medium system estimates the noise of the radiation field only if a refinement criterion or a
 dynamic medium state recipe asks for it, through `RefinementCriterion::usesNoise()`, which is true
-for a gradient criterion with a nonzero `significance` other than a `MediumStateGradientCriterion`,
-or `DynamicStateRecipe::usesNoise()`, which is true for a dust destruction recipe with a nonzero
-`significance`. It then allocates the batch array `_rfb1` and, if the simulation stores a secondary
-radiation field, `_rfb2` and `_rfb2c`, each with 8 values per cell. These arrays follow the life
-cycle of the radiation field tables `_rf1`, `_rf2`, and `_rf2c`: `storeRadiationField()` adds each
-contribution of a path segment, the luminosity times the path length, also to the batch of the
-photon packet, which is its history index modulo 8, regardless of its wavelength;
-`communicateRadiationField()` sums the arrays over the processes and copies `_rfb2c` to `_rfb2` when
-it does so for the tables; and `clearRadiationField()` clears them with the tables. Because the
-arrays are summed over the processes before they are used, the noise is identical on all
-processes, as the refinement decisions require.
+for a gradient criterion with a nonzero `significance`, except for a `MediumStateGradientCriterion`
+on a variable that no recipe can recalculate, or `DynamicStateRecipe::usesNoise()`, which is true
+for a dust destruction recipe with a nonzero `significance`. It then allocates the batch array
+`_rfb1` and, if the simulation stores a secondary radiation field, `_rfb2` and `_rfb2c`, each with 8
+values per cell. These arrays follow the life cycle of the radiation field tables `_rf1`, `_rf2`,
+and `_rf2c`: `storeRadiationField()` adds each contribution of a path segment, the luminosity times
+the path length, also to the batch of the photon packet, which is its history index modulo 8,
+regardless of its wavelength; `communicateRadiationField()` sums the arrays over the processes and
+copies `_rfb2c` to `_rfb2` when it does so for the tables; and `clearRadiationField()` clears them
+with the tables. Because the arrays are summed over the processes before they are used, the noise is
+identical on all processes, as the refinement decisions require.
 
 `MediumSystem::radiationFieldNoise(m)` adds the primary and the stable secondary batch sums S_b of
 cell m, and returns the relative standard error of their total S, which is the square root of
@@ -447,6 +447,18 @@ field, and in parallel for a costly field such as the dust temperature. Then,
 window mean of the squared noise divided by the number of iterations in the window, divided by the
 square of the window-averaged field for the logarithmic measure, and subtracts `significance` times
 the square root of the sum of the variances of the cell and of the neighbor from their difference.
+
+The `MediumStateGradientCriterion` looks at setup for the first recipe of the medium system whose
+`offersScaledFieldStateVariable(h, i)` returns true for the medium component and the custom index of
+its variable, which `StateVariableSelection` exposes. Its `noise(m)` calls the recipe's
+`scaledFieldStateVariable(m, h, i, factor)` for the factors max(0, 1 − kσ) and 1 + kσ, with k its
+`significance`, and returns the absolute difference divided by 2k. The `DustDestructionRecipe`
+offers the custom indices of the dynamic density fractions of a fragmented dust mix with dynamic
+densities, which follow its weight factors, and recalculates a fraction from the mean intensity of
+the cell, as for its noise allowance. It relies on the medium system and the fragmented mixes cached
+by `beginUpdate()`, which runs before the refinement step in every iteration in which the variable
+changes. Because the noise costs two temperature calculations per cell, the criterion then reports a
+costly value, so that the refinement step calculates the noise in parallel.
 
 The `DustDestructionRecipe` obtains σ for the cell from the medium system in its `update()`
 function. For each fragment whose density fraction changes, it calculates the fractions for the
@@ -512,5 +524,5 @@ cell cap, and without the guard it keeps refining up to the maximum number of it
 model with the radiation field criterion runs away without the noise test as well. A point source
 in a dust shell with a silicate destruction front, without refinement, converges after 3
 iterations with the noise allowance of the recipe, and not in 10 without it. The warning of the
-`MediumStateGradientCriterion` for a nonzero `significance` appears only in the log, which the
-functional tests do not compare.
+`MediumStateGradientCriterion` for a nonzero `significance` on a variable that no recipe can
+recalculate appears only in the log, which the functional tests do not compare.

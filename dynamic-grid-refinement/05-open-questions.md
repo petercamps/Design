@@ -76,6 +76,21 @@ primary radiation field after each refinement round in the secondary loop, which
 emission segment per round. The proposal accepts the behavior and documents it, relying on the
 limits, until experience shows otherwise.
 
+**Dust composition.** The indicative dust temperature averages the temperatures of the dust
+components weighted by their mass in the cell, so that it depends on the local dust composition as
+well as on the radiation field. In the COLIBRE galaxies of the Results chapter, where the
+composition varies between cells, the dust temperature criterion did not settle, presumably because
+neighbors in the same radiation field differ in temperature and their children inherit that
+difference. Refinement cannot resolve such a jump, so the criterion gains nothing from following it.
+The cell library of the [Dust self-heating](dust-self-heating/02-features.md) design note had the
+same problem, and solves it by weighting each dust component by its total mass in the simulation
+rather than by its mass in the cell (see Cell library mapping in its Features chapter). The
+criterion could use the same weights, so that its field depends on the radiation field only, while
+the fragments of a fragmented dust mix keep their weights per cell, so that the criterion still sees
+a destruction front. Trying this on the COLIBRE galaxies would also verify the explanation.
+Meanwhile, the radiation field criterion, which does not depend on the dust and settled for ID33341,
+can take the place of the dust temperature criterion.
+
 **Convergence rule.** The proposal requires a decision that does not lead to a refinement round
 before the loop can converge, so that the loop can converge only in a decision iteration. The
 alternative is to accept convergence of the medium state in any iteration without subdivision,
@@ -119,19 +134,22 @@ noise test of a radiation field criterion over the ultraviolet alone did not pre
 refinement. Batches per wavelength range, or batches of the luminosity absorbed by the dust, would
 be more faithful, at a further cost in memory.
 
-**Noise of medium state variables.** A medium state variable has no noise estimate, so that the
-`MediumStateGradientCriterion` ignores its `significance` property. For a variable that a material
-mix or a recipe calculates from the radiation field of the cell, such as an ionization fraction,
-the noise could be propagated from the noise of the radiation field, as the dust destruction recipe
-does for its density fractions, if the mix offered a way to evaluate its update for a scaled
-radiation field. A density fraction of a fragmented dust mix at a sharp destruction front changes
-from 0 to 1 at every level, so that a noise test would not stop the refinement there; a level limit
-does (see Resolution of a front below).
+**Noise of medium state variables.** The `MediumStateGradientCriterion` estimates the noise of its
+variable only if a dynamic medium state recipe can recalculate the variable for a scaled radiation
+field, as the `DustDestructionRecipe` does for the density fractions of a fragmented dust mix.
+Otherwise, it ignores its `significance` property. For a variable that a material mix calculates
+from the radiation field of the cell, such as an ionization fraction, the noise could be estimated
+in the same way if the mix offered a way to evaluate its update for a scaled radiation field. For
+the `DiffuseIonizedGasMix`, whose update depends on the ionizing part of the spectrum, the noise of
+the radiation field summed over all wavelengths would then be too low (see Noise estimate above).
 
-**Resolution of a front.** The level limit of a criterion on a destruction front had to be chosen by
-hand, at the level where the cells become smaller than the distance over which noise blurs the
-front. A criterion that stops by itself at that scale, for example where the noise allowance of the
-recipe in a cell exceeds one half, would set the limit automatically.
+**Resolution of a front.** With the noise test, a criterion on a destruction front stops by itself
+near the scale at which noise blurs the front, but at a level that varies along the front, because
+the outcome of the test for a pair of cells depends on where the front lies between their centers.
+The front is then less accurate than with a level limit at that scale, which has to be chosen by
+hand. A rule per cell could do better: subdivide a cell at the front only while its size exceeds the
+distance over which noise blurs the front, the relative noise of the temperature divided by its
+logarithmic gradient, which does not depend on the position of the front within the cell.
 
 **Recipe convergence.** A dust destruction recipe allows a fraction of the number of cells to remain
 not converged. In the tests, the cells that remain not converged lie at the front, and their number

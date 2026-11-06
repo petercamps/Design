@@ -593,7 +593,22 @@ fewer packets, the refinement stops at coarser cells.
 | --- | --- |
 | `DustTemperatureGradientCriterion` | the change of the indicative dust temperature when the radiation field is multiplied by one plus its relative noise |
 | `RadiationFieldGradientCriterion` | the field value times the relative noise of the radiation field |
-| `MediumStateGradientCriterion` | not known: the criterion ignores its `significance` property, and setup issues a warning if it is nonzero |
+| `MediumStateGradientCriterion` | the difference between the values of the variable for the radiation field multiplied by 1 + kσ and by 1 − kσ, divided by 2k, with σ the relative noise of the radiation field, if a dynamic medium state recipe can recalculate the variable (see below); otherwise not known, so that the criterion ignores its `significance` property, and setup issues a warning if it is nonzero |
+
+A medium state variable is calculated by the material mix or the recipe that sets it, so that the
+criterion cannot convert the noise of the radiation field by itself. It looks for a dynamic medium
+state recipe that sets the variable and can recalculate it for a scaled radiation field. The
+`DustDestructionRecipe` does so for the dynamic density fractions `fdyn_f` of a
+`FragmentDustMixDecorator`, from the equilibrium temperature of the fragment in the scaled field, as
+for its noise allowance (see below). For a variable that varies smoothly with the strength of the
+radiation field, the difference divided by 2k is its standard error. For a variable that jumps, such
+as the density fraction at a sharp destruction front, it is 1/(2k) in a cell whose radiation field
+lies within k standard errors of the jump, and zero elsewhere. The difference of 1 between two cells
+across the front is then reduced to 0.5 or less if either cell could flip by noise, so that with a
+`maxChange` of 0.5, the pair is not flagged: the refinement of the front stops where its cells
+become too noisy to resolve it, without a level limit. No recalculation is available for other
+variables, such as the ionization fractions of the `DiffuseIonizedGasMix` (see Noise of medium state
+variables in the Open questions).
 
 A value of 3 is the natural choice. A cell has six face neighbors, each of which can push it over
 the threshold by noise, and each flagged cell becomes eight children, so that a cascade dies out
