@@ -38,14 +38,22 @@ flagged 19%, 12%, and 12% of the cells in three successive decisions, so that th
 1.16 million cells, and then to the cap of 2 million, where the run was stopped. The noise test did not slow the
 refinement, although the number of photon packets per cell fell from 414 to 95.
 
-Two causes are likely, possibly both. A change of 4% between neighbors is a fine resolution for a clumpy galaxy with
-dust temperatures from about 20 to 100 K. Moreover, the indicative temperature depends on the dust composition, which
+Two causes were possible. A change of 4% between neighbors is a fine resolution for a clumpy galaxy with dust
+temperatures from about 20 to 100 K. Moreover, the indicative temperature depends on the dust composition, which
 varies between cells: it is the mean of the temperatures of the seven dust components weighted by their mass, and in
 ID33341 the mass fraction of the small grains, which are hotter than the large grains in the same radiation field,
 ranges from 1 to 10% (10th and 90th percentiles of the particles, weighted by dust mass). Neighbors that differ in
-composition then differ in indicative temperature in the same radiation field, a jump that no subdivision removes. A
-test with the radiation field criterion, which does not depend on the dust properties, should tell which cause
-dominates.
+composition then differ in indicative temperature in the same radiation field, a jump that no subdivision removes.
+
+A run with the `RadiationFieldGradientCriterion`, which does not depend on the dust properties, points to the
+composition. It used the `logarithmic` flag and a `maxChange` of 0.16, which gave as many cells on the slab of the
+Dust destruction section as 0.04 on the temperature, with otherwise the same settings. The first two decisions flagged
+5.8% and 2.9% of the cells, so that the grid grew from 266 000 to 374 000 and 450 000 cells; the seven decisions that
+followed flagged 0.8 to 0.9% each, which the candidate guard left unsplit. The run converged after 19 iterations, and
+its SED differs from that on the coarse grid by at most 0.8% in all bands (+0.3% at 5–10 µm), close to the noise of
+these runs. Unlike the luminosity criterion (see below), it does not raise the mid-infrared emission. The equivalence
+of the two thresholds was established on the slab only, so the comparison does not exclude that the first cause
+contributes.
 
 #### Dust-absorbed luminosity
 
