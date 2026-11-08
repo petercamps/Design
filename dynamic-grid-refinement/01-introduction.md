@@ -97,8 +97,8 @@ structure.
   data structures, and the noise estimate.
 - **[Results](dynamic-grid-refinement/04-results.md)** reports long-running tests with realistic
   models, one section per application, and recommends settings for each. So far, it covers dust
-  radiative transfer in three galaxies dominated by dust self-heating, and a slab heated from
-  outside, refined on its temperature field and on a dust destruction front; the section on
-  photoionization is still empty.
+  radiative transfer in three galaxies dominated by dust self-heating, a slab heated from outside,
+  refined on its temperature field and on a dust destruction front, and photoionization in an
+  H II region around a single cluster and in a group of star-forming regions.
 - **[Open questions](dynamic-grid-refinement/05-open-questions.md)** collects the design
   decisions that may need further consideration in the future.

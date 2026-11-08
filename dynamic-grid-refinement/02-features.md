@@ -61,12 +61,12 @@ refines on the layers of singly ionized nitrogen and doubly ionized oxygen:
                         <MediumStateCondition variable="logU" minValue="-6.5"/>
                     </conditions>
                 </MediumStateGradientCriterion>
-                <MediumStateValueCriterion variable="x_OIII" minValue="0.1" maxExtraLevels="2"
-                                           minColumnDensity="1.6e20 1/cm2">
+                <MediumStateGradientCriterion variable="x_OIII" maxChange="0.3" minValue="0.005"
+                                              maxExtraLevels="2" minColumnDensity="1.6e20 1/cm2">
                     <conditions type="RefinementCondition">
                         <MediumStateCondition variable="logU" minValue="-6.5"/>
                     </conditions>
-                </MediumStateValueCriterion>
+                </MediumStateGradientCriterion>
             </criteria>
         </DynamicRefinementOptions>
     </dynamicRefinementOptions>
@@ -78,7 +78,8 @@ Introduction). The first criterion flags all cells that hold singly ionized nitr
 ionized gas, and the second flags the cells in such gas with an N+ fraction that differs by more
 than 0.3 from that of a neighboring cell. Both keep subdividing a cell until its column density is
 below their column density limit, however many levels that takes. The third criterion flags the
-cells that hold doubly ionized oxygen. It has the same column density limit, and in addition
+cells with an O2+ fraction that differs by more than 0.3 from that of a neighboring cell, ignoring
+cells with an O2+ fraction below 0.005. It has the same column density limit, and in addition
 subdivides a cell at most two levels beyond its level in the initial grid. A cell at level 10 in
 the initial grid can thus reach level 12 through the third criterion, and any level through the
 first two. The total number of cells never exceeds 64 million.
@@ -94,7 +95,7 @@ The `DynamicRefinementOptions` item holds the settings shared by all criteria.
 | `numAveragedIterations` | number of iterations over which the refinement fields are averaged before each decision (the default is three) |
 | `numIterationsAfterRefinement` | number of iterations after each refinement round that are left out of the averaging (the default is one) |
 | `maxRounds` | maximum number of refinement rounds in each iteration loop (zero, the default, means no maximum) |
-| `minCandidateFraction` | fraction of the number of cells below which the candidates do not lead to a refinement round (the default is zero; displayed at the expert user level; see Monte Carlo noise below) |
+| `minCandidateFraction` | fraction of the number of cells below which the candidates do not lead to a refinement round (the default is 10^−3; displayed at the expert user level; see Monte Carlo noise below) |
 | `levelsPerRound` | number of tree levels by which a refinement round subdivides each candidate (the default is one; displayed at the expert user level) |
 | `criteria` | the list of refinement criteria |
 
@@ -643,7 +644,10 @@ refinement, not against a cascade: once a cascade has started, each decision fin
 In tests, the creep remained even when the number of packets per cell was fixed, so it is not
 caused by the decreasing number of packets per cell alone. Presumably, each round creates finer
 cells whose values differ more from those of the coarser cells next to them, which moves the
-refined region on by a few cells per round. A guard of 1% ended the creep.
+refined region on by a few cells per round. A guard of 1% ended the creep. The default of 10^−3
+is more cautious: it ends a tail of rounds of a few cells each, but leaves alone a round that
+still splits a few hundred cells in a grid of 100 000. In the photoionization tests of the
+Results chapter, it ended such a tail at no measurable cost.
 
 ## Initial state of child cells
 

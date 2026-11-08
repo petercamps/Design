@@ -99,16 +99,6 @@ number of rounds rules out any further round, the decisions serve only the diagn
 refinement could then be reported as settled in every iteration after those left out of the
 averaging, which lets the loop converge up to one window earlier.
 
-**Settling.** By default, a single candidate causes a refinement round. A few cells that Monte Carlo
-noise moves in and out of a criterion can thus cause one round after another, each costing at
-least `numIterationsAfterRefinement + numAveragedIterations` iterations. The `maxRounds` property
-bounds this, but its default of zero means no maximum. A nonzero default would bound the loop
-automatically, at the risk of silently cutting off the refinement of a model that needs more
-rounds. The `minCandidateFraction` option offers a tolerance defined as a fraction of the number
-of cells. In the tests, a fraction of 1% ended a creep of small rounds whose mechanism
-is not verified (see Monte Carlo noise in the Features chapter); a nonzero default may be worth
-considering.
-
 **Rounds near the end of a loop.** The proposal starts no round when fewer than
 `numIterationsAfterRefinement + numAveragedIterations` iterations remain in the loop, so that the
 loop does not end on cells whose state has not adjusted. The candidates are then left unsplit, and

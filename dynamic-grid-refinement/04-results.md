@@ -356,3 +356,120 @@ For example, for 10^9 photon packets in the final segment:
 With these settings, the refinement and the recipe converge together after 8 to 10 iterations.
 
 ## Photoionization
+
+This section returns to the motivating case, with the two examples on which the reference implementation was developed:
+an H II region around a single cluster in a uniform medium, and a group of star-forming regions cut out of a
+cosmological simulation. The refinement must resolve the ionization front, and with it the thin layer at its outer edge
+in which the low-ionization lines form. The main findings are:
+
+- Without refinement, the front lies in coarse cells that mix ionized and neutral gas. These cells overestimate the
+  ionized hydrogen by about half, and make the [N II], [S II], and [O I] lines several times too strong, [O I] by more
+  than an order of magnitude.
+- The refined grids agree with those of the reference implementation.
+- The column density limit sets the resolution of the front, and thus the accuracy of the low-ionization lines.
+  Hydrogen, the Balmer lines, and [O III] are converged at the limit of the reference setup; the low-ionization lines
+  are not.
+- The refinement settles by itself. Monte Carlo noise adds only a tail of small rounds at the outer edge of the front,
+  which the candidate guard ends.
+- The number of rounds depends on how far the initial grid is from the final one, and an averaging window of two
+  iterations suffices.
+
+### Test cases
+
+**Single cluster.** A point source at the center of a uniform cube of 16.75 pc emits 2.0·10^50 ionizing photons per
+second into gas with a hydrogen density of 339 cm^−3 and a metallicity of 0.0044, described by a
+`DiffuseIonizedGasMix`, and mixed with dust. The dust absorbs a large part of the ionizing photons, so that the front
+lies at about 2.75 pc, well inside the dust-free Strömgren radius of 3.5–3.8 pc. The simulation iterates over primary
+emission, with 3·10^7 photon packets per iteration at the end of a ramp. The initial grid is an octree at level 3,
+refined by a `ResolvedSpheresTreePolicy` around a sphere of 1 pc out to twice its radius, with 3 872 cells, so that the
+front starts in cells of 2.09 pc.
+
+**Star-forming group.** A cube of 263 pc cut out of a halo of the MEGATRON simulation holds 213 star particles, and gas
+and dust imported from an adaptive mesh, with a metallicity, a temperature, and abundances per cell. The simulation
+includes dust and gas emission and iterates over primary and secondary emission; the refinement takes place in the
+primary loop. The initial grid follows the imported mesh and is refined around 83 seeded spheres, with 96 111 cells.
+
+**Criteria.** Both examples use the criteria of the reference setup: a `MediumStateValueCriterion` that flags cells
+with an N+ fraction `x_NII` of at least 0.01 and a `MediumStateGradientCriterion` on `x_NII` with a `maxChange` of 0.3,
+both restricted to partly ionized gas (`x_HI` between 0.01 and 0.99, `logU` at least −6.5), and a
+`MediumStateGradientCriterion` on the O2+ fraction `x_OIII` with a `maxChange` of 0.3 and at most two extra levels,
+restricted by the same bound on `logU`. All three have the same column density limit, 1.6·10^20 cm^−2 in the single
+cluster and 2.56·10^21 cm^−2 in the star-forming group. The first decision follows six initial iterations, each
+decision averages two or four iterations, and the iteration after each round is left out. The single cluster is
+compared on four grids: the initial grid without refinement, the grids refined with the limit of the reference setup
+(with both windows), and the grid refined with half that limit, which allows one more level in this uniform medium.
+
+### The ionization front
+
+Coarse cells at the front hold ionized and neutral gas in a single partly ionized state, with a diluted electron
+density that lowers the recombination rate. They therefore overestimate the ionized volume, and with it the Balmer
+lines, and they emit the low-ionization lines throughout their volume. On the initial grid of the single cluster, the
+front lies in cells of 2.09 pc that end up about 70% neutral:
+
+| Grid | Cells | Ionized&nbsp;H | Hβ | [O&nbsp;III]/Hβ | [O&nbsp;II]/Hβ | [N&nbsp;II]/Hα | [S&nbsp;II]/Hα | [O&nbsp;I]/Hα |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| no refinement | 3&nbsp;872 | 12.55 | 7&nbsp;440 | 5.77 | 0.88 | 0.114 | 0.392 | 0.137 |
+| limit 1.6·10^20 | 29&nbsp;408 | 8.48 | 6&nbsp;671 | 8.47 | 0.608 | 0.0439 | 0.0768 | 0.0093 |
+| limit 8·10^19 | 140&nbsp;631 | 8.48 | 6&nbsp;676 | 8.65 | 0.562 | 0.0374 | 0.0651 | 0.0062 |
+
+The initial grid, and the grids refined with a column density limit in cm^−2 and a window of two iterations. Ionized
+hydrogen in 10^59 atoms, Hβ in solar luminosities, and ratios of the emitted luminosities of [O III] 5007,
+[O II] 3726+3729, [N II] 6584, [S II] 6716+6731, and [O I] 6300.
+
+The refinement lowers the ionized hydrogen by a third, and brings the low-ionization lines down to values typical of
+H II regions. At the limit of the reference setup, with cells of 0.131 pc at the front, hydrogen is resolved: halving
+the limit changes the ionized hydrogen and Hβ by less than 0.1%, and [O III]/Hβ by 2%. The low-ionization lines are not
+resolved, because the layer in which they form is still much thinner than these cells: halving the limit, to cells of
+0.065 pc, lowers [O II]/Hβ by 8%, [N II]/Hα and [S II]/Hα by 15%, and [O I]/Hα by a third, with no sign of convergence
+yet. Each further halving takes about four times as many cells.
+
+> **Placeholder:** results of the run on the grid refined with half the limit, with four times as many photon packets
+> (running), which shows whether the line ratios at this resolution still change with the number of photon packets.
+
+The results depend on the final grid only, not on the rounds that led to it: a run on the grid refined with half the
+limit, read back with the `TopologyTreePolicy` and iterated without refinement, reproduces the ionized hydrogen, Hβ,
+and all line ratios within 0.1%.
+
+![Ionized hydrogen fraction and cells around the front of the single cluster](figures/results-photoionization.png ':size=100%')
+
+The figure shows the ionized hydrogen fraction and the cells in one quadrant of the plane through the source of the
+single cluster, on the three grids of the table. The dashed line is the seeded sphere, which the initial grid resolves
+out to twice its radius.
+
+In the star-forming group, the refinement lowers the ionized hydrogen by 3.5%. The refined grids of both examples agree
+with those of the reference implementation at the fronts: in the star-forming group nearly cell for cell, and in the
+single cluster in the position of the front and the size of its cells.
+
+### Rounds and iterations
+
+A round subdivides each candidate by one level, so that the number of rounds depends on how far the initial grid is
+from the final one. In the star-forming group, the seeding has already placed fine cells at most fronts: the first
+round adds 8 057 cells to the 96 111 of the initial grid, and four more rounds add 266. In the single cluster, the front
+starts four levels above the limit, and the refined band works its way outward through the front, so that the
+refinement takes ten or eleven rounds at the limit of the reference setup, and 22 at half that limit. After each round,
+the children start from the partly ionized state of their parent, and the ionized hydrogen drops and recovers within a
+few iterations.
+
+The averaging window mainly delays the rounds. With two iterations instead of four, the single cluster ends with the
+same grid (29 408 against 28 932 cells) and the same results within 0.6% ([O I]/Hα within 2%), and the loop converges
+after 41 instead of 60 iterations. The 40 iterations of the reference setup therefore do not suffice for a window of
+four.
+
+At half the limit, the refinement settles by itself, but its last seven rounds split only 2 to 19 cells each. These
+cells lie at the outer edge of the front, where the ionizing radiation is weak and noisy: their window-averaged `logU`
+crossed the bound of −6.5 of the conditions by noise, whereas the median cell at that radius has a `logU` of −8.3. The
+gas had converged by iteration 50, but the loop waited for these rounds until iteration 74. The noise test of the
+gradient criteria cannot prevent this tail, because it does not apply to conditions, and because the ionization
+fractions of the `DiffuseIonizedGasMix` have no noise estimate (see Noise of medium state variables in the Open
+questions). The candidate guard ends it: with a `minCandidateFraction` of 10^−3, the refinement counted as settled at
+iteration 50 with 44 candidates left unsplit, and the results agree with those of the full refinement within 0.3%.
+
+### Recommended settings
+
+For H II regions, tested on the single cluster:
+
+| Aspect | Setting |
+| --- | --- |
+| Initial grid | A `ResolvedSpheresTreePolicy` whose spheres cover the expected fronts, so that the refinement starts close to its final grid and needs fewer rounds. Dust and density structure can move a front well inside the dust-free Strömgren radius, to about three quarters of it in the single cluster. |
+| Criteria | The three criteria of the reference setup, with a column density limit chosen for the lines of interest. A limit of 1.6·10^20 cm^−2 (counting hydrogen and helium nuclei) suffices for hydrogen, the Balmer lines, and [O III]. The low-ionization lines need a limit below 8·10^19 cm^−2, at about four times as many cells for each halving. |
+| Iterations | Six initial iterations, a window of two iterations, and one iteration left out after each round (`numIterationsBeforeRefinement` 6, `numAveragedIterations` 2, `numIterationsAfterRefinement` 1), and a `minCandidateFraction` of 10^−3. A generous `maxPrimaryIterations`, such as 100: the loop ends as soon as the medium state has converged and the refinement has settled, whereas a maximum that is too low cuts the refinement short. |
