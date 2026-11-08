@@ -45,15 +45,16 @@ An `EscapeInstrument` has the following properties:
 | --- | --- |
 | `instrumentName` | the name of the instrument, as for any instrument |
 | `wavelengthGrid` | the wavelength grid of the instrument, as for any instrument, or the default grid of the wavelength grid pool |
-| `distance` | the distance used for the flux calibration, as for a distant instrument |
-| `binning` | the binning of the escape directions (see below) |
+| `distance` | the distance used for the flux calibration, as for a distant instrument, or zero for a model at a cosmological redshift |
+| `binning` | the binning of the escape directions (see below), by default all directions |
 | `outputStyle` | `SEDFiles` (default) for one SED column file per bin, or `DataCubes` for one FITS data cube per flux component |
 | `recordComponents` | record the flux components separately, as for any instrument |
 | `numScatteringLevels` | the number of individually recorded scattering levels, as for any instrument |
 | `recordStatistics` | record the information for calculating statistical properties, as for any instrument |
 
 Escape instruments do not record polarization (see Open questions), so that the `recordPolarization`
-property moves from `Instrument` to `PeelOffInstrument` (see the Implementation chapter).
+property moves from `Instrument` to `PeelOffInstrument` (see the Implementation chapter). Like the
+`HEALPixSkyInstrument`, the escape instrument is offered from the Regular user level onward.
 
 The following example configures an escape instrument for the angle-averaged spectrum and one for ten
 inclination bins, combining both hemispheres:
@@ -90,18 +91,25 @@ model.
 The `InclinationEscapeBinning` divides the sky into bins of inclination and, optionally, azimuth:
 
 - `numInclinationBins`: the number of inclination bins, equally spaced in cos θ, so that all bins cover
-  the same solid angle;
+  the same solid angle (10 by default, at most 100 000);
 - `foldHemispheres`: if true, the directions θ and 180° − θ fall in the same bin, so that the bins are
   equally spaced in |cos θ| and cover both hemispheres, as for the inclination bins of XARS; this suits models
-  that are symmetric with respect to the xy plane;
-- `numAzimuthBins`: the number of azimuth bins, of equal width in φ (one by default).
+  that are symmetric with respect to the xy plane (false by default);
+- `numAzimuthBins`: the number of azimuth bins, of equal width in φ (one by default, at most 100 000); the
+  wizard asks for it only for a three-dimensional model.
+
+The inclination bins run from the +z axis to the −z axis, or, if the hemispheres are folded, from the z
+axis to the xy plane. The azimuth bins start at φ = 0. With n<sub>φ</sub> azimuth bins, the index of the bin
+with inclination index i<sub>θ</sub> and azimuth index i<sub>φ</sub> is i<sub>θ</sub> n<sub>φ</sub> +
+i<sub>φ</sub>.
 
 ### HEALPix pixels
 
 The `HEALPixEscapeBinning` divides the sky into the 12 N<sub>side</sub><sup>2</sup> pixels of equal area
-of a HEALPix tessellation, with N<sub>side</sub> = 2<sup>`order`</sup>, using the same tessellation as the
-`HEALPixSkyInstrument`, aligned with the model coordinates. With the data cube output style, the pixels
-are arranged in the same two-dimensional layout as the images of the `HEALPixSkyInstrument`, so that the
+of a HEALPix tessellation, with N<sub>side</sub> = 2<sup>`order`</sup> (`order` 3 by default, at most 10),
+using the same tessellation as the `HEALPixSkyInstrument`, aligned with the model coordinates. The bins
+are numbered in the ring scheme, starting at the +z axis. With the data cube output style, the pixels are
+arranged in the same two-dimensional layout as the images of the `HEALPixSkyInstrument`, so that the
 frames of the cube can be viewed as maps of the sky.
 
 ## Calibration
@@ -134,7 +142,10 @@ As for other instruments, fluorescent emission by an X-ray gas is recorded as se
 With `recordStatistics` enabled, an escape instrument records, for each bin and wavelength, the sums of
 the contributions of each photon packet history to the powers zero to four, from which the relative error
 and the variance of the variance follow as for an SED instrument. A history contributes the escaping
-fractions of all its steps, including those after scattering events.
+fractions of all its steps, including those after scattering events. Contributions of zero are not
+recorded, so that the number of contributions counts the histories that actually contribute to a bin; in
+particular, the recording at launch without forced scattering, which adds only the transparent flux (see
+the Implementation chapter), does not count as a contribution.
 
 ## Output
 
@@ -143,9 +154,10 @@ fractions of all its steps, including those after scattering events.
 With the `SEDFiles` output style, the escape instrument writes the spectrum of each bin as a separate SED
 column file, `prefix_instr_bin<i>_sed.dat`, and, with `recordStatistics`, a statistics file
 `prefix_instr_bin<i>_sedstats.dat`, with the bin index zero-padded to the same number of digits for all
-bins. The files have the same columns as those of an SED instrument, and their header describes the bin, for
-example "bin 3: inclination 45.6° to 53.1° in both hemispheres, sky fraction 0.1". This style suits a modest
-number of bins, up to a few hundred.
+bins. The files have the same columns as those of an SED instrument, and their first header line describes
+the bin, for example "SED of escape bin 3: inclination 45.57 deg to 53.13 deg in both hemispheres, sky
+fraction 0.1, distance 1 Mpc", with the angles in the output units of the simulation. This style suits a
+modest number of bins, up to a few hundred.
 
 ### Data cubes
 
@@ -153,15 +165,28 @@ With the `DataCubes` output style, the escape instrument writes the spectra of a
 one per flux component, `prefix_instr_total.fits`, `prefix_instr_transparent.fits`, and so on, with the
 same component names as a frame instrument, and, with `recordStatistics`, the cubes
 `prefix_instr_stats0.fits` to `prefix_instr_stats4.fits`. The third axis holds the wavelengths. The
-spatial axes hold the bins: in a single row for most binnings, and in the two-dimensional layout of the
-`HEALPixSkyInstrument` for HEALPix pixels. The values are the calibrated flux densities of the bins, not
-surface brightnesses. This style suits large numbers of bins, such as fine HEALPix tessellations.
+spatial axes hold the bins:
+
+- for the all-directions and inclination binnings, in a single row, with the bin index as dimensionless
+  value along the x axis (0 to n − 1) and a single pixel along the y axis, also for bins of inclination and
+  azimuth;
+- for HEALPix pixels, in the two-dimensional layout of the images of the `HEALPixSkyInstrument`, with the
+  pixel-in-ring index along the x axis and the ring index along the y axis, and the same axis values
+  (azimuth 0° to 360°, inclination 0° to 180°), but without the offset of that instrument's crosshair
+  direction. Frame pixels that correspond to no HEALPix pixel, in the shorter rings near the poles, are
+  zero.
+
+The values are the calibrated flux densities of the bins, not surface brightnesses, and the cubes carry no
+observer information. This style suits large numbers of bins, such as fine HEALPix tessellations.
 
 ### Bin table
 
 With either output style, the escape instrument writes a column text file `prefix_instr_bins.dat` that
-lists, for each bin, its index, the fraction of the sky it covers, and the ranges that define it, such as
-the inclination and azimuth ranges, or the HEALPix pixel index.
+lists, for each bin, its index and the fraction of the sky it covers, followed by the values that define
+the bin: for the inclination binning, the minimum and maximum inclination and, with more than one azimuth
+bin, the minimum and maximum azimuth; for the HEALPix binning, the ring index, the pixel-in-ring index, and
+the inclination and azimuth of the pixel center. The all-directions binning adds no values. Together with
+the binning, these values determine the pixel of each bin in the data cubes.
 
 ### HDF5 bundles
 

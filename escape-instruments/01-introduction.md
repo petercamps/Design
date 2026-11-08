@@ -1,6 +1,6 @@
 # Introduction
 
-> Status: draft
+> Status: implemented
 >
 > Depends on: [SKIRT 10](skirt-10/01-introduction.md),
 > [Wavelength grid pool](wavelength-grid-pool/01-introduction.md),
@@ -72,21 +72,36 @@ The two kinds of instruments complement each other and can be combined in a sing
 - They support forced and non-forced scattering, and simulations without media.
 - **Polarization and arrival times are not supported** in this first version (see Open questions).
 - The new abstract class does not change the ski file format: the instrument system still holds a list
-  of `Instrument` items, and the existing instrument types keep their names and properties.
+  of `Instrument` items, and the existing instrument types keep their names and properties. Only the order
+  in which SKIRT and MakeUp write the properties of the existing instruments changes slightly (see the
+  Implementation chapter).
 
 ## Impact on PTS
 
 The SED column files of an escape instrument have the same layout as those of an SED instrument, and its
 data cubes are FITS files like those of a frame instrument, so that the existing PTS functions can read
-and plot them. Convenience functions for loading the spectra of all bins of an escape instrument at once,
-and for plotting HEALPix maps, are not required, but would be useful.
+them. PTS was extended for escape instruments:
+
+- An instrument lists only the output files that its type writes, rather than every file that starts with
+  its name, so that the file lists of instruments with the same name no longer overlap. SKIRT allows such
+  names, and upgraded ski files rely on them for the pairs of SED and frame instruments that replace a
+  `FullInstrument`.
+- The module `pts.simulation.escape` loads the bin table, the spectra of all bins at once (from the SED
+  files or the data cubes alike), their relative statistical errors, and, for a model in the local
+  universe, the luminosity escaping in each bin and in total.
+- The `plot_seds` command labels the spectrum of each bin with the directions it covers, colors the
+  spectra along a color map for an instrument with many bins, and can select bins.
+- The new `plot_escape_bins` command plots the escaping flux against direction at a given wavelength or in
+  a band: a step plot over inclination, a map of inclination and azimuth bins, or a projection map of
+  HEALPix bins.
+- The `make_images` and `make_wavelength_movie` commands skip escape instruments, whose data cubes do not
+  hold images, and `convert_healpix` accepts the data cubes of a HEALPix binning, also as bundles.
 
 ## Overview
 
 - **[Features](escape-instruments/02-features.md)** describes how escape instruments record radiation,
   their configuration and binnings, the calibration, the flux components and statistics, and the output.
 - **[Implementation](escape-instruments/03-implementation.md)** describes the new class hierarchy of the
-  instruments, the escape instrument and binning classes, the extension of the flux recorder, and the
-  changes to the photon life cycle.
-- **[Open questions](escape-instruments/04-open-questions.md)** collects the design decisions that remain
-  to be taken.
+  instruments, the escape instrument and binning classes, the extension of the flux recorder, the
+  changes to the photon life cycle, and the tests.
+- **[Open questions](escape-instruments/04-open-questions.md)** lists possible extensions left for later.

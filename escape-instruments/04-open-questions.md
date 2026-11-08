@@ -1,28 +1,26 @@
 # Open questions
 
-**Names.** The proposal uses `EscapeInstrument` for the instrument, `binning` for its property, and names
-ending in `EscapeBinning` for the binnings. Alternatives are `EscapeSEDInstrument`, which emphasizes that it
-records spectra, or names that refer to the sky, such as `SkyBins`. The output style names `SEDFiles` and
-`DataCubes` are equally provisional.
-
 **Polarization.** The Stokes vector of an escaping photon packet is defined relative to a reference
 direction perpendicular to its direction of travel. Adding the Stokes vectors of the packets in a bin
 requires a common reference direction for each bin, for example the projection of the z axis, and a
 rotation of each contribution into that frame. For bins that cover a wide range of directions, the
-resulting polarization is hard to interpret, so that polarization is left out of the first version.
+resulting polarization is hard to interpret, so that polarization is left out of this version.
 
 **Arrival times.** Time-dependent simulations record arrival times with light curve and spectral-time map
 instruments. An escape instrument could record the time at which a packet leaves the model, corrected for
-the light travel time to a distant observer in its direction. This is not needed for the current use cases.
+the light travel time to a distant observer in its direction. This is not needed for the current use cases
+and is not implemented.
 
-**Statistics buffers.** With statistics, the flux recorder buffers the contributions of the current photon
-packet history per thread and sorts them at the end of the history. An escape instrument contributes at
-every step of every packet, so that these buffers grow larger than for peel-off instruments. Whether this
-affects the performance must be measured; if so, the contributions could be merged per bin as they arrive.
+**Frame of inclination and azimuth bins.** In the data cubes, the bins of the inclination binning lie in a
+single row, also with more than one azimuth bin. A two-dimensional frame, with the azimuth bins along one
+axis and the inclination bins along the other, would be easy to add, but PTS already arranges these bins
+in a map from the bin table.
 
-**Checkpointing.** The [Checkpointing](checkpointing/01-introduction.md) design note must include the state
-of escape instruments. Because they keep their state in a flux recorder, like all other instruments, this
-should require no special treatment.
+**Instrument names.** SKIRT does not check whether two instruments have the same name. Upgraded ski files
+rely on this for the pairs of SED and frame instruments that replace a `FullInstrument`, which write
+different files. Two instruments with the same name that write a file with the same name, such as a frame
+instrument and an escape instrument with the data cube style, or two escape instruments, overwrite each
+other's output without a message. A check during setup could turn this into an error.
 
 **Other binnings.** Further binnings could be added later, for example bins of line-of-sight column
 density and inclination, as the sky bins of XARS used for UXClumpy, with each direction assigned to a bin
