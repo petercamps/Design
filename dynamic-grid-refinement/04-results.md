@@ -423,12 +423,11 @@ resolved, because the layer in which they form is still much thinner than these 
 0.065 pc, lowers [O II]/Hβ by 8%, [N II]/Hα and [S II]/Hα by 15%, and [O I]/Hα by a third, with no sign of convergence
 yet. Each further halving takes about four times as many cells.
 
-> **Placeholder:** results of the run on the grid refined with half the limit, with four times as many photon packets
-> (running), which shows whether the line ratios at this resolution still change with the number of photon packets.
-
 The results depend on the final grid only, not on the rounds that led to it: a run on the grid refined with half the
-limit, read back with the `TopologyTreePolicy` and iterated without refinement, reproduces the ionized hydrogen, Hβ,
-and all line ratios within 0.1%.
+limit, read back with the `TopologyTreePolicy` and iterated without refinement, reproduces the ionized hydrogen, Hβ, and
+all line ratios within 0.1%. The same run with four times as many photon packets halves the Monte Carlo noise in the
+state of each cell, but again changes the ionized hydrogen, Hβ, and all line ratios by less than 0.1%: the differences
+between the grids in the table come from the resolution, not from the noise.
 
 ![Ionized hydrogen fraction and cells around the front of the single cluster](figures/results-photoionization.png ':size=100%')
 
