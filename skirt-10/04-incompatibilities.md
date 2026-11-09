@@ -142,6 +142,13 @@ the number of cells is in general not known from the ski file (for a tree grid, 
 so it must be replaced by hand by the count divided by the number of cells. With such an equivalent fraction, the
 results for a fixed grid do not change.
 
+### Abundances of the X-ray atomic gas mix
+
+The `abundancies` property of the `XRayAtomicGasMix` is renamed to `abundances`, which corrects its spelling and
+matches the corresponding property of the `XRayIonicGasMix`. Ski files written by SKIRT or MakeUp list every property
+of an item, including an empty abundance list that selects the default abundances, so this invalidates all such ski
+files with an `XRayAtomicGasMix`. The upgrade is a trivial rename.
+
 ### Binary column format
 
 Support for the `scol` format, a less-frequently-used SKIRT-specific binary alternative to regular
@@ -236,3 +243,5 @@ to perform the transformations corresponding to the changes in SKIRT 10 describe
   `maxFractionNotConvergedCells` if its value is zero. A nonzero count is left in place and
   reported, so that SKIRT rejects the ski file until the count has been replaced by a fraction
   by hand.
+
+- Rename the `abundancies` property of the `XRayAtomicGasMix` to `abundances`.
