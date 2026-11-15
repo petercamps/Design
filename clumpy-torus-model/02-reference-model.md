@@ -47,12 +47,17 @@ touching spheres in the inner ring (see Inner Compton-thick ring). The geometrie
 population (`TORsigma` = 0, see Parameters) use separate files for the ring alone,
 `dring_25.5_i0.5_n<n>.hdf5`, and an empty geometry, `dring_empty.hdf5`. The scripts convert s to
 the `TORsigma` parameter by a factor 1.4, and n to the `CTKcover` parameter (see the table in
-Inner Compton-thick ring).
+Inner Compton-thick ring). The factor 1.4 ≈ √2 relates s to the angular width of the CLUMPY
+formalism (see Cloud population). The history of the XARS export script `createclumpytoruscutofftable.py`
+shows when it was introduced: the script labels its geometries with a torus opening angle of 90° − s for
+the geometries with s = 5, 10, 30, and 60 used in 2016, and of 90° − 1.4 s for the `gexp5core`
+geometries with s = 5, 20, and 60 used since January 2017, which corresponds to `TORsigma` = 1.4 s.
 
 The file at hand, with s = 30 and n = 3, thus corresponds to `TORsigma` = 42° and `CTKcover` = 0.6.
-It is **not one of the 20 geometries of the released table**. The spectra in Fig. 6 of the paper
-were calculated for "one model geometry σ = 30°", which may well be this one. The file contains the
-following datasets:
+It is **not one of the 20 geometries of the released table**, as its sky fractions confirm (see
+Comparison with the released geometries). The spectra in Fig. 6 of the paper were calculated for "one
+model geometry σ = 30°", which may well be this one, labeled with s rather than with 1.4 s. The file
+contains the following datasets:
 
 | Dataset | Contents |
 | --- | --- |
@@ -256,9 +261,36 @@ as follows:
    the density to n<sub>H</sub> = N<sub>H</sub> / D. Discard the cloud and draw a new one if it
    overlaps a cloud placed before, with the margin of 1.0001.
 
-The resulting geometry can be checked against the statistics of the geometry file listed above, and
+The resulting geometry can be checked against the statistics of the geometry file listed above,
 against the column density distributions of Fig. C.1 of the paper, taking into account the
-direction sampling of the `NH_samples`.
+direction sampling of the `NH_samples`, and against the sky fractions of the released geometries.
+
+### Comparison with the released geometries
+
+The fractions of the sky covered by the 123 sky bins of each released geometry follow from the omni
+spectra (see Table files). For a given geometry file, the same fractions follow from the column
+densities seen from the center along 200 000 isotropic directions, sorted into sky bins as by
+`torusC.py` (see Calculation method). The table lists the distance between two sets of sky
+fractions, half the sum of their absolute differences over all sky bins, which is the fraction of
+the sky that would have to move to another bin. All geometries have the inner ring of the geometry
+file (n = 3, `CTKcover` = 0.6); the recipe adds a cloud population for a given s, in two realizations.
+
+| Geometry | `TORsigma` = 7 | `TORsigma` = 28 | `TORsigma` = 84 | geometry file |
+| --- | --- | --- | --- | --- |
+| geometry file (s = 30) | 0.24 | 0.15 | 0.09 | – |
+| recipe, s = 5 | 0.02 | 0.12 | 0.27 | 0.24 |
+| recipe, s = 20 | 0.12–0.13 | 0.04–0.06 | 0.19–0.20 | 0.14–0.15 |
+| recipe, s = 30 | 0.23–0.24 | 0.14 | 0.11 | 0.05–0.06 |
+| recipe, s = 60 | 0.29 | 0.21–0.22 | 0.05–0.06 | 0.10–0.11 |
+
+Each recreated geometry lies closest to the released geometry with `TORsigma` = 1.4 s, at a distance
+comparable to the distance between the two realizations for the same s (0.01 for s = 5, and 0.06 to
+0.07 for the other values). This confirms the conversion factor, and supports the assumption that the
+released geometries were generated with the elevation distribution of the geometry file, also for
+s = 60. The geometry file, on the other hand, lies far from all released geometries, between those
+with `TORsigma` = 28 and 84, and closest to the recipe for s = 30. Its inner ring alone lies at a
+distance of 0.02 from the released geometry without cloud population, with the largest differences
+for edge-on directions.
 
 ### Open points
 
