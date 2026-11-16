@@ -362,43 +362,27 @@ direction sampling of the `NH_samples`, and against the sky fractions of the rel
 ### Comparison with the released geometries
 
 The fractions of the sky covered by the 123 sky bins of each released geometry follow from the omni
-spectra (see Table files). For a given geometry file, the same fractions follow from the column
-densities seen from the center along 200 000 isotropic directions, sorted into sky bins as by
-`torusC.py` (see Calculation method). The distance between two sets of sky fractions is half the
-sum of their absolute differences over all sky bins, which is the fraction of the sky that would
-have to move to another bin.
+spectra (see Table files). For a geometry file, the same fractions follow from the column densities
+seen from the center along 200 000 isotropic directions, sorted into sky bins as by `torusC.py`
+(see Calculation method). The distance between two sets of sky fractions is half the sum of their
+absolute differences, which is the fraction of the sky that would have to move to another bin.
 
 Each of the 20 released geometry files lies at a distance of 0.001 to 0.009 from the table geometry
-to which the author's list assigns it, and at a distance of 0.04 or more from all other table
-geometries. Distances below 0.01 are expected from the Monte Carlo noise in the sky fractions,
-which are estimated here from 200 000 directions and in XARS from 10<sup>6</sup> directions (see
-Example spectra). The sums of the sky fractions, which miss the directions beyond the last `NHLOS`
-bin (see Table files), agree to within 0.001. The files are thus those of the released table, with
-the mapping given by the author.
+to which the author's list assigns it, and at 0.04 or more from all other table geometries.
+Distances below 0.01 are expected from the Monte Carlo noise in the sky fractions, which are
+estimated here from 200 000 directions and in XARS from 10<sup>6</sup> directions (see Example
+spectra). The sums of the sky fractions, which miss the directions beyond the last `NHLOS` bin,
+agree to within 0.001. The files are thus those of the released table, with the mapping given by
+the author.
 
-The table below compares geometries with the inner ring of the first file (n = 3, `CTKcover` =
-0.6) with the released geometries with this ring: the released files with cloud population, the
-first file, and geometries generated with the recipe for a given s, in two realizations.
-
-| Geometry | `TORsigma` = 7 | `TORsigma` = 28 | `TORsigma` = 84 | first geometry file |
-| --- | --- | --- | --- | --- |
-| released file, s = 5 | 0.006 | 0.12 | 0.28 | 0.24 |
-| released file, s = 20 | 0.12 | 0.007 | 0.20 | 0.15 |
-| released file, s = 60 | 0.28 | 0.20 | 0.006 | 0.09 |
-| first geometry file (s = 30) | 0.24 | 0.15 | 0.09 | – |
-| recipe, s = 5 | 0.02 | 0.12 | 0.27 | 0.24 |
-| recipe, s = 20 | 0.12–0.13 | 0.04–0.06 | 0.19–0.20 | 0.14–0.15 |
-| recipe, s = 30 | 0.23–0.24 | 0.14 | 0.11 | 0.05–0.06 |
-| recipe, s = 60 | 0.29 | 0.21–0.22 | 0.05–0.06 | 0.10–0.11 |
-
-Each generated geometry lies closest to the released geometry with `TORsigma` = 1.4 s, at a distance
-comparable to the distance between the two realizations for the same s (0.01 for s = 5, and 0.06 to
-0.07 for the other values). The recipe thus reproduces the released geometries to within the
-differences between random realizations. The first geometry file lies far from all released
-geometries, between those with `TORsigma` = 28 and 84, and closest to the recipe for s = 30. Its
-inner ring alone lies at a distance of 0.02 from the released ring-only geometry, entirely in the
-edge-on bin, because its second-row spheres carry column densities of the cloud population (see
-Inner Compton-thick ring); the released ring-only file lies at a distance of 0.006.
+For the geometries with the inner ring of n = 3 (`CTKcover` = 0.6), two realizations of the recipe
+for each of s = 5, 20, and 60 lie closest to the released geometry with `TORsigma` = 1.4 s, at 0.02
+for s = 5 and at 0.04 to 0.06 for the other values. This is comparable to the distance between the
+two realizations, 0.01 and 0.06 to 0.07 respectively, whereas the released geometries with
+different `TORsigma` lie 0.12 to 0.28 apart. The recipe thus reproduces the released geometries to
+within the differences between random realizations. The first geometry file lies between the
+released geometries with `TORsigma` = 28 and 84, at distances of 0.15 and 0.09, and at 0.05 to 0.06
+from the realizations of the recipe for s = 30.
 
 ### Open points
 
