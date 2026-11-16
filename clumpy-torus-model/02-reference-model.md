@@ -1,13 +1,13 @@
 # Reference model
 
 This chapter summarizes the UXClumpy model as described in its documentation, in the XARS code
-repository, and in a geometry file obtained from its author. Details marked as to be verified
+repository, and in the geometry files obtained from its author. Details marked as to be verified
 still need to be checked against the paper, the code, or with the author.
 
 ## Geometry
 
 This section describes the geometry based on Sects. 2, 3, and Appendix C of Buchner et al. (2019),
-the XARS repository, and an analysis of the geometry file. The cloud generator itself is not part
+the XARS repository, and an analysis of the geometry files. The cloud generator itself is not part
 of the repository.
 
 ### Target model versus computed model
@@ -16,7 +16,7 @@ The paper first constructs a clumpy model that reproduces the observed column de
 of AGN and the observed cloud eclipse rates (Sects. 3.1 and 3.2, Table 2). The spectra of the
 released table model, however, were calculated with a less demanding set of values (Sect. 3.3).
 The XARS export scripts confirm the computed values: the geometry files are named after 10 000
-clouds (see Geometry file), and the cloud angular size is derived from the number of clouds as
+clouds (see Geometry files), and the cloud angular size is derived from the number of clouds as
 θ<sub>cloud</sub> = (N<sub>tot</sub> / 10<sup>5</sup>)<sup>−1/2</sup> degrees.
 
 | Quantity | Target model (Sects. 3.1–3.2, Table 2) | Computed model (Sect. 3.3, XARS scripts) |
@@ -26,38 +26,46 @@ clouds (see Geometry file), and the cloud angular size is derived from the numbe
 | cloud column density N<sub>H</sub><sup>cloud</sup> | 10<sup>23 ± 1.0</sup> cm<sup>−2</sup> (Sect. 3.1) | 10<sup>23.5 ± 1.0</sup> cm<sup>−2</sup> |
 | angular width σ | 6° to 90° (Tables 1 and 2) | 0, 7°, 28°, 84° (0 means no cloud population) |
 | inner Compton-thick ring | not included | covering factor C = 0, 0.25, 0.3, 0.45, or 0.6 (see Inner Compton-thick ring) |
-| volume filling factor | 2% to 5% (Table 2) | 9% (measured in the geometry file, see Cloud population) |
+| volume filling factor | 2% to 5% (Table 2) | 4% to 9% (measured in the geometry files, see Cloud population) |
 
 Reducing the number of clouds by a factor of ten while increasing their solid angle by the same
 factor keeps the number of clouds along a line of sight unchanged, and the paper reports that the
 spectrum is not affected by the number of clouds beyond 10<sup>4</sup> (Sect. 2.2). The total
 cloud volume, however, scales as N<sub>tot</sub> θ<sub>cloud</sub><sup>3</sup>, so that the volume
-filling factor grows by a factor √10, which explains the 9% measured in the geometry file (see
-Cloud population). Table 2 of the paper mixes both sets: it lists 10<sup>5</sup> clouds of 1°, but
+filling factor grows by a factor √10. The rejection of overlapping clouds reduces it again, the more
+so the thinner the cloud population, to the values measured in the geometry files (see Cloud
+population). Table 2 of the paper mixes both sets: it lists 10<sup>5</sup> clouds of 1°, but
 the column density distribution of the computed model. Recreating the released table model
 requires the values in the right-hand column.
 
-### Geometry file
+### Geometry files
 
-The author provided one geometry file, `10000_30_f3_gexp5core.hdf5`, in the format read by the
-`ClumpyTorusGeometry` class of XARS. The XARS scripts `torusCcovfrac.py` and `torusCNHeq.py` reveal
-the naming scheme of the geometry files for the released table: `10000_<s>_f<n>_gexp5core.hdf5`
-for s = 5, 20, 60 and n = 8, 6, 4, 3, where s is the angular width parameter and n the number of
-touching spheres in the inner ring (see Inner Compton-thick ring). The geometries without a cloud
-population (`TORsigma` = 0, see Parameters) use separate files for the ring alone,
-`dring_25.5_i0.5_n<n>.hdf5`, and an empty geometry, `dring_empty.hdf5`. The scripts convert s to
-the `TORsigma` parameter by a factor 1.4, and n to the `CTKcover` parameter (see the table in
-Inner Compton-thick ring). The factor 1.4 ≈ √2 relates s to the angular width of the CLUMPY
-formalism (see Cloud population). The history of the XARS export script `createclumpytoruscutofftable.py`
-shows when it was introduced: the script labels its geometries with a torus opening angle of 90° − s for
-the geometries with s = 5, 10, 30, and 60 used in 2016, and of 90° − 1.4 s for the `gexp5core`
-geometries with s = 5, 20, and 60 used since January 2017, which corresponds to `TORsigma` = 1.4 s.
+The author first provided a single geometry file, `10000_30_f3_gexp5core.hdf5`, which is not part
+of the released table, and later the files of the 20 geometries of the released table, with a list
+that maps them to the table parameters. All files are in the format read by the
+`ClumpyTorusGeometry` class of XARS. The geometries with a cloud population are named
+`10000_<s>_f<n>_gexp5core.hdf5`, where s is the angular width parameter and n the number of
+touching spheres in the inner ring (see Inner Compton-thick ring), with n = 0 for no ring. The
+geometries without a cloud population (`TORsigma` = 0, see Parameters) use separate files for the
+ring alone, `dring_25.5_i0.5_n<n>.hdf5`, and an empty geometry, `dring_empty.hdf5`. The XARS scripts
+`torusCcovfrac.py` and `torusCNHeq.py` use the same naming scheme.
 
-The file at hand, with s = 30 and n = 3, thus corresponds to `TORsigma` = 42° and `CTKcover` = 0.6.
-It is **not one of the 20 geometries of the released table**, as its sky fractions confirm (see
-Comparison with the released geometries). The spectra in Fig. 6 of the paper were calculated for "one
-model geometry σ = 30°", which may well be this one, labeled with s rather than with 1.4 s. The file
-contains the following datasets:
+The author's list assigns s = 5, 20, and 60 to `TORsigma` = 7, 28, and 84, and the ring-only files
+to `TORsigma` = 0; it assigns n = 0, 8, 6, 4, and 3 to `CTKcover` = 0, 0.25, 0.3, 0.45, and 0.6.
+This is the mapping used by the XARS scripts (see the table in Inner Compton-thick ring), and the
+sky fractions of the files confirm it for all 20 geometries (see Comparison with the released
+geometries). The factor 1.4 ≈ √2 between s and `TORsigma` relates s to the angular width of the
+CLUMPY formalism (see Cloud population). The history of the XARS export script
+`createclumpytoruscutofftable.py` shows when it was introduced: the script labels its geometries
+with a torus opening angle of 90° − s for the geometries with s = 5, 10, 30, and 60 used in 2016,
+and of 90° − 1.4 s for the `gexp5core` geometries with s = 5, 20, and 60 used since January 2017,
+which corresponds to `TORsigma` = 1.4 s.
+
+The first file, with s = 30 and n = 3, thus corresponds to `TORsigma` = 42° and `CTKcover` = 0.6.
+It was generated with the same code and the same random numbers as the released files (see Cloud
+population). The spectra in Fig. 6 of the paper were calculated for "one model geometry σ = 30°",
+which may well be this one, labeled with s rather than with 1.4 s. The files with a cloud population
+contain the following datasets:
 
 | Dataset | Contents |
 | --- | --- |
@@ -66,35 +74,40 @@ contains the following datasets:
 | `radius` | cloud radius |
 | `NH` | log<sub>10</sub> of the column density through the cloud center, in cm<sup>−2</sup>; XARS sets the cloud density to this column density divided by the cloud diameter |
 | `NH_samples` | 4000 line-of-sight column densities as seen from the center, in cm<sup>−2</sup>, sorted, with 0.01 for unobscured directions |
-| scalars | `sigma` = 30, `m` = 1, `q` = 0, `Y_gas` = 100, `N` = `Ntot` = 10 000, `Ncore` = 3, `filling` = 1, `NHcloud_mean` = 23.5, `NHcloud_sigma` = 1, `N0` = 2.96 |
+| scalars | `sigma` = s, `Ncore` = n, `N` = `Ntot` = 10 000, `m` = 1, `q` = 0, `Y_gas` = 100, `NHcloud_mean` = 23.5, `NHcloud_sigma` = 1, `filling` = 0, 1, 0.7, 0.5, and 0.4 for n = 0, 3, 4, 6, and 8, and `N0` from 1.57 to 7.09 (2.96 for the first file) |
 
-The first 2 n = 6 clouds form the inner ring; the other 9994 clouds form the cloud population, so
-that the total of 10 000 includes the ring. The population clouds are stored in the order in which
-they were placed, which turns out to be useful for the analysis (see Cloud population).
+The ring-only files contain the same datasets except `beta` and `phi`, and the scalars `NH_mean` =
+25.5, `NH_sigma` = 0.5, `sigma` = 25.5, `Ncore` = n, and `filling` = 0.404, 0.551, and 0.903 for
+n = 8, 6, and 4, undefined (NaN) for n = 3, and 0 for the empty geometry.
 
-![Cross sections through the geometry file](figures/geometry-slice.png)
+The first 2 n clouds form the inner ring; the other 10 000 − 2 n clouds form the cloud population,
+so that the total of 10 000 includes the ring. The population clouds are stored in the order in
+which they were placed, which turns out to be useful for the analysis (see Cloud population).
 
-*Cross sections through the geometry file, showing the clouds that intersect the plane of the cut.
-Left: a vertical cut through the whole model. Right: an equatorial cut through the center, with
-the three touching spheres of the inner ring, the three smaller gap-filling spheres between them,
-and the innermost population clouds just outside R<sub>in</sub>.*
+![Cross sections through the first geometry file](figures/geometry-slice.png)
+
+*Cross sections through the first geometry file, showing the clouds that intersect the plane of
+the cut. Left: a vertical cut through the whole model. Right: an equatorial cut through the
+center, with the three touching spheres of the inner ring, the three smaller gap-filling spheres
+between them, and the innermost population clouds just outside R<sub>in</sub>.*
 
 ### Cloud population
 
 The clouds are spheres of uniform density, placed around a central point source, with azimuthal
 symmetry. The paper describes their distributions in the formalism of the infrared CLUMPY model
-(Nenkova et al. 2008). The geometry file shows how these distributions were actually realized. The
+(Nenkova et al. 2008). The geometry files show how these distributions were actually realized. The
+analysis below was done for the first geometry file and confirmed for the released files. The
 first clouds placed closely follow the input distributions of the recipe (see Recipe), while the
 final distributions deviate from them in a way that is fully explained by the rejection of
-overlapping clouds (see Placement below). The figure compares the file with these input
+overlapping clouds (see Placement below). The figure compares the first file with these input
 distributions and with five realizations of the recipe, including the overlap rejection.
 
-![Cloud distributions in the geometry file](figures/geometry-distributions.png)
+![Cloud distributions in the first geometry file](figures/geometry-distributions.png)
 
-*Distributions of the 9994 population clouds in the geometry file (blue), compared with the input
-distributions of the recipe (dashed) and with the mean of five realizations of the recipe including
-the rejection of overlapping clouds (orange). Panel (b) shows the number of clouds per unit solid
-angle; the dotted curve is the Gaussian per unit solid angle of the CLUMPY formalism.*
+*Distributions of the 9994 population clouds in the first geometry file (blue), compared with the
+input distributions of the recipe (dashed) and with the mean of five realizations of the recipe
+including the rejection of overlapping clouds (orange). Panel (b) shows the number of clouds per
+unit solid angle; the dotted curve is the Gaussian per unit solid angle of the CLUMPY formalism.*
 
 **Angular distribution.** In the CLUMPY formalism, the mean number of clouds encountered along a
 radial line of sight at elevation β above the equatorial plane is
@@ -103,9 +116,10 @@ radial line of sight at elevation β above the equatorial plane is
 
 where N0 is the mean number of clouds along a line of sight in the equatorial plane, and σ is the
 angular width, the `TORsigma` parameter. This would correspond to a density of cloud centers per
-unit solid angle proportional to exp(−(β / σ)²). The geometry file shows that the elevations of the
-cloud centers were instead drawn from a Gaussian distribution **in elevation angle**, with standard
-deviation s = `sigma` = 30°, truncated at ±90°, without the factor cos β of the solid angle:
+unit solid angle proportional to exp(−(β / σ)²). The first geometry file shows that the elevations
+of the cloud centers were instead drawn from a Gaussian distribution **in elevation angle**, with
+standard deviation s = `sigma` = 30°, truncated at ±90°, without the factor cos β of the solid
+angle:
 
 - the first 500 clouds placed are consistent with this distribution (Kolmogorov-Smirnov p = 0.42);
 - the number of clouds near the poles matches it: 49, 19, and 6 clouds at elevations above 80°,
@@ -113,15 +127,25 @@ deviation s = `sigma` = 30°, truncated at ±90°, without the factor cos β of 
 - per unit solid angle, the density of cloud centers falls off much more slowly towards the poles
   than the CLUMPY Gaussian, and rises again within a few degrees of the poles (panel b).
 
+The released files confirm this distribution for all values of s: the first 500 clouds placed are
+consistent with it (p = 0.39 to 0.58 for s = 5, 0.39 to 0.45 for s = 20, and 0.15 to 0.26 for
+s = 60), and inconsistent with the CLUMPY Gaussian with σ = 1.4 s (p < 0.01 for s = 20 and
+p < 10<sup>−17</sup> for s = 60). For s = 5, the two distributions hardly differ, because cos β is
+close to 1 for all clouds.
+
 Near the equatorial plane, the density per unit solid angle is then proportional to
 exp(−β² / 2s²), a CLUMPY Gaussian with σ = √2 · s, which explains the conversion factor 1.4 from s
 to `TORsigma`. Away from the plane, the density per unit solid angle is proportional to
 exp(−β² / 2s²) / cos β, which diverges at the poles. For s = 30° this concerns only a few dozen
-clouds, but for s = 60° (`TORsigma` = 84°) the density per unit solid angle increases monotonically
-from the equatorial plane to the poles, unlike the description in the paper. The value `m` = 1 in
-the file does not match either distribution; its meaning is unknown. N0 is not a free parameter:
-it follows from the number and sizes of the clouds. The file lists N0 = 2.96, consistent with the
-mean number of 3.05 population clouds that a line of sight in the equatorial plane intersects.
+clouds, but for s = 60° (`TORsigma` = 84°) the density per unit solid angle increases from the
+equatorial plane to the poles, unlike the description in the paper. In the released file with
+s = 60, it is nearly constant up to an elevation of about 50°, and then rises to five times its
+equatorial value within 5° of the poles. There, where the clouds crowd, the overlap rejection
+(see Placement) thins them out: 482 clouds lie at elevations above 80°, compared with 563 expected.
+The value `m` = 1 in the files does not match either distribution; its meaning is unknown. N0 is not
+a free parameter:
+it follows from the number and sizes of the clouds. The first file lists N0 = 2.96, consistent with
+the mean number of 3.05 population clouds that a line of sight in the equatorial plane intersects.
 
 **Radial distribution.** The clouds are distributed over two orders of magnitude in radius, from
 R<sub>in</sub> to R<sub>out</sub> = Y · R<sub>in</sub> with Y = 100. In the CLUMPY formalism, the
@@ -129,45 +153,70 @@ radial distribution describes the number of clouds per unit length along a radia
 proportional to r<sup>−q</sup>, and the paper uses q = 0. Because the angular diameters of the
 clouds are drawn independently of their distance, the mean cross section of the clouds at radius r
 is proportional to r², so that a constant number per unit length means a constant number per unit
-radius. The geometry file confirms this: the distances of the cloud centers are drawn uniformly
-between R<sub>in</sub> = 0.01 and R<sub>out</sub> = 1 (first 500 clouds, p = 0.90). The limits
-apply to the cloud centers only: 199 clouds extend beyond R<sub>out</sub>, up to a distance of 1.10,
-and 4 clouds extend inside R<sub>in</sub>. The final distribution has nearly 30% more clouds in the
+radius. The geometry files confirm this: the distances of the cloud centers are drawn uniformly
+between R<sub>in</sub> = 0.01 and R<sub>out</sub> = 1 (first 500 clouds, p = 0.90 for the first
+file and 0.49 to 0.88 for the released files). The limits apply to the cloud centers only: in the
+first file, 199 clouds extend beyond R<sub>out</sub>, up to a distance of 1.10, and 4 clouds extend
+inside R<sub>in</sub>. The final distribution has nearly 30% more clouds in the
 innermost fifth of the radial range than in the outermost fifth (panel a), because the overlap
 rejection is more frequent at large radii, where the clouds are larger.
 
 **Cloud sizes.** The angular diameters θ of the clouds, as seen from the center, are drawn from an
 exponential distribution with mean θ<sub>cloud</sub> = √10 · 1° (first 500 clouds, p = 0.69, mean
-3.19°), independently of the distance. A cloud at distance d from the center has diameter
-D = d · sin θ, so that its radius is d · sin θ / 2. There is no sign of a truncation: the largest
-cloud has θ = 27°. Because large clouds are more likely to overlap others, the final distribution
-has a mean of 2.49° rather than 3.16°, and a steeper tail (panel c).
+3.19°; p = 0.24 to 0.89 for the released files), independently of the distance. A cloud at
+distance d from the center has diameter D = d · sin θ, so that its radius is d · sin θ / 2. There
+is no sign of a truncation: the largest cloud has θ = 27°. Because large clouds are more likely to
+overlap others, the final distribution has a mean of 2.49° rather than 3.16°, and a steeper tail
+(panel c). The thinner the cloud population, the more large clouds are rejected: the final mean is
+1.90°, 2.38°, and 2.49° in the released files with s = 5, 20, and 60.
 
 **Cloud column densities.** The column density of each cloud through its center, N<sub>H</sub> =
 n<sub>H</sub> · D, follows a log-normal distribution: log N<sub>H</sub> (in cm<sup>−2</sup>) is
 normally distributed with mean 23.5 and standard deviation 1.0 (all 9994 clouds, p = 0.27; panel
-d). The overlap rejection does not affect this distribution. The uniform hydrogen number density
-of the cloud is n<sub>H</sub> = N<sub>H</sub> / D, as in the XARS geometry class.
+d). The overlap rejection does not affect this distribution, because the column densities are
+assigned independently of the placement (see Shared random numbers below). The uniform hydrogen
+number density of the cloud is n<sub>H</sub> = N<sub>H</sub> / D, as in the XARS geometry class.
 
 **Placement.** The clouds are placed one at a time. A cloud that overlaps any previously placed
 cloud, including the inner ring, is discarded, and a completely new cloud is drawn, including its
-size. Two clouds count as overlapping if the distance between their centers is less than 1.0001
-times the sum of their radii; the closest pair in the file sits exactly at this limit. The
-resulting clouds therefore do not overlap. About 20% of the draws are rejected. Because the chance
-of rejection grows as clouds accumulate, the deviations from the input distributions grow with the
-placement order. A simulation of this recipe (see Recipe) reproduces the trends in the file within
-the scatter between realizations:
+size. Two clouds count as overlapping if the distance between their centers is less than the sum
+of their radii: in the geometry files, the closest pairs of population clouds lie at 1.00004 to
+1.00055 times the sum of their radii. The factor 1.0001 that separates the spheres of the inner
+ring (see Inner Compton-thick ring) does not apply here. The resulting clouds therefore do not
+overlap. About 20% of the draws are rejected. Because the chance of rejection grows as clouds
+accumulate, the deviations from the input distributions grow with the placement order. A
+simulation of this recipe (see Recipe) reproduces the trends in the first file within the scatter
+between realizations:
 
 | Placement order (blocks of 2000 clouds) | 1 | 2 | 3 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- |
-| mean distance, geometry file | 0.500 | 0.478 | 0.478 | 0.461 | 0.473 |
+| mean distance, first geometry file | 0.500 | 0.478 | 0.478 | 0.461 | 0.473 |
 | mean distance, recipe (5 realizations, scatter ≤ 0.008) | 0.496 | 0.481 | 0.483 | 0.471 | 0.468 |
-| mean angular diameter, geometry file | 2.90° | 2.59° | 2.39° | 2.28° | 2.27° |
+| mean angular diameter, first geometry file | 2.90° | 2.59° | 2.39° | 2.28° | 2.27° |
 | mean angular diameter, recipe (scatter ≤ 0.07°) | 2.91° | 2.59° | 2.40° | 2.29° | 2.16° |
 
-The recipe also reproduces the volume filling factor of the file, 9.1% within R<sub>out</sub>.
-To reproduce the distributions of the released geometries, a recreation must therefore include the
-overlap rejection, with the same order of placement.
+The recipe also reproduces the volume filling factor of the first file, 9.1% within R<sub>out</sub>.
+In the released files, the volume filling factor is 3.6%, 7.8%, and 9.5% for s = 5, 20, and 60,
+because the overlap rejection removes more of the large clouds in the thinner cloud populations. A
+recreation of these distributions must therefore include the overlap rejection, with the same
+order of placement.
+
+**Shared random numbers.** All geometry files, including the first one, were generated from the
+same sequence of random numbers. Of the 10 000 clouds in the released file with s = 5 and no ring,
+7643 reappear in the file with s = 20, and 6752 in the file with s = 60, with the same distance,
+azimuth, and radius, and with an elevation exactly 4 and 12 times larger. The generator thus draws
+the elevation as s times a standard normal deviate, and the other clouds presumably differ because
+the overlap rejection and the limit of ±90° in elevation decide differently for different s. A
+cloud with an elevation beyond ±90° is discarded as a whole, like an overlapping cloud. In the same
+way, the first file shares 7357 of its population clouds with the released file with s = 5 and
+n = 3, with elevations exactly 6 times larger. Files with the same s but different rings share
+nearly all population clouds: 9952 to 9992 of their population clouds also occur in the file
+without ring. The column densities, finally, form a single sequence that is assigned to the clouds
+by their position in the file, and that is the same in all files, except for the first n
+positions, which hold the column densities of the first row of the inner ring (see Inner
+Compton-thick ring). The released geometries are thus not independent realizations: geometries
+with different parameters contain largely the same clouds, stretched in elevation or partly
+replaced by the inner ring.
 
 **Medium between the clouds.** The XARS geometry consists of the clouds only, so that UXClumpy has
 no medium between the clouds.
@@ -180,88 +229,133 @@ the equatorial plane, and a second row of spheres fills the gaps between them, f
 donut. The covering factor C of the ring, the `CTKcover` parameter, determines the number and
 radius of the spheres, from sixteen small spheres to three large ones according to the paper.
 
-The geometry file contains a ring with n = 3 touching spheres, constructed as follows (all centers
-lie in the equatorial plane):
+The geometry files contain rings with n = 3, 4, 6, and 8 touching spheres. For a given n, the
+positions and radii of the ring spheres are the same in the ring-only file and in the files with
+cloud population. The rings are constructed as follows (all centers lie in the equatorial plane):
 
 - the first row has n spheres at distance d<sub>1</sub> = 0.005 = R<sub>in</sub> / 2, at azimuths
-  0°, 120°, and 240°, with radius d<sub>1</sub> sin(180° / n) / 1.0001, so that adjacent spheres
-  just do not touch; as seen from the center, each sphere covers a cap with a radius of 60°;
-- the second row has n spheres at distance d<sub>2</sub> = d<sub>1</sub> (1 + sin(180° / n)) =
-  0.00933, the outer edge of the first row, at the azimuths halfway between the first-row spheres,
-  with radius 0.00208 (a cap of 12.9° as seen from the center); the rule that sets this radius is
-  not apparent;
-- the first-row column densities are exactly log N<sub>H</sub> = 25.5, 26.0, and 25.0, which
-  matches the "25.5_i0.5" in the names of the ring-only files; the second-row column densities are
-  26.54, 24.48, and 22.95, apparently drawn at random from a distribution wider than 25.5 ± 0.5.
+  k · 360° / n for k = 0, …, n − 1, with radius d<sub>1</sub> sin(180° / n) / 1.0001, so that
+  adjacent spheres just do not touch; as seen from the center, each sphere covers a cap with a
+  radius of 180° / n, for example 60° for n = 3;
+- the second row has n spheres at distance d<sub>2</sub> = d<sub>1</sub> (1 + sin(180° / n)), the
+  outer edge of the first row, at the azimuths halfway between the first-row spheres, with radius
+  0.00208, 0.00250, 0.00120, and 0.00107 for n = 3, 4, 6, and 8, or 0.48, 0.71, 0.48, and 0.56
+  times the radius of the first-row spheres (a cap of 12.9° as seen from the center for n = 3); the
+  rule that sets this radius is not apparent;
+- the first-row column densities are evenly spaced over 1.5 dex around 25.5: log N<sub>H</sub> =
+  25.5 + 1.5 k / n for k = 0, …, n − 1, reduced by 1.5 where this exceeds 26.25, for example
+  25.5, 26.0, and 25.0 for n = 3;
+- in the ring-only files, the second-row column densities lie halfway between those of the first
+  row, for example 25.75, 26.25, and 25.25 for n = 3, so that all ring spheres are Compton thick;
+- in the files with cloud population, the second-row column densities are instead taken from the
+  column density sequence of the cloud population (see Shared random numbers in Cloud population),
+  drawn from 23.5 ± 1.0: for example 26.54, 24.48, and 22.95 for n = 3, and 21.93 to 24.61 for the
+  other values of n.
 
-The model documentation states log N<sub>H</sub> = 25 ± 0.5 for the ring clouds instead. As seen
-from the center, the first row of n touching spheres covers a fraction n (1 − cos(180° / n)) / 2 of
-the sky, independent of its distance. The second row adds very little, because it only fills the
-narrow cusps between the touching spheres above and below the equatorial plane: for n = 3, the
-measured covering factor of the ring is 0.751, of which 0.750 is due to the first row. The
-covering factors associated with the `CTKcover` values by the XARS scripts are about 20% lower than
-these geometric values:
+The ring-only files list `NH_mean` = 25.5 and `NH_sigma` = 0.5, which matches the "25.5_i0.5" in
+their names, whereas the model documentation states log N<sub>H</sub> = 25 ± 0.5 for the ring
+clouds. The different second-row column densities in the files with cloud population look
+unintended. They change the column density for 4% to 9% of the sky, all of it in the edge-on bin.
+As a result, the ring of the files with cloud population, taken on its own, lies at a distance of
+0.01 to 0.03 from the corresponding ring-only geometry of the table, whereas the ring-only files
+lie at 0.003 to 0.006 (see Comparison with the released geometries).
+
+As seen from the center, the first row of n touching spheres covers a fraction
+n (1 − cos(180° / n)) / 2 of the sky, independent of its distance. The second row adds very
+little, because it only fills the narrow cusps between the touching spheres above and below the
+equatorial plane: for n = 3, the measured covering factor of the ring is 0.751, of which 0.750 is
+due to the first row. The covering factors associated with the `CTKcover` values by the XARS
+scripts and by the author are about 20% lower than these geometric values, and a few hundredths
+higher than the covering factors for directions distributed uniformly in polar angle, as used for
+the `NH_samples` in the geometry files (see Line-of-sight column densities):
 
 | `CTKcover` | 0 | 0.25 | 0.3 | 0.45 | 0.6 |
 | --- | --- | --- | --- | --- | --- |
 | touching spheres n | none | 8 | 6 | 4 | 3 |
 | geometric covering factor of the first row | 0 | 0.30 | 0.40 | 0.59 | 0.75 |
+| covering factor of the ring for directions uniform in polar angle | 0 | 0.200 | 0.266 | 0.408 | 0.555 |
 
 Fig. 5 of the paper shows the configuration with six touching spheres and a second row of
-gap-filling spheres, and states a covering factor of 30%, compared with the geometric value of 40%.
-How the `CTKcover` values were derived is not clear.
+gap-filling spheres, and states a covering factor of 30%, compared with the geometric value of 40%
+and the value of 26.6% for directions uniform in polar angle. How the `CTKcover` values were derived
+is not clear.
 
 ### Line-of-sight column densities
 
 The line-of-sight column density as seen from the central source determines which sky bin, and
 thus which `NHLOS` value, an escaping photon contributes to (see Calculation method). The sky map
-shows these column densities for the geometry file. The inner ring dominates: its three spheres
+shows these column densities for the first geometry file. The inner ring dominates: its three spheres
 cover 75% of the sky with column densities above 10<sup>24</sup> cm<sup>−2</sup>, and the cloud
 population is visible mainly in the gaps between them and towards the poles.
 
 ![Line-of-sight column density as seen from the center](figures/geometry-skymap.png)
 
-*Line-of-sight column density from the center for the geometry file, in a Hammer projection with
-the equatorial plane horizontal. The dashed lines are the boundaries of the three inclination bins
-of the sky binning (see Calculation method), labeled with the corresponding `Theta_inc` values.*
+*Line-of-sight column density from the center for the first geometry file, in a Hammer projection
+with the equatorial plane horizontal. The dashed lines are the boundaries of the three inclination
+bins of the sky binning (see Calculation method), labeled with the corresponding `Theta_inc`
+values.*
 
 The covering factor f(> N<sub>H</sub>), the fraction of the sky with a line-of-sight column density
-above a given value, summarizes this map. For the geometry file, the cloud population alone covers
-85% of the sky above 10<sup>22</sup> cm<sup>−2</sup> and 47% above 10<sup>24</sup> cm<sup>−2</sup>;
-with the inner ring, this becomes 93% and 82%.
+above a given value, summarizes this map. For the first geometry file, the cloud population alone
+covers 85% of the sky above 10<sup>22</sup> cm<sup>−2</sup> and 47% above 10<sup>24</sup>
+cm<sup>−2</sup>; with the inner ring, this becomes 93% and 82%.
 
 ![Covering factor as a function of column density](figures/geometry-covering.png ':size=75%')
 
-*Covering factor as a function of column density for the geometry file, for isotropically
+*Covering factor as a function of column density for the first geometry file, for isotropically
 distributed directions from the center, and for the stored `NH_samples`. The samples are
 reproduced by directions distributed uniformly in polar angle (dashed blue), not by isotropic
 directions (solid blue).*
 
-The `NH_samples` stored in the file do not match the isotropic covering factors: they give 84%
+The `NH_samples` stored in the first file do not match the isotropic covering factors: they give 84%
 above 10<sup>22</sup> cm<sup>−2</sup> and 67% above 10<sup>24</sup> cm<sup>−2</sup>. They are
 reproduced closely by directions distributed uniformly in polar angle, which over-represent the
 poles. The XARS script `torusCcovfrac.py` plots the covering factors of the released geometries from
-these samples. If the covering factors in the paper (Figs. 2 and C.1) were obtained in the same
-way, they are underestimated. The table model itself is not affected, because XARS emits its
-photons isotropically and normalizes the sky bins with isotropic directions (see Central source).
+these samples, and the covering factors that the author lists for the released geometries equal
+those of their `NH_samples`, to two decimals for all 20 geometries. For isotropic directions, the
+covering factors are considerably larger, except for `TORsigma` = 84, where the clouds are spread
+over all elevations:
+
+| `TORsigma` | directions | `CTKcover` = 0 | 0.25 | 0.3 | 0.45 | 0.6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | isotropic | 0 / 0 | 0.31 / 0.31 | 0.41 / 0.40 | 0.59 / 0.59 | 0.75 / 0.75 |
+| 0 | `NH_samples` | 0 / 0 | 0.20 / 0.20 | 0.27 / 0.26 | 0.41 / 0.41 | 0.56 / 0.55 |
+| 7 | isotropic | 0.26 / 0.19 | 0.33 / 0.32 | 0.41 / 0.41 | 0.59 / 0.59 | 0.75 / 0.75 |
+| 7 | `NH_samples` | 0.16 / 0.12 | 0.21 / 0.21 | 0.28 / 0.27 | 0.41 / 0.40 | 0.57 / 0.57 |
+| 28 | isotropic | 0.71 / 0.42 | 0.71 / 0.53 | 0.72 / 0.55 | 0.75 / 0.65 | 0.82 / 0.77 |
+| 28 | `NH_samples` | 0.53 / 0.29 | 0.54 / 0.37 | 0.53 / 0.38 | 0.56 / 0.46 | 0.63 / 0.58 |
+| 84 | isotropic | 0.88 / 0.49 | 0.92 / 0.63 | 0.94 / 0.70 | 0.96 / 0.79 | 0.98 / 0.88 |
+| 84 | `NH_samples` | 0.89 / 0.53 | 0.92 / 0.61 | 0.94 / 0.67 | 0.95 / 0.73 | 0.97 / 0.82 |
+
+*Covering factors above 10<sup>22</sup> and 10<sup>24</sup> cm<sup>−2</sup> (separated by a slash)
+of the released geometries, for isotropic directions and from the `NH_samples` in the files; the
+latter are the values listed by the author.*
+
+If the covering factors in the paper (Figs. 2 and C.1) were also obtained from the `NH_samples`,
+they are underestimated for `TORsigma` ≤ 28. The table model itself is not affected, because XARS
+emits its photons isotropically and normalizes the sky bins with isotropic directions (see Central
+source).
 
 ### Recipe
 
-With these ingredients, a geometry for given values of s (= `TORsigma` / 1.4) and n is recreated
-as follows:
+The geometry files of the released table make a recreation of its geometries unnecessary. With the
+ingredients described above, a geometry with the same statistics can be generated for any values
+of s (= `TORsigma` / 1.4) and n as follows:
 
 1. Choose the length unit so that R<sub>out</sub> = 1 and R<sub>in</sub> = 0.01.
-2. Place the inner ring for n touching spheres as described above, if any.
+2. Place the inner ring for n touching spheres as described above, if any, with Compton-thick
+   second-row spheres as in the ring-only files, or with second-row column densities drawn as for
+   the cloud population, as in the files with cloud population.
 3. Add population clouds one at a time until the total number of clouds, including the ring, is
    10 000. For each cloud, draw a distance d uniformly between R<sub>in</sub> and R<sub>out</sub>,
-   an elevation from a Gaussian distribution with standard deviation s, redrawn until it lies
-   between −90° and 90°, and an azimuth uniformly between 0 and 2π. Draw an angular diameter θ from
-   the exponential distribution with mean √10 · 1° and set the radius to d · sin θ / 2. Draw
-   log N<sub>H</sub> from the normal distribution with mean 23.5 and standard deviation 1.0, and set
-   the density to n<sub>H</sub> = N<sub>H</sub> / D. Discard the cloud and draw a new one if it
-   overlaps a cloud placed before, with the margin of 1.0001.
+   an elevation from a Gaussian distribution with standard deviation s, and an azimuth uniformly
+   between 0 and 2π. Draw an angular diameter θ from the exponential distribution with mean
+   √10 · 1° and set the radius to d · sin θ / 2. Draw log N<sub>H</sub> from the normal
+   distribution with mean 23.5 and standard deviation 1.0, and set the density to n<sub>H</sub> =
+   N<sub>H</sub> / D. Discard the cloud and draw a new one if its elevation lies outside ±90° or if
+   it overlaps a cloud placed before.
 
-The resulting geometry can be checked against the statistics of the geometry file listed above,
+The resulting geometry can be checked against the statistics of the geometry files listed above,
 against the column density distributions of Fig. C.1 of the paper, taking into account the
 direction sampling of the `NH_samples`, and against the sky fractions of the released geometries.
 
@@ -270,53 +364,67 @@ direction sampling of the `NH_samples`, and against the sky fractions of the rel
 The fractions of the sky covered by the 123 sky bins of each released geometry follow from the omni
 spectra (see Table files). For a given geometry file, the same fractions follow from the column
 densities seen from the center along 200 000 isotropic directions, sorted into sky bins as by
-`torusC.py` (see Calculation method). The table lists the distance between two sets of sky
-fractions, half the sum of their absolute differences over all sky bins, which is the fraction of
-the sky that would have to move to another bin. All geometries have the inner ring of the geometry
-file (n = 3, `CTKcover` = 0.6); the recipe adds a cloud population for a given s, in two realizations.
+`torusC.py` (see Calculation method). The distance between two sets of sky fractions is half the
+sum of their absolute differences over all sky bins, which is the fraction of the sky that would
+have to move to another bin.
 
-| Geometry | `TORsigma` = 7 | `TORsigma` = 28 | `TORsigma` = 84 | geometry file |
+Each of the 20 released geometry files lies at a distance of 0.001 to 0.009 from the table geometry
+to which the author's list assigns it, and at a distance of 0.04 or more from all other table
+geometries. Distances below 0.01 are expected from the Monte Carlo noise in the sky fractions,
+which are estimated here from 200 000 directions and in XARS from 10<sup>6</sup> directions (see
+Example spectra). The sums of the sky fractions, which miss the directions beyond the last `NHLOS`
+bin (see Table files), agree to within 0.001. The files are thus those of the released table, with
+the mapping given by the author.
+
+The table below compares geometries with the inner ring of the first file (n = 3, `CTKcover` =
+0.6) with the released geometries with this ring: the released files with cloud population, the
+first file, and geometries generated with the recipe for a given s, in two realizations.
+
+| Geometry | `TORsigma` = 7 | `TORsigma` = 28 | `TORsigma` = 84 | first geometry file |
 | --- | --- | --- | --- | --- |
-| geometry file (s = 30) | 0.24 | 0.15 | 0.09 | – |
+| released file, s = 5 | 0.006 | 0.12 | 0.28 | 0.24 |
+| released file, s = 20 | 0.12 | 0.007 | 0.20 | 0.15 |
+| released file, s = 60 | 0.28 | 0.20 | 0.006 | 0.09 |
+| first geometry file (s = 30) | 0.24 | 0.15 | 0.09 | – |
 | recipe, s = 5 | 0.02 | 0.12 | 0.27 | 0.24 |
 | recipe, s = 20 | 0.12–0.13 | 0.04–0.06 | 0.19–0.20 | 0.14–0.15 |
 | recipe, s = 30 | 0.23–0.24 | 0.14 | 0.11 | 0.05–0.06 |
 | recipe, s = 60 | 0.29 | 0.21–0.22 | 0.05–0.06 | 0.10–0.11 |
 
-Each recreated geometry lies closest to the released geometry with `TORsigma` = 1.4 s, at a distance
+Each generated geometry lies closest to the released geometry with `TORsigma` = 1.4 s, at a distance
 comparable to the distance between the two realizations for the same s (0.01 for s = 5, and 0.06 to
-0.07 for the other values). This confirms the conversion factor, and supports the assumption that the
-released geometries were generated with the elevation distribution of the geometry file, also for
-s = 60. The geometry file, on the other hand, lies far from all released geometries, between those
-with `TORsigma` = 28 and 84, and closest to the recipe for s = 30. Its inner ring alone lies at a
-distance of 0.02 from the released geometry without cloud population, with the largest differences
-for edge-on directions.
+0.07 for the other values). The recipe thus reproduces the released geometries to within the
+differences between random realizations. The first geometry file lies far from all released
+geometries, between those with `TORsigma` = 28 and 84, and closest to the recipe for s = 30. Its
+inner ring alone lies at a distance of 0.02 from the released ring-only geometry, entirely in the
+edge-on bin, because its second-row spheres carry column densities of the cloud population (see
+Inner Compton-thick ring); the released ring-only file lies at a distance of 0.006.
 
 ### Open points
 
-The geometry file settles several details that the paper leaves open:
+The geometry files, including the 20 files of the released table, settle several details that the
+paper leaves open:
 
 - the distances of the cloud centers are drawn uniformly in r, not in log r, between
   R<sub>in</sub> and R<sub>out</sub>, and only the centers need to lie between these limits;
 - the angular diameters of the clouds are drawn independently of their distance, with no evident
   truncation;
-- the elevations are drawn from a Gaussian in elevation angle, without the solid-angle factor;
+- the elevations are drawn from a Gaussian in elevation angle, without the solid-angle factor, for
+  all values of s;
 - overlapping clouds are rejected and redrawn as a whole, which shapes the final distributions;
+- all geometries were generated from the same sequence of random numbers;
 - the ring lies at half the inner radius of the cloud population, and its first-row column
-  densities are 25.5 ± 0.5 in log N<sub>H</sub>.
+  densities are evenly spaced over 1.5 dex around 25.5 in log N<sub>H</sub>.
 
 The following points remain to be confirmed with the author:
 
-- whether the 20 geometry files of the released table can be shared, which would make the
-  recreation unnecessary and allow a direct comparison with the same clump realizations;
-- whether these files were generated with the same code as the geometry file at hand, in particular
-  with the same elevation distribution, which matters most for s = 60°;
-- the rule that sets the radius of the second-row spheres of the ring, and the distribution of
-  their column densities;
-- how the `CTKcover` values relate to the geometric covering factors of the ring;
-- whether the `NH_samples`, and the covering factors in the paper, were computed for directions
-  uniform in polar angle;
-- the meaning of the `m` and `filling` values in the file and of the "gexp5core" suffix.
+- the rule that sets the radius of the second-row spheres of the ring, and whether these spheres are
+  meant to carry column densities of the cloud population in the geometries with cloud population,
+  rather than the Compton-thick values of the ring-only geometries;
+- how the `CTKcover` values relate to the covering factors of the ring;
+- whether the covering factors in the paper were computed from the `NH_samples`, like those listed
+  by the author, and thus for directions uniform in polar angle;
+- the meaning of the `m` and `filling` values in the files and of the "gexp5core" suffix.
 
 ## Table model
 
@@ -506,9 +614,10 @@ The reflected component is empty for the geometry without clouds and for 50 comb
 
 The figures below illustrate the effect of the viewing and geometry parameters on the total
 spectrum, for a single source spectrum with Γ = 1.8 and `Ecut` = 200 keV, close to typical values
-for nearby AGN (see Central source), and `norm` = 1. The geometry file analyzed above
-(`TORsigma` = 42, `CTKcover` = 0.6) is not part of the table, so that the closest released geometry
-with the same inner ring, `TORsigma` = 28 and `CTKcover` = 0.6, serves as the reference geometry.
+for nearby AGN (see Central source), and `norm` = 1. The first geometry file, used for most of the
+analysis above (`TORsigma` = 42, `CTKcover` = 0.6), is not part of the table, so that the closest
+released geometry with the same inner ring, `TORsigma` = 28 and `CTKcover` = 0.6, serves as the
+reference geometry.
 
 Each spectrum collects the photons that escape into one sky bin, so that its Monte Carlo noise
 depends on the fraction of the sky covered by that bin (see Table files). These fractions are

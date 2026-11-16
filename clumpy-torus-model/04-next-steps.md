@@ -10,20 +10,22 @@ runs can be done.
 **Review.** Have the previous chapters reviewed by Bert Vander Meulen, and possibly by other candidate
 co-authors.
 
-**Geometries.** Find out whether the geometry files of the released UXClumpy geometries can be obtained
-from the author of UXClumpy, who provided the geometry file used in the pilot run, and decide whether to
-use these geometries or freshly regenerated ones.
+**Geometries.** The author of UXClumpy, who provided the geometry file used in the pilot run, has since
+provided the geometry files of the 20 released UXClumpy geometries (see Geometry files in the Reference
+model chapter). Decide whether to use these geometries or freshly regenerated ones.
 
 - *Released geometries.* The spectra can be compared directly with the UXClumpy table, for the same clouds and
   sky fractions, and users can switch between the two models without a change of geometry. On the other hand,
-  the parameter grid is that of UXClumpy, with a single random realization per geometry, whose particular
-  structures cause irregular dependencies on the geometry parameters (see Example spectra in the Reference
-  model chapter), and obtaining the files depends on the cooperation of the author.
+  the parameter grid is that of UXClumpy, with a single random realization shared by all geometries, whose
+  particular structures cause irregular dependencies on the geometry parameters (see Example spectra in the
+  Reference model chapter). The files also carry the peculiarities of the UXClumpy generator, such as the
+  second-row ring spheres with column densities of the cloud population (see Inner Compton-thick ring in the
+  Reference model chapter).
 - *Regenerated geometries.* These allow a different or finer parameter grid, and several realizations per
   geometry, which show how much the spectra depend on the particular realization. On the other hand, the
   recipe must be reproduced faithfully, which is uncertain for some details (see Open points in the Reference
-  model chapter), and verified, for example through the column density distributions. Moreover, the comparison
-  with UXClumpy becomes statistical rather than direct.
+  model chapter), and verified, for example by comparing the sky fractions of regenerated and released
+  geometries. Moreover, the comparison with UXClumpy becomes statistical rather than direct.
 
 **Energetic end of the spectral range.** SKIRT currently does not allow wavelengths short of 1 pm (1239.8 keV),
 and the `XRayAtomicGasMix` sets all cross sections to zero above 500 keV, whereas the UXClumpy source extends
@@ -96,10 +98,10 @@ one combination of geometry and incident spectrum, so that the UXClumpy grid, wi
 **SKIRT performance.** Measure where SKIRT spends time when simulating these models, and implement performance
 improvements where possible.
 
-**Comparison with released geometries.** Run a few simulations with geometries identical or close to
-released ones, such as those with `TORsigma` = 28 and 84 and `CTKcover` = 0.6 used in the comparison of the
-pilot run, both with the full SKIRT physics and with physics reduced to match XARS (free-electron
-scattering, the XARS set of fluorescent lines, and no intrinsic line shapes).
+**Comparison with released geometries.** Run a few simulations with released geometries, such as those
+with `TORsigma` = 28 and 84 and `CTKcover` = 0.6 used in the comparison of the pilot run, both with the
+full SKIRT physics and with physics reduced to match XARS (free-electron scattering, the XARS set of
+fluorescent lines, and no intrinsic line shapes).
 
 ## Production tasks
 
