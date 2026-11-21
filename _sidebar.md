@@ -9,6 +9,7 @@
 - [Dynamic grid refinement](dynamic-grid-refinement/01-introduction.md)
 - [Escape instruments](escape-instruments/01-introduction.md)
 - [Checkpointing](checkpointing/01-introduction.md)
+- [Spectral variants](spectral-variants/01-introduction.md)
 
 <br>
 
