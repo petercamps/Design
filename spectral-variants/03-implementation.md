@@ -135,17 +135,19 @@ void setSpectralVariants(const SpectralVariantsInterface* variants);
 which enables the recording of the variants, with K = `variants->numSpectralVariants()`. It applies to the SED of a
 distant instrument and to the escape bins, the two modes of the recording instruments.
 
-**Arrays.** For each recorded flux component and statistics power, the recorder allocates a variant array of K times
-the size of the corresponding regular array, with the variant index varying fastest, so that the K additions for a
-contribution touch consecutive memory.
+**Arrays.** For each regular array, that is, for each recorded flux component, scattering level, and Stokes vector
+element, and for each statistics power, the recorder allocates a variant array of K times the size of the
+corresponding regular array, with the variant index varying fastest, so that the K additions for a contribution touch
+consecutive memory. The variant arrays mirror the regular arrays, so that the recorder can allocate, sum, and write
+them in loops over the regular arrays, without special cases for some of them.
 
 **Factors.** The factors are constant for a history. Each thread keeps the history index and the K factors of the
 history it is processing, and obtains new factors from the interface, for the packet's primary source index and launch
 wavelength, when a detection belongs to another history.
 
-**Recording.** `detect()` records each contribution in the regular arrays as before, and, for each component it
-touches, adds r<sub>k</sub> times the contribution to the variant arrays, for k = 0 to K − 1, with the same lock-free
-additions. Photon packets without a primary source index, which cannot occur under the conditions checked during
+**Recording.** `detect()` records each contribution in the regular arrays as before, and, for each regular array it
+touches, including the scattering levels and the Stokes vector elements, adds r<sub>k</sub> times the value it adds
+there to the corresponding variant array, for k = 0 to K − 1, with the same lock-free additions. Photon packets without a primary source index, which cannot occur under the conditions checked during
 setup, are not recorded in the variant arrays.
 
 **Statistics.** The contribution list of each thread, which collects the contributions of a history for the
@@ -185,9 +187,11 @@ New test cases in the functional test suite:
 
 - **Exact reweighting.** A point source in a dusty sphere, in extinction-only mode, with a variants file holding a
   tabulated black body as its own SED and two variants (a black body of another temperature and a power law), and
-  launch wavelengths drawn from the bias distribution alone (ξ = 1). Separate simulations, each with a two-column
-  file holding one variant as the source's own SED, with the same random seed and a single thread, reproduce the
-  variant output of an SED instrument and an escape instrument up to rounding errors, including the statistics.
+  launch wavelengths drawn from the bias distribution alone (ξ = 1). The instruments record the flux components, two
+  scattering levels, and the statistics, and the SED instrument also records polarization, with a dust mix that uses
+  the scattering type `SphericalPolarization`. Separate simulations, each with a two-column file holding one variant
+  as the source's own SED, with the same random seed and a single thread, reproduce the variant output of an SED
+  instrument and an escape instrument up to rounding errors, in all columns.
 - **Switch off.** The same simulation with the switch off produces no variant output, and the same regular output as
   with the switch on and as with a two-column file.
 - **Fluorescence.** The same comparison for an X-ray source in a gas with the `XRayAtomicGasMix`, which shows that the

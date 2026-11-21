@@ -133,19 +133,32 @@ During setup, SKIRT reports an error if the variants are on and:
 
 The extra columns in the SED files of other sources are ignored, as when the variants are off.
 
-## Flux components and statistics
+## Recorded quantities and statistics
 
-For each variant, the instrument records the same flux components as for its regular output: the total flux, or,
-with `recordComponents` enabled, the transparent, direct primary, scattered primary, transparent secondary, direct
-secondary, and scattered secondary flux. The secondary components hold the emulated secondary emission, such as
-X-ray fluorescence, which is reweighted with the history that produced it. Scattering levels and polarization are
-recorded for the regular output only.
+For each variant, the instrument records the same quantities as for its regular output, as configured by its own
+properties:
+
+- the total flux, or, with `recordComponents` enabled, the transparent, direct primary, scattered primary,
+  transparent secondary, direct secondary, and scattered secondary flux, where the secondary components hold the
+  emulated secondary emission, such as X-ray fluorescence, which is reweighted with the history that produced it;
+- with `recordComponents` enabled and `numScatteringLevels` positive, the primary flux scattered once, twice, and so
+  on, up to that number of times;
+- for an SED instrument with `recordPolarization` enabled, the Stokes vector elements Q, U, and V of the total flux
+  and, with `recordComponents` enabled, of each flux component. Escape instruments do not record polarization.
+
+All of these quantities are reweighted with the same factor r<sub>k</sub>. The number of scattering events of a
+photon packet and its normalized Stokes vector follow from its history, that is, from the geometry, the interactions,
+and the random numbers, and not from the source spectrum. A contribution to a scattering level or a Stokes vector
+element is therefore the luminosity of the detected photon packet, which scales with r<sub>k</sub>, multiplied by a
+factor that is the same for all variants. The variant arrays thus mirror the regular arrays, so that the output of a
+variant has the same columns as the regular output.
 
 With `recordStatistics` enabled, the instrument records, for each variant, the sums of the powers one to four of the
-reweighted contribution of each history to each bin. If w is the summed contribution of a history to a bin in the
-regular output, its contribution to variant k is r<sub>k</sub> w, and its powers are r<sub>k</sub><sup>n</sup>
-w<sup>n</sup>. The power zero, the number of contributing histories, is the same as for the regular output. From
-these sums, the relative error and the variance of the variance of each variant follow as for the regular output.
+reweighted contribution of each history to the total flux in each bin, as it does for the regular output. If w is
+the summed contribution of a history to a bin in the regular output, its contribution to variant k is r<sub>k</sub> w,
+and its powers are r<sub>k</sub><sup>n</sup> w<sup>n</sup>. The power zero, the number of contributing histories, is
+the same as for the regular output. From these sums, the relative error and the variance of the variance of each
+variant follow as for the regular output.
 
 ## Output
 
@@ -183,22 +196,48 @@ between neighbouring spectral parameters.
 
 ## Cost and memory
 
-- **Memory.** For each variant, the recorder holds one array per recorded flux component and per statistics power one
-  to four, each of the size of the corresponding array of the regular output. With six flux components, four
-  statistics powers, and a grid of 25 371 wavelength bins, a variant takes about 2 MB per SED instrument. Because all
-  SED and escape instruments record the variants, this applies to each of them. For the clumpy torus model, with 55
-  variants and 176 instruments, the variants take about 20 GB in each MPI process, or about 10 GB without the flux
-  components. A simulation with many variants should therefore use fewer processes with more threads each.
-- **Time.** Each detection adds its contribution for every variant and every recorded component, and, at the end of
-  the history, four statistics powers for every variant, so that the recording work grows about linearly with the
-  number of variants. In the first pilot run of the clumpy torus model, each instrument registered 4.3 contributions
-  per photon packet on average, according to the sums of the statistics of power zero: one for the emission and one
-  for each of about 3.3 scattering events. With 176 instruments, a photon packet then makes about 750 contributions,
-  each of which needs about 300 lock-free additions for 55 variants with flux components and statistics, or about
-  2 × 10<sup>5</sup> additions per photon packet. At a few nanoseconds per addition, this takes 0.5 to 1 ms, compared
-  with about 3 ms per photon packet on one core of the HPC without variants, an overhead of roughly 15% to 30%. The
-  cost of an addition remains to be measured. Even if a simulation with variants took twice as long as one without,
-  it would replace 55 simulations.
-- **Output.** For the clumpy torus model, the output of a simulation with 55 variants amounts to about 100 GB of text
-  files, or about 30 GB of HDF5 bundles. The 20 simulations of the table, with 5 × 10<sup>9</sup> photon packets each,
-  would take about 100 000 core hours, plus the recording overhead, instead of 5.5 million.
+### Memory
+
+For each variant, the recorder holds a copy of each regular array, one for the total flux and one for each recorded
+flux component, scattering level, and Stokes vector element, and one array for each statistics power one to four,
+each of the size of the corresponding array of the regular output. Because all SED and escape instruments record the
+variants, this applies to each of them, and each MPI process holds all these arrays. The memory for the variants thus
+grows with the product of the number of variants, the number of instruments, the number of recorded arrays, and the
+size of an array. Each scattering level adds one array per variant, and polarization three, or 21 with the flux
+components. The instruments of a simulation with many variants should therefore record only what is needed, and the
+simulation should use fewer processes with more threads each.
+
+For example, the clumpy torus model has a grid of 25 371 wavelength bins, so that an array of an SED instrument takes
+about 200 kB. With the total flux, six flux components, and four statistics powers, a variant takes about 2 MB per
+SED instrument. With 55 variants and 176 instruments, the variants take about 20 GB in each MPI process, or about
+10 GB without the flux components. Each further array, such as a scattering level, adds about 2 GB.
+
+### Time
+
+Each detection adds its contribution for every variant to each array that it touches in the regular output, and, at
+the end of the history, four statistics powers for every variant, so that the recording work grows about linearly
+with the number of variants. The number of additions per photon packet is the number of contributions, which is the
+number of instruments times the number of detections per instrument, one for the emission and one for each
+scattering event, multiplied by the number of variants and by the number of arrays touched per contribution. The
+relative overhead depends on how this compares with the time to trace a photon packet without variants, which is
+large in a medium with many cells or clumps along each path.
+
+For example, in the first pilot run of the clumpy torus model, each instrument registered 4.3 contributions per photon
+packet on average, according to the sums of the statistics of power zero: one for the emission and one for each of
+about 3.3 scattering events. With 176 instruments, a photon packet then makes about 750 contributions, each of which
+needs about 300 lock-free additions for 55 variants with flux components and statistics, or about 2 × 10<sup>5</sup>
+additions per photon packet. At a few nanoseconds per addition, this takes 0.5 to 1 ms, compared with about 3 ms per
+photon packet on one core of the HPC without variants, an overhead of roughly 15% to 30%. The cost of an addition
+remains to be measured. Even if a simulation with variants took twice as long as one without, it would replace 55
+simulations.
+
+### Output and total cost
+
+Each instrument writes its regular output once more for each variant, so that the output of a simulation grows
+linearly with the number of variants. In return, a simulation with K variants replaces K simulations, so that the
+computation time for a grid of models over the spectrum of the first source drops by about a factor K, apart from the
+recording overhead.
+
+For example, for the clumpy torus model, the output of a simulation with 55 variants amounts to about 100 GB of text
+files, or about 30 GB of HDF5 bundles. The 20 simulations of the table, with 5 × 10<sup>9</sup> photon packets each,
+would take about 100 000 core hours, plus the recording overhead, instead of 5.5 million.

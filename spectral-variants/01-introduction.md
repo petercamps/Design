@@ -78,8 +78,9 @@ The reweighting is exact under the following conditions, which SKIRT checks duri
   oligochromatic simulations are not supported (see Open questions).
 - **All SED and escape instruments.** When the variants are on, every SED instrument and escape instrument records
   them, and no other instrument does. Frame, full, all-sky, HEALPix, perspective, and time instruments do not,
-  because the memory of their data cubes would be multiplied by the number of variants. Scattering levels and
-  polarization are not recorded for the variants.
+  because the memory of their data cubes would be multiplied by the number of variants. For each variant, an
+  instrument records everything it records in its regular output: the flux components, the scattering levels, and
+  the polarization, as configured by its own properties.
 
 ## Impact on PTS
 
@@ -92,7 +93,7 @@ file bundle, which a script writes from the parameters of the variants.
 ## Overview
 
 - **[Features](spectral-variants/02-features.md)** describes the reweighting, the variants file and the switch, the
-  flux components and statistics, the output, the choice of the launch distribution, and the cost.
+  recorded quantities and statistics, the output, the choice of the launch distribution, and the cost.
 - **[Implementation](spectral-variants/03-implementation.md)** describes the changes to the instrument system, the
   sources and their SED file, the photon packet, the instruments, and the flux recorder, and the tests.
 - **[Open questions](spectral-variants/04-open-questions.md)** lists alternatives and possible extensions.

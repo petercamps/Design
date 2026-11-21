@@ -10,8 +10,10 @@ its variants, such as black bodies or analytic power laws, each normalized like 
 property of the source and a coverage check on a fine wavelength grid, since the variants no longer share the
 tabulated wavelengths of the source's own SED, and it makes the ski file grow with the number of variants.
 
-**A choice of instruments.** The switch makes every SED and escape instrument record the variants. A property of
-each instrument could exclude some of them, to save memory when only a few sight lines need the variants.
+**A choice of instruments and quantities.** The switch makes every SED and escape instrument record the variants,
+with all the quantities of its regular output. A property of each instrument could exclude some instruments, or
+restrict the variants to the total flux, to save memory when only a few sight lines need the variants, or when the
+flux components, scattering levels, or polarization are needed for the regular output only.
 
 **Response matrix.** XARS records a response matrix from injected to escaping energy, from which the spectrum for any
 incident spectrum follows after the simulation. In SKIRT, an instrument could likewise record each contribution in a
@@ -45,4 +47,4 @@ depend on the launch direction, and to the luminosity alone. Neither is needed f
 
 **Oligochromatic simulations and other instruments.** Variants could be supported in oligochromatic simulations, for
 which the factors are evaluated at the discrete wavelengths, and in instruments with data cubes, at the cost of their
-memory. Polarization and scattering levels could be recorded for the variants in the same way as the flux components.
+memory.
